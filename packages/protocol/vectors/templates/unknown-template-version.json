@@ -1,0 +1,58 @@
+{
+  "description": "template_version 2 not in registry → unverified",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"base\":\"main\",\"head_sha\":\"x\",\"method\":\"merge\",\"pr\":1,\"repo\":\"acme/api\"},\"expires_at\":\"1970-01-01T00:03:00.006Z\",\"idempotency_key\":\"c3d5966477a2913b3dac9e47a6518b67b1ce4ec6e30d45be7bf67bb7786be501\",\"issued_at\":\"1970-01-01T00:00:00.006Z\",\"mode\":\"enforce\",\"nonce\":\"KKKKKKKKKKKKKKKKKKKKKK\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"github.merge_pull_request\",\"template_version\":2,\"tier\":2,\"tool\":\"github.merge_pull_request\"}",
+    "registries": [
+      {
+        "adapter": "github",
+        "templates": [
+          {
+            "template_id": "github.merge_pull_request",
+            "template_version": 1,
+            "text": "Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}",
+            "sha256": "0280710fb0ac477803f2002b1c52027717ed45bc7e8da1ec79b87ec7754d75de"
+          },
+          {
+            "template_id": "github.create_deployment",
+            "template_version": 1,
+            "text": "Deploy {ref} to {environment} on {repo}",
+            "sha256": "f76538cd625f09e2729b20d9c745cd0bdc0249e0ec69a85edc37007c367687d1",
+            "elide": [
+              "description"
+            ]
+          }
+        ]
+      },
+      {
+        "adapter": "postgres",
+        "templates": [
+          {
+            "template_id": "postgres.execute",
+            "template_version": 1,
+            "text": "{statement_kind} on {database}@{host}: {statement}",
+            "sha256": "4c2078abc027b5d4b398c910825ca198c0333b899aeef2c69baf964c1bd3d8d6"
+          }
+        ]
+      },
+      {
+        "adapter": "alpaca",
+        "templates": [
+          {
+            "template_id": "alpaca.place_order",
+            "template_version": 1,
+            "text": "Place order: {side} {qty} {symbol} {type} on {account} (notional {notional_usd} USD)",
+            "sha256": "48ee763b6759d14d2196c98cc5fea215795e76cef9fab061cab27a8f78043337",
+            "elide": [
+              "limit_price",
+              "time_in_force"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "unverified",
+    "reason": "unknown_template"
+  }
+}

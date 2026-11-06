@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" role="img" aria-label="Signeto">
+  <!-- Signeto mark: a pressed wax seal. Verdigris wax, the signature stroke is the impression cut into it (Ink). Same in dark and light. -->
+  <path fill="#38B6A5" d="M12.00 2.71 C14.03 2.67 16.65 3.33 18.20 4.61 C19.75 5.88 20.93 8.32 21.30 10.36 C21.67 12.40 21.42 15.06 20.42 16.86 C19.43 18.66 17.26 20.55 15.33 21.16 C13.41 21.77 10.75 21.31 8.89 20.53 C7.04 19.76 5.32 18.22 4.19 16.51 C3.07 14.80 1.84 12.20 2.15 10.26 C2.45 8.32 4.37 6.13 6.01 4.87 C7.66 3.61 9.97 2.76 12.00 2.71 Z"/>
+  <path fill="none" stroke="#0B1020" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M6.42 13.36 C8.40 13.36 9.15 10.02 10.20 10.26 C11.13 10.51 10.88 14.36 11.75 14.11 C12.74 13.80 12.68 9.15 13.98 9.77 C15.10 10.33 14.90 13.30 16.00 12.70 L18.00 10.20"/>
+</svg>

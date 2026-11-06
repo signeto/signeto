@@ -1,0 +1,40 @@
+{
+  "description": "{{ and }} render as literal braces",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"name\":\"x\"},\"expires_at\":\"1970-01-01T00:03:00.001Z\",\"idempotency_key\":\"043d19e99d89456f4ad0906a71740b65bcffdc69b6df7dbbd738778b828bd8c3\",\"issued_at\":\"1970-01-01T00:00:00.001Z\",\"mode\":\"enforce\",\"nonce\":\"EEEEEEEEEEEEEEEEEEEEEE\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.braces\",\"template_version\":1,\"tier\":2,\"tool\":\"test.braces\"}",
+    "registries": [
+      {
+        "adapter": "test",
+        "templates": [
+          {
+            "template_id": "test.braces",
+            "template_version": 1,
+            "text": "Literal {{braces}} around {name} and {{{name}}}",
+            "sha256": "d30b3886e698ad7ec2f67ec91e6642c2d9e947ad1ea31b1a91dfe92cfcfc1d1c"
+          },
+          {
+            "template_id": "test.nested",
+            "template_version": 1,
+            "text": "{order.side} {order.qty} {order.symbol}; first file {files.0}; flag {flag}; n {n}",
+            "sha256": "c1996ac478b9a963bc6a69a6a13e6b627239c567ca95b04ba07e19de4a3cd719"
+          },
+          {
+            "template_id": "test.elide",
+            "template_version": 1,
+            "text": "Deploy {ref} to {environment}",
+            "sha256": "c55cd62ec8c1d21c02e8a63e9575f0e395871ba45e645c361042ecca54fc3d33",
+            "elide": [
+              "description",
+              "auto_merge"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "ok",
+    "text": "Literal {braces} around x and {x}",
+    "hidden": []
+  }
+}

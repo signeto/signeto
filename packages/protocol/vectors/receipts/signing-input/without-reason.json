@@ -1,0 +1,12 @@
+{
+  "description": "Signing input without reason (member omitted)",
+  "inputs": {
+    "canonical_bytes_sha256": "3e05f32c7f0f072f1db246527958693dd79a6532abc7907dabd0f5c9b9d27342",
+    "decision": "approve",
+    "signed_at": "2026-11-05T18:05:00.000Z"
+  },
+  "expected": {
+    "signing_input": "{\"canonical_bytes_sha256\":\"3e05f32c7f0f072f1db246527958693dd79a6532abc7907dabd0f5c9b9d27342\",\"decision\":\"approve\",\"signed_at\":\"2026-11-05T18:05:00.000Z\"}",
+    "webauthn_challenge": "Ysy3MYWe19z1k2Y9eum9wqdR9ZscyUAzdCP5iCwJvnM"
+  }
+}

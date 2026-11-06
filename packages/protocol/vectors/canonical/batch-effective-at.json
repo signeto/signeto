@@ -1,0 +1,39 @@
+{
+  "description": "Batch step with atomic flag, effective_at (cooling-off), 5-minute expiry, CI origin",
+  "inputs": {
+    "action": {
+      "protocol_version": "1.0",
+      "tool": "cloudflare.delete_record",
+      "template_id": "cloudflare.delete_record",
+      "template_version": 1,
+      "args_resolved": {
+        "zone": "acme.com",
+        "name": "api.acme.com",
+        "type": "A",
+        "content": "203.0.113.9"
+      },
+      "requester": {
+        "agent": "claude-code",
+        "session_id": "sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3",
+        "host": "jason-mbp",
+        "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs"
+      },
+      "nonce": "DDDDDDDDDDDDDDDDDDDDDD",
+      "idempotency_key": "799945b66b341c06dba86c55723dca6b2e6ffbbe71a4aeb804a2df12adf21277",
+      "issued_at": "2026-11-05T18:20:00.000Z",
+      "expires_at": "2026-11-05T18:25:00.000Z",
+      "origin_hash": "dacdeba19945b8b50fd9bf2807331e71d48d5c3237791f7a7757c66096ffb903",
+      "tier": 2,
+      "mode": "enforce",
+      "batch_id": "CCCCCCCCCCCCCCCCCCCCCC",
+      "batch_index": 1,
+      "atomic": true,
+      "effective_at": "2026-11-05T18:30:00.000Z"
+    }
+  },
+  "expected": {
+    "canonical_bytes": "{\"args_resolved\":{\"content\":\"203.0.113.9\",\"name\":\"api.acme.com\",\"type\":\"A\",\"zone\":\"acme.com\"},\"atomic\":true,\"batch_id\":\"CCCCCCCCCCCCCCCCCCCCCC\",\"batch_index\":1,\"effective_at\":\"2026-11-05T18:30:00.000Z\",\"expires_at\":\"2026-11-05T18:25:00.000Z\",\"idempotency_key\":\"799945b66b341c06dba86c55723dca6b2e6ffbbe71a4aeb804a2df12adf21277\",\"issued_at\":\"2026-11-05T18:20:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"DDDDDDDDDDDDDDDDDDDDDD\",\"origin_hash\":\"dacdeba19945b8b50fd9bf2807331e71d48d5c3237791f7a7757c66096ffb903\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"cloudflare.delete_record\",\"template_version\":1,\"tier\":2,\"tool\":\"cloudflare.delete_record\"}",
+    "canonical_bytes_sha256": "54792978c7b390a9c6cd79e118fce1dbfa88110fd6542f2e8e19374bd32fb524",
+    "idempotency_key": "799945b66b341c06dba86c55723dca6b2e6ffbbe71a4aeb804a2df12adf21277"
+  }
+}

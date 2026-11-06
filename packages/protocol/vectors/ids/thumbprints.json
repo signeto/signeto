@@ -1,0 +1,28 @@
+{
+  "description": "RFC 7638 thumbprints → gw_/dev_ ids and human fingerprints",
+  "inputs": {
+    "gateway": {
+      "crv": "Ed25519",
+      "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28",
+      "kty": "OKP"
+    },
+    "device_es256": {
+      "kty": "EC",
+      "x": "Of8uj529uXHN5vuSVnd9npjQoo3omxCJUxXVYt_WXS8",
+      "y": "ymLO0QWGOus6jSc_kOwiyELsXG3f1Gf9MmJQczzivw4",
+      "crv": "P-256"
+    },
+    "device_ed25519": {
+      "crv": "Ed25519",
+      "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8",
+      "kty": "OKP"
+    }
+  },
+  "expected": {
+    "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+    "device_es256_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+    "device_ed25519_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+    "gateway_fingerprint": "8ed9 7cb9 76c0 d7d6",
+    "device_es256_fingerprint": "6b4f c5bb 2730 f669"
+  }
+}

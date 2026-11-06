@@ -1,0 +1,121 @@
+# @signeto/adapter-github
+
+Signeto adapter for GitHub, **mint mode** (docs/adapters.md §3.2, SPEC.md §6.1). Every approved action gets its own
+GitHub App installation access token, scoped to the one repository and the permissions that one call needs, valid for
+at most an hour, and revoked as soon as `execute` returns. The gateway never holds a GitHub write credential at rest.
+
+## Tools
+
+| Tool | Effect | Agent input | Resolved (signed) args | Headline |
+|---|---|---|---|---|
+| `github.merge_pull_request` | write | `{repo, pr, method?}` | `{repo, pr, base, head_sha, method}` | `Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}` |
+| `github.dispatch_workflow` | write | `{repo, workflow, ref, inputs?}` | `{repo, workflow, ref, ref_sha, inputs}` (`inputs` elided) | `Run {workflow} on {ref} ({ref_sha}) in {repo}` |
+| `github.read_pull_request` | read | `{repo, pr}` | `{repo, pr}` | `Read PR #{pr} on {repo}` |
+
+What `resolve` pins:
+
+- **merge**: looks the PR up with the read-only client, refuses anything that is not open (closed, merged, draft, missing,
+  or living in a different repository than the agent named), and signs the **head SHA** and base branch. `method`
+  defaults to `squash`. `execute` sends `sha: head_sha` to GitHub's merge endpoint, so GitHub itself refuses with
+  `409` if the branch moved after the approver signed; the adapter reports that (and `405`, no longer mergeable) as
+  `precondition_failed`.
+- **dispatch**: confirms the workflow exists and is active, normalises a numeric workflow id to its file name
+  (`deploy.yml`), and signs the **commit SHA** the ref points at. `workflow_dispatch` takes no SHA, so `execute`
+  re-reads the ref with the minted token and throws `precondition_failed` without dispatching if it moved.
+- **read**: confirms the PR exists; signs only `{repo, pr}`.
+
+Repository names are lower-cased and merge methods normalised, so two spellings of the same action produce the same
+canonical bytes (idempotency, SPEC §5).
+
+## Secrets
+
+Configure these in the gateway credential store for adapter `github`:
+
+| Secret | Required | Purpose |
+|---|---|---|
+| `app_id` | yes | The GitHub App's numeric id. |
+| `private_key` | yes | The App's private key (PEM, as downloaded from GitHub). Used only to sign a ≤10 minute RS256 JWT in memory with `node:crypto`. |
+| `installation_id` | no | Pin the installation to mint from. When absent, the adapter resolves it per repository with `GET /repos/{owner}/{repo}/installation`. |
+
+There is deliberately no personal access token secret. If minting fails for any reason (App not installed on the
+repository, GitHub down, malformed or over-long token) the action fails closed with `credential_failed`; the adapter
+never falls back to a stored long-lived credential.
+
+### Read-only client for `resolve`
+
+`resolve` only receives the gateway's read-only upstream client. For this adapter that is a `GithubReadOnlyClient`
+(a `get(path)` over `https://api.github.com`), built with `createReadOnlyClient({ token })`. Give it a **read-only**
+credential: either an installation token minted out of band with `pull_requests:read`, `contents:read`,
+`actions:read`, or a fine-grained PAT limited to the same. The client has no method parameter, so it cannot write.
+
+## Creating the GitHub App
+
+1. GitHub → *Settings* → *Developer settings* → *GitHub Apps* → **New GitHub App** (an organisation-owned App is
+   recommended so it survives staff changes).
+2. Name it (e.g. `signeto-gateway`), set any homepage URL, **uncheck Webhook → Active** (no webhook needed).
+3. *Repository permissions* — the minimum set the adapter can mint from:
+
+   | Permission | Level | Needed by |
+   |---|---|---|
+   | Contents | Read and write | merge (writes the merge commit); dispatch needs only read for the ref check |
+   | Pull requests | Read and write | merge; read tool needs only read |
+   | Actions | Read and write | dispatch |
+   | Metadata | Read-only | implied by GitHub for every App |
+
+   Leave every other permission at *No access*. Organisation and account permissions stay empty.
+4. *Where can this GitHub App be installed?* → **Only on this account**.
+5. Create the App, note the **App ID** (`app_id`), then *Private keys* → **Generate a private key** and store the
+   downloaded `.pem` as `private_key`.
+6. **Install App** on the organisation, choosing *Only select repositories* and listing exactly the repositories the
+   agent may act on. Optionally note the installation id from the URL (`.../installations/<id>`) as `installation_id`.
+7. If branch protection requires status checks or reviews, the App's merge is subject to them like any other actor.
+   Repository rulesets can additionally bypass-list the App for nothing but merging.
+
+## Mint scope
+
+Each `mint` call builds a fresh App JWT, then `POST /app/installations/{id}/access_tokens` with:
+
+| Tool | `repositories` | `permissions` |
+|---|---|---|
+| `merge_pull_request` | `[<repo name>]` | `{ contents: "write", pull_requests: "write" }` |
+| `dispatch_workflow` | `[<repo name>]` | `{ actions: "write", contents: "read" }` |
+| `read_pull_request` | `[<repo name>]` | `{ pull_requests: "read" }` |
+
+The adapter refuses the token (`credential_failed`) when GitHub's response lacks a usable `expires_at`, is valid for
+more than one hour, or reports any permission or repository beyond what was requested. The credential's `scope` string
+written to the ledger looks like:
+
+```
+github installation token: repo=acme/api contents:write pull_requests:write installation=99 expires=2026-11-06T13:00:00.000Z
+```
+
+`revoke()` calls `DELETE /installation/token` after `execute`, success or failure (best effort; a failed revoke is
+logged and the token expires within the hour anyway).
+
+## Egress
+
+`api.github.com` only. `execute` uses the gateway's egress-restricted `ctx.fetch`. `mint` and `revoke` use the fetch
+injected into `createGithubAdapter({ fetch })` (the gateway's `CredentialContext` carries none), defaulting to global
+fetch; pass the gateway's restricted fetch there in production.
+
+## Usage
+
+```ts
+import { createGithubAdapter, createReadOnlyClient, manifest } from "@signeto/adapter-github";
+
+const adapter = createGithubAdapter({ fetch: restrictedFetch });
+// gateway deps:
+//   upstreamReadOnly: () => createReadOnlyClient({ token: process.env.GITHUB_READ_TOKEN!, fetch: restrictedFetch })
+//   secrets: () => ({ app_id, private_key, installation_id? })
+```
+
+## Development
+
+```
+pnpm --filter @signeto/adapter-github typecheck build test
+```
+
+Tests run offline against a routed mock fetch: manifest validation, resolve determinism/normalisation, JWT
+verification against a test public key, mint scope and fail-closed paths, execute preconditions (`sha`, 405/409),
+revoke, and `(agentArgs, upstreamState) → resolved args → rendered template` fixtures rendered with
+`renderTemplate` from `@signeto/protocol`.

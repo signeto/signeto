@@ -1,0 +1,27 @@
+{
+  "name": "@signeto/protocol",
+  "version": "0.0.0",
+  "description": "Canonical action, display templates, receipts, verification. The trust-path primitives shared by every Signeto component.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "echo 'lint: todo'"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  }
+}

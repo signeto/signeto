@@ -1,0 +1,37 @@
+{
+  "description": "github.merge_pull_request, tier 3, enforce, no batch (protocol.md §9.1)",
+  "inputs": {
+    "action": {
+      "protocol_version": "1.0",
+      "tool": "github.merge_pull_request",
+      "template_id": "github.merge_pull_request",
+      "template_version": 1,
+      "args_resolved": {
+        "repo": "acme/api",
+        "pr": 42,
+        "head_sha": "abc1234abc1234abc1234abc1234abc1234abc12",
+        "base": "main",
+        "method": "squash"
+      },
+      "requester": {
+        "agent": "claude-code",
+        "session_id": "sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3",
+        "host": "jason-mbp",
+        "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs"
+      },
+      "nonce": "AAAAAAAAAAAAAAAAAAAAAA",
+      "idempotency_key": "55d2bc1784347ee82b06eb44c93a849bad8cd41310d1d2c55e6dced948c84429",
+      "issued_at": "2026-11-05T18:04:09.123Z",
+      "expires_at": "2026-11-05T18:07:09.123Z",
+      "origin_hash": "93ac2a7de1b680ac6c0d62713c372d3f223cc0d1b41df20150946fd082755967",
+      "tier": 3,
+      "mode": "enforce"
+    }
+  },
+  "expected": {
+    "canonical_bytes": "{\"args_resolved\":{\"base\":\"main\",\"head_sha\":\"abc1234abc1234abc1234abc1234abc1234abc12\",\"method\":\"squash\",\"pr\":42,\"repo\":\"acme/api\"},\"expires_at\":\"2026-11-05T18:07:09.123Z\",\"idempotency_key\":\"55d2bc1784347ee82b06eb44c93a849bad8cd41310d1d2c55e6dced948c84429\",\"issued_at\":\"2026-11-05T18:04:09.123Z\",\"mode\":\"enforce\",\"nonce\":\"AAAAAAAAAAAAAAAAAAAAAA\",\"origin_hash\":\"93ac2a7de1b680ac6c0d62713c372d3f223cc0d1b41df20150946fd082755967\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"github.merge_pull_request\",\"template_version\":1,\"tier\":3,\"tool\":\"github.merge_pull_request\"}",
+    "canonical_bytes_sha256": "3e05f32c7f0f072f1db246527958693dd79a6532abc7907dabd0f5c9b9d27342",
+    "idempotency_key": "55d2bc1784347ee82b06eb44c93a849bad8cd41310d1d2c55e6dced948c84429",
+    "rendered": "Merge PR #42 into main on acme/api (squash) at abc1234abc1234abc1234abc1234abc1234abc12"
+  }
+}

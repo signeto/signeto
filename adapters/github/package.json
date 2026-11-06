@@ -1,0 +1,28 @@
+{
+  "name": "@signeto/adapter-github",
+  "version": "0.0.0",
+  "description": "Signeto GitHub adapter (mint mode): merge pull requests and dispatch workflows with a per-action GitHub App installation token.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "echo 'lint: todo'"
+  },
+  "dependencies": {
+    "@signeto/protocol": "workspace:*",
+    "@signeto/adapter-sdk": "workspace:*"
+  }
+}

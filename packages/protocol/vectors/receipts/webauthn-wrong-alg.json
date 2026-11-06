@@ -1,0 +1,40 @@
+{
+  "description": "webauthn block with alg Ed25519 is malformed",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"base\":\"main\",\"head_sha\":\"abc1234abc1234abc1234abc1234abc1234abc12\",\"method\":\"squash\",\"pr\":42,\"repo\":\"acme/api\"},\"expires_at\":\"2026-11-05T18:07:09.123Z\",\"idempotency_key\":\"55d2bc1784347ee82b06eb44c93a849bad8cd41310d1d2c55e6dced948c84429\",\"issued_at\":\"2026-11-05T18:04:09.123Z\",\"mode\":\"enforce\",\"nonce\":\"AAAAAAAAAAAAAAAAAAAAAA\",\"origin_hash\":\"93ac2a7de1b680ac6c0d62713c372d3f223cc0d1b41df20150946fd082755967\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"github.merge_pull_request\",\"template_version\":1,\"tier\":3,\"tool\":\"github.merge_pull_request\"}",
+    "issued_at": "2026-11-05T18:04:09.123Z",
+    "expires_at": "2026-11-05T18:07:09.123Z",
+    "device_public_key": {
+      "kty": "EC",
+      "x": "Of8uj529uXHN5vuSVnd9npjQoo3omxCJUxXVYt_WXS8",
+      "y": "ymLO0QWGOus6jSc_kOwiyELsXG3f1Gf9MmJQczzivw4",
+      "crv": "P-256"
+    },
+    "receipt": {
+      "receipt_version": "1.0",
+      "action_id": "act_01JBXK4Q9R2T4V6W8Y0Z1A3B5C",
+      "canonical_bytes_sha256": "3e05f32c7f0f072f1db246527958693dd79a6532abc7907dabd0f5c9b9d27342",
+      "decision": "approve",
+      "approver_id": "jason",
+      "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+      "signed_at": "2026-11-05T18:05:30.000Z",
+      "alg": "Ed25519",
+      "signature": "2Tht7STZtDb_GPyYv5SqJuErJ5o5eEPbu0HOtgxfuT9foa0HL9O7iBysvlCmB23sz-XRWTIKJeXs5tIUNauw5w",
+      "webauthn": {
+        "authenticator_data": "E9AzYazevM1SFFqVM58GcuKBj6CKfrpFzIVUKJxQgGIFAAAAAA",
+        "client_data_json": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiWmQtZUFkdXNkUDlVU3M1SWVsZWlraS1NY29BVXE4UVdRbkhOa0FyUjNiYyIsIm9yaWdpbiI6Imh0dHBzOi8vYXBwcm92ZS5zaWduZXRvLmRldiIsImNyb3NzT3JpZ2luIjpmYWxzZX0"
+      }
+    },
+    "webauthn_policy": {
+      "allowed_origins": [
+        "https://approve.signeto.dev"
+      ],
+      "rp_id": "approve.signeto.dev",
+      "require_user_verified": true
+    }
+  },
+  "expected": {
+    "verify": "error",
+    "code": "receipt_malformed"
+  }
+}
