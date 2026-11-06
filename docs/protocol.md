@@ -150,8 +150,11 @@ Receivers (device, relay, verifier) MUST operate on the bytes as received. A rec
 - `issued_at`
 - `expires_at`
 - `effective_at`
+- `origin_hash`
 
-All other members, including `requester` (and therefore `session_id`) and `origin_hash`, are included. This satisfies SPEC §5 "hash(canonical action minus nonce/timestamps) + requester session": the session is inside the hashed object.
+All other members, including `requester` (and therefore `session_id`), are included. This satisfies SPEC §5 "hash(canonical action minus nonce/timestamps) + requester session": the session is inside the hashed object.
+
+`origin_hash` is excluded because its input changes on every retry: an MCP client assigns a new request id (`tool_use_id`, §2.8) each time it calls the tool, so a hash that included it would never match. The ledger keeps the `origin_hash` of the action as first issued.
 
 Two actions with the same `idempotency_key` are the same request. The gateway MUST reattach a retry to the existing pending action (§6.3) rather than issue a second nonce while the first is unexpired.
 
@@ -189,7 +192,7 @@ Two actions with the same `idempotency_key` are the same request. The gateway MU
     "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs"
   },
   "nonce": "AAAAAAAAAAAAAAAAAAAAAA",
-  "idempotency_key": "55d2bc1784347ee82b06eb44c93a849bad8cd41310d1d2c55e6dced948c84429",
+  "idempotency_key": "d6c9ba6711cedcb098ec0694c215d960b8b130a03f74378fc4b31c36fcad5376",
   "issued_at": "2026-11-05T18:04:09.123Z",
   "expires_at": "2026-11-05T18:07:09.123Z",
   "origin_hash": "93ac2a7de1b680ac6c0d62713c372d3f223cc0d1b41df20150946fd082755967",
@@ -901,7 +904,7 @@ Codes are stable strings. HTTP status is advisory; clients MUST branch on `code`
       "args_resolved": { "repo": "acme/api", "pr": 42, "head_sha": "abc1234abc1234abc1234abc1234abc1234abc12", "base": "main", "method": "squash" },
       "requester": { "agent": "claude-code", "session_id": "sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3", "host": "jason-mbp", "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs" },
       "nonce": "AAAAAAAAAAAAAAAAAAAAAA",
-      "idempotency_key": "55d2bc1784347ee82b06eb44c93a849bad8cd41310d1d2c55e6dced948c84429",
+      "idempotency_key": "d6c9ba6711cedcb098ec0694c215d960b8b130a03f74378fc4b31c36fcad5376",
       "issued_at": "2026-11-05T18:04:09.123Z",
       "expires_at": "2026-11-05T18:07:09.123Z",
       "origin_hash": "93ac2a7de1b680ac6c0d62713c372d3f223cc0d1b41df20150946fd082755967",
@@ -910,9 +913,9 @@ Codes are stable strings. HTTP status is advisory; clients MUST branch on `code`
     }
   },
   "expected": {
-    "idempotency_key": "55d2bc1784347ee82b06eb44c93a849bad8cd41310d1d2c55e6dced948c84429",
-    "canonical_bytes": "{\"args_resolved\":{\"base\":\"main\",\"head_sha\":\"abc1234abc1234abc1234abc1234abc1234abc12\",\"method\":\"squash\",\"pr\":42,\"repo\":\"acme/api\"},\"expires_at\":\"2026-11-05T18:07:09.123Z\",\"idempotency_key\":\"55d2bc1784347ee82b06eb44c93a849bad8cd41310d1d2c55e6dced948c84429\",\"issued_at\":\"2026-11-05T18:04:09.123Z\",\"mode\":\"enforce\",\"nonce\":\"AAAAAAAAAAAAAAAAAAAAAA\",\"origin_hash\":\"93ac2a7de1b680ac6c0d62713c372d3f223cc0d1b41df20150946fd082755967\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"github.merge_pull_request\",\"template_version\":1,\"tier\":3,\"tool\":\"github.merge_pull_request\"}",
-    "canonical_bytes_sha256": "3e05f32c7f0f072f1db246527958693dd79a6532abc7907dabd0f5c9b9d27342",
+    "idempotency_key": "d6c9ba6711cedcb098ec0694c215d960b8b130a03f74378fc4b31c36fcad5376",
+    "canonical_bytes": "{\"args_resolved\":{\"base\":\"main\",\"head_sha\":\"abc1234abc1234abc1234abc1234abc1234abc12\",\"method\":\"squash\",\"pr\":42,\"repo\":\"acme/api\"},\"expires_at\":\"2026-11-05T18:07:09.123Z\",\"idempotency_key\":\"d6c9ba6711cedcb098ec0694c215d960b8b130a03f74378fc4b31c36fcad5376\",\"issued_at\":\"2026-11-05T18:04:09.123Z\",\"mode\":\"enforce\",\"nonce\":\"AAAAAAAAAAAAAAAAAAAAAA\",\"origin_hash\":\"93ac2a7de1b680ac6c0d62713c372d3f223cc0d1b41df20150946fd082755967\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"github.merge_pull_request\",\"template_version\":1,\"tier\":3,\"tool\":\"github.merge_pull_request\"}",
+    "canonical_bytes_sha256": "f98e7401f10035c4b06232e3a47e637edfb7141db831caef4d281cc59dcfdf4a",
     "rendered": "Merge PR #42 into main on acme/api (squash) at abc1234abc1234abc1234abc1234abc1234abc12"
   }
 }
@@ -926,7 +929,7 @@ Note the member order in `canonical_bytes`: `args_resolved`, `expires_at`, `idem
 {
   "description": "Ed25519 software key, decision deny with reason",
   "inputs": {
-    "canonical_bytes_sha256": "3e05f32c7f0f072f1db246527958693dd79a6532abc7907dabd0f5c9b9d27342",
+    "canonical_bytes_sha256": "f98e7401f10035c4b06232e3a47e637edfb7141db831caef4d281cc59dcfdf4a",
     "device_public_key": { "kty": "OKP", "crv": "Ed25519", "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8" },
     "device_private_key_seed": "lRjDf1TqC80UW4at-i81Td658VW3QFzRPsbyICQQmTc",
     "receipt": {
@@ -937,13 +940,13 @@ Note the member order in `canonical_bytes`: `args_resolved`, `expires_at`, `idem
       "approver_id": "jason",
       "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
       "alg": "Ed25519",
-      "signature": "aQS6R_AkKptSRXCQ8P8SlvAM7KkN0Vsi19oslgjYL5hv4_gVNTOXUoIX--3q86DBaHV5pv66r3592T_afdoqCA",
+      "signature": "GUsYHAnJMXsVfNfqtlS3bgM5W11sNA79SA76-7r-SuREE2bL8pa89zggCpyNIX9kiipVrfjxG882WdH5TvwADg",
       "signed_at": "2026-11-05T18:05:00.000Z",
-      "canonical_bytes_sha256": "3e05f32c7f0f072f1db246527958693dd79a6532abc7907dabd0f5c9b9d27342"
+      "canonical_bytes_sha256": "f98e7401f10035c4b06232e3a47e637edfb7141db831caef4d281cc59dcfdf4a"
     }
   },
   "expected": {
-    "signing_input": "{\"canonical_bytes_sha256\":\"3e05f32c7f0f072f1db246527958693dd79a6532abc7907dabd0f5c9b9d27342\",\"decision\":\"deny\",\"reason\":\"Not during market hours\",\"signed_at\":\"2026-11-05T18:05:00.000Z\"}",
+    "signing_input": "{\"canonical_bytes_sha256\":\"f98e7401f10035c4b06232e3a47e637edfb7141db831caef4d281cc59dcfdf4a\",\"decision\":\"deny\",\"reason\":\"Not during market hours\",\"signed_at\":\"2026-11-05T18:05:00.000Z\"}",
     "verify": "ok",
     "resulting_status": "denied",
     "agent_sees": "Not during market hours"

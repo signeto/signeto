@@ -64,9 +64,13 @@ export const CanonicalActionSchema = z
 export type CanonicalAction = z.infer<typeof CanonicalActionSchema>;
 export type Requester = z.infer<typeof RequesterSchema>;
 
-/** §2.4: SHA-256 of the JCS of the action minus nonce, idempotency_key, issued_at, expires_at, effective_at. */
-export function idempotencyKey(action: Omit<CanonicalAction, "nonce" | "idempotency_key" | "issued_at" | "expires_at" | "effective_at"> & Partial<CanonicalAction>): string {
-  const { nonce: _n, idempotency_key: _k, issued_at: _i, expires_at: _e, effective_at: _f, ...rest } = action;
+/**
+ * §2.4: SHA-256 of the JCS of the action minus nonce, idempotency_key, issued_at, expires_at, effective_at
+ * and origin_hash. origin_hash is excluded because MCP clients assign a fresh request id to every retry,
+ * so including it would make every retry a new request.
+ */
+export function idempotencyKey(action: Omit<CanonicalAction, "nonce" | "idempotency_key" | "issued_at" | "expires_at" | "effective_at" | "origin_hash"> & Partial<CanonicalAction>): string {
+  const { nonce: _n, idempotency_key: _k, issued_at: _i, expires_at: _e, effective_at: _f, origin_hash: _o, ...rest } = action;
   return sha256hex(canonicalize(rest));
 }
 

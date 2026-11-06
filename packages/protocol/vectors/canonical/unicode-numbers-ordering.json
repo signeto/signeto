@@ -44,7 +44,7 @@
         "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs"
       },
       "nonce": "BBBBBBBBBBBBBBBBBBBBBB",
-      "idempotency_key": "6ca827e4964a007d1ae08d987f16e01ddab4f9c0b0147ba8705ec09014434872",
+      "idempotency_key": "66583abf30dc0d296fbfad5f3bbdfae211341803a55fc3a67aa3b5935ebef9f6",
       "issued_at": "2026-11-05T18:10:00.000Z",
       "expires_at": "2026-11-05T18:13:00.000Z",
       "origin_hash": "ff6455f38e7b71d7ed330c32423470d193b4960d7ceaff1cb02029c342bf14f5",
@@ -53,8 +53,8 @@
     }
   },
   "expected": {
-    "canonical_bytes": "{\"args_resolved\":{\"database\":\"prod\",\"host\":\"db-1\",\"nested\":{\"\":\"empty key\",\"a\":[true,false,{\"E\":1,\"e\":2,\"é\":\"e\",\"ẞ\":3}],\"z\":null},\"numbers\":[0,0,1,1.5,1e+21,1e-7,123456789012345,0.1,100000000000000000000],\"statement\":\"COMMENT ON TABLE users IS 'naïve \\\"quoted\\\" \\\\ back\\tslash\\nnewline 😀 \\u001b';\",\"statement_kind\":\"ddl\"},\"expires_at\":\"2026-11-05T18:13:00.000Z\",\"idempotency_key\":\"6ca827e4964a007d1ae08d987f16e01ddab4f9c0b0147ba8705ec09014434872\",\"issued_at\":\"2026-11-05T18:10:00.000Z\",\"mode\":\"advisory\",\"nonce\":\"BBBBBBBBBBBBBBBBBBBBBB\",\"origin_hash\":\"ff6455f38e7b71d7ed330c32423470d193b4960d7ceaff1cb02029c342bf14f5\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"postgres.execute\",\"template_version\":1,\"tier\":3,\"tool\":\"postgres.execute\"}",
-    "canonical_bytes_sha256": "7daa20d230d76a41caf9df418828120a91e354e97470ae32bd16ab39929f26db",
-    "idempotency_key": "6ca827e4964a007d1ae08d987f16e01ddab4f9c0b0147ba8705ec09014434872"
+    "canonical_bytes": "{\"args_resolved\":{\"database\":\"prod\",\"host\":\"db-1\",\"nested\":{\"\":\"empty key\",\"a\":[true,false,{\"E\":1,\"e\":2,\"é\":\"e\",\"ẞ\":3}],\"z\":null},\"numbers\":[0,0,1,1.5,1e+21,1e-7,123456789012345,0.1,100000000000000000000],\"statement\":\"COMMENT ON TABLE users IS 'naïve \\\"quoted\\\" \\\\ back\\tslash\\nnewline 😀 \\u001b';\",\"statement_kind\":\"ddl\"},\"expires_at\":\"2026-11-05T18:13:00.000Z\",\"idempotency_key\":\"66583abf30dc0d296fbfad5f3bbdfae211341803a55fc3a67aa3b5935ebef9f6\",\"issued_at\":\"2026-11-05T18:10:00.000Z\",\"mode\":\"advisory\",\"nonce\":\"BBBBBBBBBBBBBBBBBBBBBB\",\"origin_hash\":\"ff6455f38e7b71d7ed330c32423470d193b4960d7ceaff1cb02029c342bf14f5\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"postgres.execute\",\"template_version\":1,\"tier\":3,\"tool\":\"postgres.execute\"}",
+    "canonical_bytes_sha256": "e9443fd07d48c6b6a3711a5e8c1cca196d88b20a73f64080a01ea886c1da4ab9",
+    "idempotency_key": "66583abf30dc0d296fbfad5f3bbdfae211341803a55fc3a67aa3b5935ebef9f6"
   }
 }

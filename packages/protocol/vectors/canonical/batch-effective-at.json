@@ -19,7 +19,7 @@
         "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs"
       },
       "nonce": "DDDDDDDDDDDDDDDDDDDDDD",
-      "idempotency_key": "799945b66b341c06dba86c55723dca6b2e6ffbbe71a4aeb804a2df12adf21277",
+      "idempotency_key": "e06c65823e9394d123870d21df801214e4535b28365c15fc1f7e4afc254e5366",
       "issued_at": "2026-11-05T18:20:00.000Z",
       "expires_at": "2026-11-05T18:25:00.000Z",
       "origin_hash": "dacdeba19945b8b50fd9bf2807331e71d48d5c3237791f7a7757c66096ffb903",
@@ -32,8 +32,8 @@
     }
   },
   "expected": {
-    "canonical_bytes": "{\"args_resolved\":{\"content\":\"203.0.113.9\",\"name\":\"api.acme.com\",\"type\":\"A\",\"zone\":\"acme.com\"},\"atomic\":true,\"batch_id\":\"CCCCCCCCCCCCCCCCCCCCCC\",\"batch_index\":1,\"effective_at\":\"2026-11-05T18:30:00.000Z\",\"expires_at\":\"2026-11-05T18:25:00.000Z\",\"idempotency_key\":\"799945b66b341c06dba86c55723dca6b2e6ffbbe71a4aeb804a2df12adf21277\",\"issued_at\":\"2026-11-05T18:20:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"DDDDDDDDDDDDDDDDDDDDDD\",\"origin_hash\":\"dacdeba19945b8b50fd9bf2807331e71d48d5c3237791f7a7757c66096ffb903\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"cloudflare.delete_record\",\"template_version\":1,\"tier\":2,\"tool\":\"cloudflare.delete_record\"}",
-    "canonical_bytes_sha256": "54792978c7b390a9c6cd79e118fce1dbfa88110fd6542f2e8e19374bd32fb524",
-    "idempotency_key": "799945b66b341c06dba86c55723dca6b2e6ffbbe71a4aeb804a2df12adf21277"
+    "canonical_bytes": "{\"args_resolved\":{\"content\":\"203.0.113.9\",\"name\":\"api.acme.com\",\"type\":\"A\",\"zone\":\"acme.com\"},\"atomic\":true,\"batch_id\":\"CCCCCCCCCCCCCCCCCCCCCC\",\"batch_index\":1,\"effective_at\":\"2026-11-05T18:30:00.000Z\",\"expires_at\":\"2026-11-05T18:25:00.000Z\",\"idempotency_key\":\"e06c65823e9394d123870d21df801214e4535b28365c15fc1f7e4afc254e5366\",\"issued_at\":\"2026-11-05T18:20:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"DDDDDDDDDDDDDDDDDDDDDD\",\"origin_hash\":\"dacdeba19945b8b50fd9bf2807331e71d48d5c3237791f7a7757c66096ffb903\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"cloudflare.delete_record\",\"template_version\":1,\"tier\":2,\"tool\":\"cloudflare.delete_record\"}",
+    "canonical_bytes_sha256": "322446bd859cc8348c2c007d19a6e2ec30f87cf8e1dbd3f35b6305fe6be859ff",
+    "idempotency_key": "e06c65823e9394d123870d21df801214e4535b28365c15fc1f7e4afc254e5366"
   }
 }

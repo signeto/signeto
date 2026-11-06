@@ -1,7 +1,7 @@
 {
   "description": "Unknown member in receipt",
   "inputs": {
-    "canonical_bytes": "{\"args_resolved\":{\"base\":\"main\",\"head_sha\":\"abc1234abc1234abc1234abc1234abc1234abc12\",\"method\":\"squash\",\"pr\":42,\"repo\":\"acme/api\"},\"expires_at\":\"2026-11-05T18:07:09.123Z\",\"idempotency_key\":\"55d2bc1784347ee82b06eb44c93a849bad8cd41310d1d2c55e6dced948c84429\",\"issued_at\":\"2026-11-05T18:04:09.123Z\",\"mode\":\"enforce\",\"nonce\":\"AAAAAAAAAAAAAAAAAAAAAA\",\"origin_hash\":\"93ac2a7de1b680ac6c0d62713c372d3f223cc0d1b41df20150946fd082755967\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"github.merge_pull_request\",\"template_version\":1,\"tier\":3,\"tool\":\"github.merge_pull_request\"}",
+    "canonical_bytes": "{\"args_resolved\":{\"base\":\"main\",\"head_sha\":\"abc1234abc1234abc1234abc1234abc1234abc12\",\"method\":\"squash\",\"pr\":42,\"repo\":\"acme/api\"},\"expires_at\":\"2026-11-05T18:07:09.123Z\",\"idempotency_key\":\"d6c9ba6711cedcb098ec0694c215d960b8b130a03f74378fc4b31c36fcad5376\",\"issued_at\":\"2026-11-05T18:04:09.123Z\",\"mode\":\"enforce\",\"nonce\":\"AAAAAAAAAAAAAAAAAAAAAA\",\"origin_hash\":\"93ac2a7de1b680ac6c0d62713c372d3f223cc0d1b41df20150946fd082755967\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"github.merge_pull_request\",\"template_version\":1,\"tier\":3,\"tool\":\"github.merge_pull_request\"}",
     "issued_at": "2026-11-05T18:04:09.123Z",
     "expires_at": "2026-11-05T18:07:09.123Z",
     "device_public_key": {
@@ -17,9 +17,9 @@
       "approver_id": "jason",
       "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
       "alg": "ES256",
-      "signature": "Qn_7ByWTsyzWB6ylW2pUXME8h9SmSVxooFDNrsuBfpgHL-rNm4Cy9LTrsP9nqjSZbOpePxKX61P1MUQZW0fgQA",
+      "signature": "YXjRDU2FCKeHgMtSWadGiDE1KwpBhvbKJA39-ZaRUYJyfsvl6J-R291DJhjIdLGgbXcvAergpri79GHseJGO2Q",
       "signed_at": "2026-11-05T18:05:00.000Z",
-      "canonical_bytes_sha256": "3e05f32c7f0f072f1db246527958693dd79a6532abc7907dabd0f5c9b9d27342",
+      "canonical_bytes_sha256": "f98e7401f10035c4b06232e3a47e637edfb7141db831caef4d281cc59dcfdf4a",
       "summary": "ok"
     }
   },

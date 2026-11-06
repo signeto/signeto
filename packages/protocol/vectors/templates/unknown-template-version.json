@@ -1,7 +1,7 @@
 {
   "description": "template_version 2 not in registry → unverified",
   "inputs": {
-    "canonical_bytes": "{\"args_resolved\":{\"base\":\"main\",\"head_sha\":\"x\",\"method\":\"merge\",\"pr\":1,\"repo\":\"acme/api\"},\"expires_at\":\"1970-01-01T00:03:00.006Z\",\"idempotency_key\":\"c3d5966477a2913b3dac9e47a6518b67b1ce4ec6e30d45be7bf67bb7786be501\",\"issued_at\":\"1970-01-01T00:00:00.006Z\",\"mode\":\"enforce\",\"nonce\":\"KKKKKKKKKKKKKKKKKKKKKK\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"github.merge_pull_request\",\"template_version\":2,\"tier\":2,\"tool\":\"github.merge_pull_request\"}",
+    "canonical_bytes": "{\"args_resolved\":{\"base\":\"main\",\"head_sha\":\"x\",\"method\":\"merge\",\"pr\":1,\"repo\":\"acme/api\"},\"expires_at\":\"1970-01-01T00:03:00.006Z\",\"idempotency_key\":\"0d63b78bb6323e7ae7b9f71168f7c9d9693ca4365a373e8483d4c5edbff146d5\",\"issued_at\":\"1970-01-01T00:00:00.006Z\",\"mode\":\"enforce\",\"nonce\":\"KKKKKKKKKKKKKKKKKKKKKK\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"github.merge_pull_request\",\"template_version\":2,\"tier\":2,\"tool\":\"github.merge_pull_request\"}",
     "registries": [
       {
         "adapter": "github",
