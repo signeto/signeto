@@ -470,7 +470,7 @@ sequenceDiagram
     D->>R: POST /v1/pairings/{pairing_id}/claim {device_public_key, attestation, proof}  [device-signed]
     R->>G: event pairing.claimed {pairing_id, device_public_key, attestation, proof}
     G->>G: recompute proof with own code; verify; verify attestation; pin device key
-    G->>G: confirmation = Sign_gw(JCS{gateway_id, device_id, pairing_id, paired_at})
+    G->>G: confirmation = Sign_gw(JCS{gateway_id, device_id, pairing_id, paired_at, templates_pinned})
     G->>R: POST /v1/pairings/{pairing_id}/confirm {confirmation, paired_at, templates_pinned}
     R->>D: push {pairing_id}; D fetches GET /v1/pairings/{pairing_id}
     D->>D: verify confirmation with gateway_public_key from QR; pin gateway key
@@ -488,7 +488,13 @@ Normative points:
 
 ### 5.4 Template pinning at pairing
 
-The gateway's confirmation MAY carry `templates_pinned`: a list of `{template_id, template_version, sha256}` for custom adapters not bundled in `@signeto/protocol`. The device stores these under the gateway's record. A later `template_source` sent with an approval request (§7.5) is verified against this list; a match renders as a verified template.
+The gateway's confirmation carries `templates_pinned`: a list of `{template_id, template_version, sha256}` for custom adapters not bundled in `@signeto/protocol`, `[]` when there are none. The list is part of the confirmation's signing input, which is the UTF-8 JCS serialization of
+
+```json
+{ "device_id": "dev_...", "gateway_id": "gw_...", "paired_at": "...", "pairing_id": "...", "templates_pinned": [ { "sha256": "<hex>", "template_id": "...", "template_version": 1 } ] }
+```
+
+with the list in the order the gateway sent it and each entry having exactly those three members. The device MUST verify the confirmation over the list it received, and MUST NOT store any pin from a confirmation that does not verify: a relay that adds, drops, reorders or alters a pin breaks the signature, and pairing aborts with `pairing_confirmation_invalid`. The device stores the verified list under the gateway's record. A later `template_source` sent with an approval request (§7.5) is verified against this list; a match renders as a verified template.
 
 ### 5.5 What the relay can and cannot do after pairing
 
