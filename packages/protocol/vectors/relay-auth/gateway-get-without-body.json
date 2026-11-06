@@ -1,0 +1,25 @@
+{
+  "description": "Signeto-Gateway, GET with a query string and no body: body_sha256 is SHA-256 of the empty string, path includes the query",
+  "inputs": {
+    "header": "Signeto-Gateway gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs.2026-11-05T18:04:10.000Z.LbDZAvi-hP8RjBGO1nF6XKx6Z84hLbI7zde42CqoApiezU31thPenWnsJgBrIoVyPZZMFulJAp4iqobOHodwAg",
+    "method": "GET",
+    "path": "/v1/gateways/gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs/events?since=41&wait=30",
+    "body": null,
+    "public_key": {
+      "crv": "Ed25519",
+      "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28",
+      "kty": "OKP"
+    },
+    "now": 1793901855000,
+    "scheme": "Signeto-Gateway",
+    "ts": "2026-11-05T18:04:10.000Z",
+    "private_key": "gateway-ed25519"
+  },
+  "expected": {
+    "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "signing_input": "{\"body_sha256\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"method\":\"GET\",\"path\":\"/v1/gateways/gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs/events?since=41&wait=30\",\"ts\":\"2026-11-05T18:04:10.000Z\"}",
+    "header": "Signeto-Gateway gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs.2026-11-05T18:04:10.000Z.LbDZAvi-hP8RjBGO1nF6XKx6Z84hLbI7zde42CqoApiezU31thPenWnsJgBrIoVyPZZMFulJAp4iqobOHodwAg",
+    "key_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+    "verify": "ok"
+  }
+}

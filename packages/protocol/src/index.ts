@@ -9,3 +9,4 @@ export * from "./receipt.js";
 export * from "./request.js";
 export * from "./template.js";
 export * from "./registries.js";
+export * from "./relay-auth.js";

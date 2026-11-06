@@ -156,6 +156,36 @@ write("approval-request/altered-expires-at.json", { description: "expires_at cha
 write("approval-request/altered-bytes.json", { description: "canonical_bytes swapped for another valid action", inputs: { request: { ...signed, canonical_bytes: unicode.canonical_bytes, expires_at: unicode.action.expires_at }, pinned: { [gateway_id]: pub(gwKey) } }, expected: { verify: "error", code: "gateway_signature_invalid" } });
 write("approval-request/unpinned-gateway.json", { description: "gateway_id not pinned on the device", inputs: { request: signed, pinned: {} }, expected: { verify: "error", code: "gateway_not_pinned" } });
 
+// ---------- relay-auth/ (protocol.md §7.1)
+const raTs = "2026-11-05T18:04:10.000Z";
+const raNow = Date.parse(raTs) + 5_000;
+const ra = (name, description, inputs, expected) => write("relay-auth/" + name + ".json", { description, inputs, expected });
+const raPost = { scheme: "Signeto-Gateway", method: "POST", path: "/v1/approvals", ts: raTs, body: JSON.stringify(signed) };
+const raPostHeader = P.signRelayRequest(raPost, gwKey);
+const raPostIn = { header: raPostHeader, method: raPost.method, path: raPost.path, body: raPost.body, public_key: pub(gwKey), now: raNow };
+const raPostSi = P.relayAuthSigningInput({ method: raPost.method, path: raPost.path, ts: raTs, body_sha256: P.relayBodySha256(raPost.body) });
+ra("gateway-post-with-body", "Signeto-Gateway, Ed25519, POST with a JSON body (deterministic header)",
+  { ...raPostIn, scheme: raPost.scheme, ts: raTs, private_key: "gateway-ed25519" },
+  { body_sha256: P.relayBodySha256(raPost.body), signing_input: raPostSi, header: raPostHeader, key_id: gateway_id, verify: "ok" });
+const raGet = { scheme: "Signeto-Gateway", method: "GET", path: `/v1/gateways/${gateway_id}/events?since=41&wait=30`, ts: raTs, body: null };
+const raGetHeader = P.signRelayRequest(raGet, gwKey);
+ra("gateway-get-without-body", "Signeto-Gateway, GET with a query string and no body: body_sha256 is SHA-256 of the empty string, path includes the query",
+  { header: raGetHeader, method: raGet.method, path: raGet.path, body: null, public_key: pub(gwKey), now: raNow, scheme: raGet.scheme, ts: raTs, private_key: "gateway-ed25519" },
+  { body_sha256: P.EMPTY_BODY_SHA256, signing_input: P.relayAuthSigningInput({ method: "GET", path: raGet.path, ts: raTs, body_sha256: P.EMPTY_BODY_SHA256 }), header: raGetHeader, key_id: gateway_id, verify: "ok" });
+const raDev = { scheme: "Signeto-Device", method: "POST", path: "/v1/approvals/apr_01JBXK4Q9R2T4V6W8Y0Z1A3B5D/receipt", ts: raTs, body: JSON.stringify(esApprove) };
+const raDevHeader = P.signRelayRequest(raDev, devEs);
+ra("device-es256-post-with-body", "Signeto-Device, ES256 (signature is randomised: verify it, do not compare the header)",
+  { header: raDevHeader, method: raDev.method, path: raDev.path, body: raDev.body, public_key: pub(devEs), now: raNow, scheme: raDev.scheme, ts: raTs },
+  { body_sha256: P.relayBodySha256(raDev.body), signing_input: P.relayAuthSigningInput({ method: raDev.method, path: raDev.path, ts: raTs, body_sha256: P.relayBodySha256(raDev.body) }), key_id: devEsId, verify: "ok" });
+ra("expired-ts", "ts 61 s behind the relay clock", { ...raPostIn, now: Date.parse(raTs) + 61_000 }, { verify: "error", code: "clock_skew" });
+ra("future-ts", "ts 61 s ahead of the relay clock", { ...raPostIn, now: Date.parse(raTs) - 61_000 }, { verify: "error", code: "clock_skew" });
+ra("edge-of-window", "ts exactly 60 s behind the relay clock is accepted", { ...raPostIn, now: Date.parse(raTs) + 60_000 }, { verify: "ok" });
+ra("wrong-key", "Header verified against a key whose thumbprint is not the header's key id", { ...raPostIn, public_key: pub(devEd) }, { verify: "error", code: "key_mismatch" });
+ra("tampered-body", "Body altered after signing", { ...raPostIn, body: raPost.body.replace("jason", "mallory") }, { verify: "error", code: "invalid_signature" });
+ra("altered-query", "Query string altered after signing (path covers the query)", { header: raGetHeader, method: "GET", path: raGet.path.replace("since=41", "since=0"), body: null, public_key: pub(gwKey), now: raNow }, { verify: "error", code: "invalid_signature" });
+ra("altered-method", "Same path and body, different method", { ...raPostIn, method: "PUT" }, { verify: "error", code: "invalid_signature" });
+ra("device-id-under-gateway-scheme", "Signeto-Gateway scheme carrying a dev_ id is malformed", { ...raPostIn, header: raPostHeader.replace(gateway_id, devEdId) }, { verify: "error", code: "auth_malformed" });
+
 // ---------- ids/
 write("ids/thumbprints.json", { description: "RFC 7638 thumbprints → gw_/dev_ ids and human fingerprints", inputs: { gateway: pub(gwKey), device_es256: pub(devEs), device_ed25519: pub(devEd) }, expected: { gateway_id, device_es256_id: devEsId, device_ed25519_id: devEdId, gateway_fingerprint: P.fingerprint(gwKey), device_es256_fingerprint: P.fingerprint(devEs) } });
 console.log("vectors written under", root);

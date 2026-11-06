@@ -1,0 +1,19 @@
+{
+  "description": "Same path and body, different method",
+  "inputs": {
+    "header": "Signeto-Gateway gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs.2026-11-05T18:04:10.000Z.qJC9GwwiiOAif3RMPHw-vSt0JAg48bO6eR3YZKOz-tgwGCyefxty9Yam6DqtZvJR84Dka5x1eBLArmWoXEw5AA",
+    "method": "PUT",
+    "path": "/v1/approvals",
+    "body": "{\"action_id\":\"act_01JBXK4Q9R2T4V6W8Y0Z1A3B5C\",\"canonical_bytes\":\"{\\\"args_resolved\\\":{\\\"base\\\":\\\"main\\\",\\\"head_sha\\\":\\\"abc1234abc1234abc1234abc1234abc1234abc12\\\",\\\"method\\\":\\\"squash\\\",\\\"pr\\\":42,\\\"repo\\\":\\\"acme/api\\\"},\\\"expires_at\\\":\\\"2026-11-05T18:07:09.123Z\\\",\\\"idempotency_key\\\":\\\"d6c9ba6711cedcb098ec0694c215d960b8b130a03f74378fc4b31c36fcad5376\\\",\\\"issued_at\\\":\\\"2026-11-05T18:04:09.123Z\\\",\\\"mode\\\":\\\"enforce\\\",\\\"nonce\\\":\\\"AAAAAAAAAAAAAAAAAAAAAA\\\",\\\"origin_hash\\\":\\\"93ac2a7de1b680ac6c0d62713c372d3f223cc0d1b41df20150946fd082755967\\\",\\\"protocol_version\\\":\\\"1.0\\\",\\\"requester\\\":{\\\"agent\\\":\\\"claude-code\\\",\\\"gateway_id\\\":\\\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\\\",\\\"host\\\":\\\"jason-mbp\\\",\\\"session_id\\\":\\\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\\\"},\\\"template_id\\\":\\\"github.merge_pull_request\\\",\\\"template_version\\\":1,\\\"tier\\\":3,\\\"tool\\\":\\\"github.merge_pull_request\\\"}\",\"expires_at\":\"2026-11-05T18:07:09.123Z\",\"targets\":{\"tier\":3,\"approver_ids\":[\"jason\"],\"device_ids\":[]},\"gateway_signature\":\"wkIi14foRU0pDTQ4e94CBkK__oZDZ0ifRRH_MPdQrj170UrXsblR8v6SlmRby1QOPXBeN2Tr49FGTZtHgByxBw\"}",
+    "public_key": {
+      "crv": "Ed25519",
+      "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28",
+      "kty": "OKP"
+    },
+    "now": 1793901855000
+  },
+  "expected": {
+    "verify": "error",
+    "code": "invalid_signature"
+  }
+}

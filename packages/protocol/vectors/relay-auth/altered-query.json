@@ -1,0 +1,19 @@
+{
+  "description": "Query string altered after signing (path covers the query)",
+  "inputs": {
+    "header": "Signeto-Gateway gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs.2026-11-05T18:04:10.000Z.LbDZAvi-hP8RjBGO1nF6XKx6Z84hLbI7zde42CqoApiezU31thPenWnsJgBrIoVyPZZMFulJAp4iqobOHodwAg",
+    "method": "GET",
+    "path": "/v1/gateways/gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs/events?since=0&wait=30",
+    "body": null,
+    "public_key": {
+      "crv": "Ed25519",
+      "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28",
+      "kty": "OKP"
+    },
+    "now": 1793901855000
+  },
+  "expected": {
+    "verify": "error",
+    "code": "invalid_signature"
+  }
+}

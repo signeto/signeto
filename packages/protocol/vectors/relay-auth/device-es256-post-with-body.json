@@ -1,0 +1,24 @@
+{
+  "description": "Signeto-Device, ES256 (signature is randomised: verify it, do not compare the header)",
+  "inputs": {
+    "header": "Signeto-Device dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q.2026-11-05T18:04:10.000Z.Di1foZj2Lv_IPk2AVYZqxc8M77FkTwW6eNMua9UwILu2ERa3g9cn3yb3Pi3GIkxYMv7kdlr62hVDR8LURW-Dlw",
+    "method": "POST",
+    "path": "/v1/approvals/apr_01JBXK4Q9R2T4V6W8Y0Z1A3B5D/receipt",
+    "body": "{\"receipt_version\":\"1.0\",\"action_id\":\"act_01JBXK4Q9R2T4V6W8Y0Z1A3B5C\",\"decision\":\"approve\",\"approver_id\":\"jason\",\"device_id\":\"dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q\",\"alg\":\"ES256\",\"signature\":\"UkqUfuaqVPdtgqnBRfkKDkCFSaSoJI7KzN71g2ppTeBJyc9uj4V2ApKaGwY-cY0kFZsFo0MzSH1zWeoRorvgmw\",\"signed_at\":\"2026-11-05T18:05:00.000Z\",\"canonical_bytes_sha256\":\"f98e7401f10035c4b06232e3a47e637edfb7141db831caef4d281cc59dcfdf4a\"}",
+    "public_key": {
+      "kty": "EC",
+      "x": "Of8uj529uXHN5vuSVnd9npjQoo3omxCJUxXVYt_WXS8",
+      "y": "ymLO0QWGOus6jSc_kOwiyELsXG3f1Gf9MmJQczzivw4",
+      "crv": "P-256"
+    },
+    "now": 1793901855000,
+    "scheme": "Signeto-Device",
+    "ts": "2026-11-05T18:04:10.000Z"
+  },
+  "expected": {
+    "body_sha256": "37823f2714aed4dd3387a1007899b73cb81592d86c0c0819415986421174d937",
+    "signing_input": "{\"body_sha256\":\"37823f2714aed4dd3387a1007899b73cb81592d86c0c0819415986421174d937\",\"method\":\"POST\",\"path\":\"/v1/approvals/apr_01JBXK4Q9R2T4V6W8Y0Z1A3B5D/receipt\",\"ts\":\"2026-11-05T18:04:10.000Z\"}",
+    "key_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+    "verify": "ok"
+  }
+}

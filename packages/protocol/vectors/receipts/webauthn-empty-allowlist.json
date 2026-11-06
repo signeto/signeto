@@ -19,7 +19,7 @@
       "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
       "signed_at": "2026-11-05T18:05:30.000Z",
       "alg": "ES256",
-      "signature": "CXJifLuroERaJWLi5Mgr7w3SH-gOwpQL3Yl4S0z6diV3GXgOsV44MljG-6iKQ4nW1sgBFFfhwR1kFPBHjz3yGw",
+      "signature": "P8mLaRdEad8lL1vkyCPARdo8eqwosXqVf2iReGJK5_0ydb33t5R3ethL0swks7hS42_wCPi0d-WwXQEUftzjsg",
       "webauthn": {
         "authenticator_data": "E9AzYazevM1SFFqVM58GcuKBj6CKfrpFzIVUKJxQgGIFAAAAAA",
         "client_data_json": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoibTJFN2NZcjZIZlgwMFB4THUtMXNibDJNMXllZWM2WVBJUEZNOG14dmF3USIsIm9yaWdpbiI6Imh0dHBzOi8vYXBwcm92ZS5zaWduZXRvLmRldiIsImNyb3NzT3JpZ2luIjpmYWxzZX0"

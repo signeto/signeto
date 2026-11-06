@@ -17,7 +17,7 @@
       "approver_id": "jason",
       "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
       "alg": "ES256",
-      "signature": "q6iuFdS-aTW1foCbUMExQNM6jqBAPYBWvhBeMHXfygcJ1jAw0cJ7GzK4XicAdbrvZXDsWpdzC94nG6N4l-hxBg",
+      "signature": "yXdHT0w6BldrJW2KjR1cqXT_Dn4mciQLR3gMQD0FLb2A7bgdGLlupILaMADzhfrZ8TxQpFj654XOwoTEs0LbnA",
       "signed_at": "2026-11-05T18:08:09.124Z",
       "canonical_bytes_sha256": "f98e7401f10035c4b06232e3a47e637edfb7141db831caef4d281cc59dcfdf4a"
     }

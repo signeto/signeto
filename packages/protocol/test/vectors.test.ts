@@ -112,3 +112,25 @@ describe("ids/", () => {
     });
   }
 });
+
+describe("relay-auth/", () => {
+  const privateKey = (name: string) => JSON.parse(readFileSync(join(root, "keys", name + ".json"), "utf8"));
+  for (const { name, v } of load("relay-auth")) {
+    it(name, () => {
+      const i = v.inputs;
+      if (v.expected.body_sha256) expect(P.relayBodySha256(i.body)).toBe(v.expected.body_sha256);
+      if (v.expected.signing_input)
+        expect(P.relayAuthSigningInput({ method: i.method, path: i.path, ts: i.ts, body_sha256: P.relayBodySha256(i.body) })).toBe(v.expected.signing_input);
+      if (v.expected.header && i.private_key)
+        expect(P.signRelayRequest({ scheme: i.scheme, method: i.method, path: i.path, ts: i.ts, body: i.body }, privateKey(i.private_key))).toBe(v.expected.header);
+      const r = P.verifyRelayRequest({ header: i.header, method: i.method, path: i.path, body: i.body, public_key: i.public_key, now: i.now });
+      if (v.expected.verify === "ok") {
+        expect(r.ok).toBe(true);
+        if (r.ok && v.expected.key_id) expect(r.key_id).toBe(v.expected.key_id);
+      } else {
+        expect(r.ok).toBe(false);
+        if (!r.ok) expect(r.code).toBe(v.expected.code);
+      }
+    });
+  }
+});

@@ -636,8 +636,19 @@ The request also carries every step's canonical bytes (`steps[]` in the request 
   - `Bearer <session>` — account session obtained by email + passkey login. Used for account-level operations: gateway registration, device enrollment.
   - `Signeto-Gateway <gateway_id>.<ts>.<sig>` — request signed by the gateway key. `sig` is base64url of the signature over the signing input `JCS({"method", "path", "ts", "body_sha256"})`. `ts` is RFC 3339; the relay MUST reject requests whose `ts` is more than 60 s from its clock. `body_sha256` is the hex SHA-256 of the raw request body, or of the empty string when there is none.
   - `Signeto-Device <device_id>.<ts>.<sig>` — same construction with the device key. For WebAuthn devices, the relay issues a device session token at enrollment instead, delivered as `Bearer`, because WebAuthn cannot sign arbitrary requests without a user gesture; such sessions MUST be scoped to read-only approval fetches, and receipt submission is still authenticated by the receipt's own signature.
-- Errors: HTTP status plus body `{"error": {"code": "<§8 code>", "message": "<human text>", "retry_after"?: seconds}}`.
-- Every response carries `X-Signeto-Relay-Id`.
+- Signed request details (`@signeto/protocol` `signRelayRequest` / `verifyRelayRequest`, vectors in `relay-auth/`):
+  - `method` is the HTTP method in upper case.
+  - `path` is the request-target exactly as sent on the request line (RFC 9112 origin-form): the absolute path plus `?` and the query string when present, byte for byte, percent-encoding untouched. No scheme, host, port or fragment. A relay behind a proxy that rewrites paths MUST verify against the path the client sent.
+  - `ts` uses the §2.5 format (UTC, exactly three fractional digits, `Z`). The window is ±60 s inclusive.
+  - `body_sha256` hashes the body bytes as transmitted, before any JSON parsing; a re-serialized body does not verify. With no body it is `e3b0c442…b855`, the SHA-256 of the empty string.
+  - The signature is the key's own algorithm over the UTF-8 signing input: Ed25519 over the bytes, ES256 over their SHA-256 with raw `r || s`; `sig` is 86 base64url characters without padding.
+  - The header is `<scheme> <key_id>.<ts>.<sig>` with one space. `ts` contains a `.`, so the credential is split at its first and last `.` (neither ids nor base64url contain one). The scheme name is case-insensitive; the rest is not. `key_id` MUST be `gw_…` under `Signeto-Gateway` and `dev_…` under `Signeto-Device` and MUST equal the thumbprint id of the registered key.
+  - The relay MUST refuse a second request carrying the same `(key_id, sig)` within 120 s (replay). Ed25519 is deterministic, so a client retrying a request MUST re-sign it with a fresh `ts`.
+  - Order of checks: header shape, registered key, key id matches the key, `ts` window, signature, revocation, replay, rate limit. Revocation is reported only after the signature verifies.
+  - Failures are `401` with code `unauthorized`, except `clock_skew` (stale or future `ts`) and `device_revoked` (signature valid, device revoked), which are also `401` so a client can tell resynchronising its clock from re-enrolling.
+- Errors: HTTP status plus body `{"error": {"code": "<§8 code>", "message": "<human text>", "retry_after"?: seconds}}`. A `429` also carries a `Retry-After` header.
+- Every response carries `X-Signeto-Relay-Id`, including errors.
+- Request objects are strict: an unknown member is `request_malformed` rather than ignored. Bodies larger than the relay's limit (256 KiB by default) are `413 request_malformed`.
 
 ### 7.2 Gateway registration
 
@@ -651,9 +662,9 @@ Response `201`:
 ```json
 { "gateway_id": "gw_...", "relay_id": "relay-eu-1", "created_at": "..." }
 ```
-Errors: `401 unauthorized`, `409 gateway_exists` (same thumbprint already registered to another account), `422 key_invalid`.
+Errors: `401 unauthorized`, `409 gateway_exists` (same thumbprint already registered to another account, or a revoked key registered again), `422 key_invalid` (not an EC P-256 or OKP Ed25519 public JWK, coordinates not 32 bytes, point not on the curve, or private member `d` present), `422 unsupported_protocol_version` (no `1.x` in `protocol_versions`), `403 gateway_limit` (plan gateway limit; Free allows one active gateway). Re-registering the same key on the same account while it is active returns `200` with the same body. The relay stores only the RFC 7638 required members of the JWK.
 
-`DELETE /v1/gateways/{gateway_id}` — auth `Signeto-Gateway` or `Bearer`. Revokes. Response `204`.
+`DELETE /v1/gateways/{gateway_id}` — auth `Signeto-Gateway` (the gateway itself) or `Bearer` (its account). Revokes; a revoked key can no longer authenticate and its approvals are no longer served. Response `204`, also when already revoked. Errors: `403 forbidden` (another gateway), `404 not_found`.
 
 ### 7.3 Pairing
 
@@ -661,7 +672,7 @@ Errors: `401 unauthorized`, `409 gateway_exists` (same thumbprint already regist
 
 Request: `{ "pairing_id": "...", "code_hash": "<hex SHA-256(code)>", "expires_at": "..." }`
 Response `201`: `{ "pairing_id": "...", "status": "open" }`
-Errors: `409 pairing_exists`, `422 pairing_expired` (expiry in the past or more than 10 min out).
+Errors: `409 pairing_exists`, `422 pairing_expired` (expiry in the past or more than 10 min plus the 60 s skew allowance out), `422 request_malformed` (`pairing_id` is not `base64url(code_hash bytes)[0:22]`; both derive from the same SHA-256, so the relay checks they agree).
 
 `POST /v1/pairings/{pairing_id}/claim` — auth `Signeto-Device` (or `Bearer` device session for WebAuthn)
 
@@ -673,17 +684,17 @@ Request:
 }
 ```
 Response `200`: `{ "status": "claimed" }`
-Errors: `404 pairing_not_found`, `410 pairing_expired`, `409 pairing_already_claimed`. The relay does not verify `proof`; it cannot.
+Errors: `404 pairing_not_found` (also when the pairing belongs to a gateway of another account: a device claims only pairings opened by its own account's gateways), `410 pairing_expired`, `409 pairing_already_claimed`, `403 forbidden` (`device.public_key` is not the authenticated device's enrolled key). The relay does not verify `proof`; it cannot. It forwards `device` exactly as sent (the proof covers the JWK as the device serialised it) in the `pairing.claimed` event.
 
 `GET /v1/pairings/{pairing_id}` — auth `Signeto-Gateway` or the claiming device
-Response `200`: `{ "status": "open" | "claimed" | "confirmed" | "expired", "device"?: {...}, "proof"?: "...", "confirmation"?: "...", "paired_at"?: "...", "templates_pinned"?: [...] }`
+Response `200`: `{ "pairing_id": "...", "status": "open" | "claimed" | "confirmed" | "rejected" | "expired", "device_id"?: "dev_...", "device"?: {...}, "proof"?: "...", "confirmation"?: "...", "paired_at"?: "...", "templates_pinned"?: [...] }`. `expired` is reported for an `open` or `claimed` pairing past `expires_at`. Anyone other than the owning gateway and the claiming device gets `404 pairing_not_found`.
 
 `POST /v1/pairings/{pairing_id}/confirm` — auth `Signeto-Gateway`
 Request: `{ "confirmation": "<base64url Sign_gw>", "paired_at": "...", "templates_pinned": [ { "template_id", "template_version", "sha256" } ] }`
-Response `200`: `{ "status": "confirmed" }`. The relay pushes `{pairing_id}` to the device.
-Errors: `409 pairing_not_claimed`, `410 pairing_expired`.
+Response `200`: `{ "status": "confirmed" }`. The relay pushes `{pairing_id}` to the device. Repeating the identical confirmation returns `200`; a different one for a confirmed pairing is `409 pairing_already_claimed`. The relay does not verify `confirmation`; the device does, with the QR's key. A confirmed pairing is what makes a device "paired with this gateway" for §7.5 and §7.6.
+Errors: `409 pairing_not_claimed` (open or rejected), `410 pairing_expired`.
 
-`POST /v1/pairings/{pairing_id}/reject` — auth `Signeto-Gateway`. Proof failed on the gateway. Response `204`. The relay SHOULD notify the device and MUST ledger the event in its audit mirror.
+`POST /v1/pairings/{pairing_id}/reject` — auth `Signeto-Gateway`. Proof failed on the gateway. Response `204` (also when already rejected); status becomes `rejected`. Rejecting a confirmed pairing withdraws it: the device is no longer paired with that gateway. The relay SHOULD notify the device and MUST ledger the event in its audit mirror.
 
 ### 7.4 Device enrollment
 
@@ -693,10 +704,11 @@ Request:
 ```json
 { "public_key": {...}, "platform": "ios" | "web" | "macos-cli" | "android", "name": "...", "attestation": {...} | null, "push": { "kind": "apns" | "webpush" | "none", "token": "..." } }
 ```
-Response `201`: `{ "device_id": "dev_...", "approver_id": "jason", "enrolled_at": "...", "software": false }`
-Errors: `422 key_invalid`, `422 attestation_invalid`, `409 device_exists`, `403 device_limit` (free tier).
+Response `201`: `{ "device_id": "dev_...", "approver_id": "jason", "enrolled_at": "...", "software": false, "attestation_status": "none" | "unverified" | "verified", "device_session"?: "<token>" }`
+`software` is `false` only when the relay has verified a hardware attestation for this key; a relay that does not verify attestation reports `true` for every key and `attestation_status: "unverified"` when one was supplied (the gateway still runs its own check at pairing, §5.3 point 3). `device_session` is present for `platform: "web"` only: the device `Bearer` token of §7.1, shown once. `push` is optional (default `{ "kind": "none" }`); `token` is required for `apns` and `webpush`.
+Errors: `422 key_invalid`, `422 attestation_invalid` (not `{format, data}`, or attestation on an Ed25519 key), `409 device_exists` (thumbprint already enrolled, in any account or state), `403 device_limit` (free tier: two active devices).
 
-`DELETE /v1/devices/{device_id}` — auth `Bearer` or `Signeto-Device` (another enrolled device). Revokes. The relay MUST propagate `device.revoked` to every gateway the device is paired with (§7.7). Gateways MUST then refuse receipts from it (§4.5 step 5).
+`DELETE /v1/devices/{device_id}` — auth `Bearer` or `Signeto-Device` (an enrolled device of the same account, including the device itself). Revokes, and revokes its device session. Response `204`, also when already revoked. `404 not_found` for a device of another account. The relay MUST propagate `device.revoked` to every gateway the device is paired with (§7.8). Gateways MUST then refuse receipts from it (§4.5 step 5).
 
 ### 7.5 Submit approval request
 
@@ -723,11 +735,13 @@ Request:
 
 where `nonce` and `gateway_id` are the values inside `canonical_bytes` (`nonce` and `requester.gateway_id`), and `expires_at` equals the canonical action's `expires_at`. The signature is produced with the gateway key (§5.1) in that key's algorithm (Ed25519: over the bytes; ES256: over their SHA-256), base64url without padding. The relay stores and forwards the field unmodified; it MUST NOT verify it as a condition of acceptance and cannot produce one. Before rendering, the device MUST rebuild the signing input from the request it received, look up the gateway key pinned at pairing for `gateway_id`, and verify. A request whose `gateway_id` is not pinned or whose signature fails MUST NOT be rendered or offered for signing; the device logs it locally as `gateway_signature_invalid` and MAY report it to the relay. Nothing the relay can send puts a card in front of the user without the gateway key.
 Response `201`: `{ "approval_id": "apr_...", "action_id": "act_...", "status": "pending" }`
-Repeated submission with the same `action_id` returns `200` with the original `approval_id`.
-Errors: `409 frozen` (account freeze set; relay refuses to queue), `422 action_expired`, `422 targets_invalid`, `429 rate_limited`.
+Repeated submission with the same `action_id` from the same gateway returns `200` with the original `approval_id` and current status; the stored request is not replaced.
+Errors: `409 frozen` (account freeze set; relay refuses to queue), `422 action_expired` (`expires_at` not in the future), `422 request_malformed` (`expires_at` more than 5 min plus 60 s out, or a malformed body), `422 targets_invalid`, `429 rate_limited`.
+
+The relay does not parse `canonical_bytes` (it may be a batch manifest) and stores it, `steps`, and `gateway_signature` as received. `targets.tier` is `2` or `3`. `targets_invalid` covers: an approver id that is not an approver of the gateway's account, a device id that is not an active device paired with this gateway, a malformed `targets` object, and targets that match no paired device (nobody could approve). Recipients are the active devices paired with the gateway that match `device_ids` if non-empty, else `approver_ids` if non-empty, else all of them; each receives a push carrying only `approval_id`.
 
 `POST /v1/approvals/{approval_id}/status` — auth `Signeto-Gateway`
-Request: `{ "status": "executed" | "failed" | "cancelled" | "expired", "at": "..." }`. Lets devices show the outcome. Response `204`.
+Request: `{ "status": "approved" | "denied" | "executed" | "failed" | "cancelled" | "expired", "at": "..." }`. Lets devices show the outcome. Response `204`. `approved` is not terminal (receipts are still accepted, e.g. for a cooling-off cancellation); the others are. Repeating the current status is `204`; any change from a terminal status, or `approved` → `denied`, is `409 approval_already_decided`. `404 approval_not_found` for another gateway's approval.
 
 ### 7.6 Fetch pending (device)
 
@@ -749,7 +763,7 @@ Response `200`:
 }
 ```
 `gateway_signature` is the value the gateway submitted (§7.5), returned verbatim; the device verifies it before rendering. `receipts` lists receipts already accepted for this approval (quorum, §4.8).
-Errors: `404 approval_not_found`, `403 forbidden` (device not among targets or not paired with the gateway).
+Errors: `404 approval_not_found` (unknown, another account's, or its gateway revoked), `403 forbidden` (device not among targets or not paired with the gateway). `status` reads `expired` once `expires_at` has passed without a terminal status. The response also carries `tier`, `targets`, and `steps` when the request had them. The list returns only `pending` approvals that have not expired; `status` is optional and `pending` is its only accepted value.
 
 ### 7.7 Submit receipt
 
@@ -759,7 +773,7 @@ Response `202`: `{ "accepted": true, "relay_id": "..." }`
 
 The relay MUST validate only the schema (§4.3) and that `action_id` matches the approval. It MUST NOT verify the signature as a condition of acceptance, MUST NOT alter any field, and MUST attach `relay_id` before forwarding. It stores the receipt and forwards it to the gateway over the subscription (§7.8). Multiple receipts for one approval (quorum, P2) are each forwarded.
 
-Errors: `404 approval_not_found`, `409 approval_already_decided` (gateway already reported a terminal status), `410 action_expired`, `422 receipt_malformed`.
+Errors: `404 approval_not_found`, `403 forbidden` (submitting device may not fetch this approval, §7.6), `409 approval_already_decided` (gateway already reported a terminal status), `410 action_expired`, `422 receipt_malformed` (schema, `action_id` mismatch, or `relay_id` already present: only the relay sets it). The relay does not require `receipt.device_id` to equal the submitting device.
 
 ### 7.8 Gateway subscribe
 
@@ -768,7 +782,7 @@ Errors: `404 approval_not_found`, `409 approval_already_decided` (gateway alread
 Two transports, same event format. The gateway MUST support long-poll; WebSocket is OPTIONAL for both sides.
 
 - **WebSocket.** `Upgrade: websocket`. Auth header on the upgrade request. Server sends one JSON event per text frame. Client sends `{"ack": "<cursor>"}` frames. Server MUST ping every 30 s.
-- **Long-poll.** `?since=<cursor>&wait=30`. Returns `200 { "events": [...], "cursor": "..." }` as soon as at least one event is available or after `wait` seconds with an empty list. `wait` MUST be clamped to 60.
+- **Long-poll.** `?since=<cursor>&wait=30`. Returns `200 { "events": [...], "cursor": "..." }` as soon as at least one event is available or after `wait` seconds with an empty list. `wait` MUST be clamped to 60. `wait` defaults to 0 (return at once). `cursor` in the response is the last event's cursor, or `since` when the list is empty; pass it back as `since`. Cursors are decimal strings that increase in commit order. A cursor the relay never issued (higher than any it holds, e.g. after a relay database reset) is treated as missing. A page holds at most 100 events; poll again with the returned cursor.
 
 Event envelope: `{ "cursor": "...", "type": "<type>", "at": "...", "data": {...} }`
 
@@ -788,7 +802,9 @@ Events are retained for at least 24 hours. A gateway that reconnects with a stal
 Request: `{ "frozen": true, "signed_at": "...", "signature": "<Sign_dev(JCS{frozen, signed_at})>" }`
 Response `200`: `{ "frozen": true, "set_by_device_id": "dev_...", "signed_at": "..." }`
 
-`GET /v1/accounts/me/freeze` — auth `Signeto-Gateway` or device. Returns the same shape. Gateways MUST poll this at least every 60 s in addition to consuming `freeze` events, and MUST treat the local freeze file (SPEC §7 `freeze_file`) as authoritative when it exists regardless of relay state. Unfreeze via the relay requires a device signature over `{frozen: false, ...}`; unfreeze of the local file requires local operator action.
+The relay verifies `signature` with the authenticated device's key (`422 signature_invalid`), requires `signed_at` within 60 s of its clock and later than the stored state's `signed_at` (`422 clock_skew`; an old signed unfreeze cannot be replayed), and emits a `freeze` event carrying the signed object to every active gateway of the account.
+
+`GET /v1/accounts/me/freeze` — auth `Signeto-Gateway` or device. Returns the same shape plus `signature`, so the gateway can verify the state against its own pinned device key: `{ "frozen": true, "set_by_device_id": "dev_...", "signed_at": "...", "signature": "..." }`. An account never frozen returns `{ "frozen": false, "set_by_device_id": null, "signed_at": null, "signature": null }`. Gateways MUST poll this at least every 60 s in addition to consuming `freeze` events, and MUST treat the local freeze file (SPEC §7 `freeze_file`) as authoritative when it exists regardless of relay state. Unfreeze via the relay requires a device signature over `{frozen: false, ...}`; unfreeze of the local file requires local operator action.
 
 ### 7.10 Publish chain head
 
@@ -798,7 +814,13 @@ Request:
 { "seq": 1842, "entry_hash": "<hex>", "policy_hash": "<hex>", "ts": "...", "signature": "<Sign_gw(JCS{gateway_id, seq, entry_hash, policy_hash, ts})>" }
 ```
 Response `200`: `{ "seq": 1842, "received_at": "..." }`
-Errors: `409 chain_head_regressed` (`seq` lower than stored, or same `seq` with a different hash; the relay MUST keep both and flag the account), `422 signature_invalid`.
+Errors: `409 chain_head_regressed` (`seq` lower than stored, or same `seq` with a different hash; the relay MUST keep both and flag the account), `422 signature_invalid`, `403 forbidden` (another gateway's path). The body MAY also carry `gateway_id` (the ledger's head object); it MUST equal the path. The same `seq` with the same `entry_hash` is accepted again (the periodic re-publish); a lower `seq` whose `(seq, entry_hash)` the relay already holds is accepted as a retry. Gateways therefore publish a backlog in `seq` order.
+
+`GET /v1/gateways/{gateway_id}/chain-heads?after=<cursor>&limit=<n>` — auth `Signeto-Gateway` (itself), `Bearer` (its account), or a device paired with it. Returns every head the relay holds for the gateway in arrival order, regressions included, for `signeto ledger verify --relay` and the approver app:
+```json
+{ "gateway_id": "gw_...", "heads": [ { "cursor": "41", "gateway_id": "gw_...", "seq": 1842, "entry_hash": "<hex>", "policy_hash": "<hex>", "ts": "...", "signature": "...", "received_at": "...", "regressed": false } ], "next": "41" | null }
+```
+Each head is the complete signed object, verifiable on its own. `limit` defaults to and is capped at 500; `next` is the `after` value for the following page, `null` on the last. Errors: `404 not_found` (unknown gateway or another account's), `403 forbidden` (another gateway, or a device not paired with it).
 
 Gateways SHOULD publish after every ledger append and MUST publish at least every 5 minutes while running. `seq` is the ledger's monotonic sequence; it is what the nonce-store startup check compares against (§4.7).
 
@@ -830,10 +852,14 @@ Codes are stable strings. HTTP status is advisory; clients MUST branch on `code`
 |---|---|---|---|
 | `unauthorized` | 401 | relay | Missing or invalid auth. |
 | `forbidden` | 403 | relay | Authenticated but not permitted for this resource. |
+| `not_found` | 404 | relay | No such endpoint, or a gateway/device id that does not exist for this account. |
+| `request_malformed` | 422 (400, 413) | relay | Body not JSON (400), over the size limit (413), or failing the endpoint's schema (422). |
+| `internal_error` | 500 | relay | Unexpected failure; nothing was stored. |
 | `device_limit` | 403 | relay | Plan device limit reached. |
+| `gateway_limit` | 403 | relay | Plan gateway limit reached (Free: one active gateway). |
 | `rate_limited` | 429 | relay | Fair-use limit; `retry_after` present. |
 | `frozen` | 409 | relay, gateway | Freeze flag set; nothing is queued or executed. |
-| `relay_unavailable` | 503 | gateway | Relay unreachable; action will expire. |
+| `relay_unavailable` | 503 | gateway, relay | Relay unreachable; action will expire. The relay's `/healthz` returns it when its database is down. |
 | `unsupported_protocol_version` | 422 | gateway, device | Unknown `protocol_version` MAJOR. |
 | `receipt_version_unsupported` | 422 | gateway | Unknown `receipt_version` MAJOR. |
 | `invalid_canonical_action` | 422 | gateway, device | Schema violation in the action. |
@@ -843,11 +869,11 @@ Codes are stable strings. HTTP status is advisory; clients MUST branch on `code`
 | `invalid_signature` | 422 | gateway | Cryptographic verification failed. |
 | `alg_not_allowed` | 422 | gateway, relay | `alg` not ES256/Ed25519 or not the pinned algorithm. |
 | `unknown_device` | 422 | gateway | Device not paired. |
-| `device_revoked` | 422 | gateway, relay | Device revoked. |
+| `device_revoked` | 422 | gateway, relay | Device revoked. The relay returns it with 401 when a revoked device authenticates (§7.1). |
 | `approver_mismatch` | 422 | gateway | `approver_id` does not own `device_id`. |
 | `approver_not_permitted` | 422 | gateway | Tier or named-approver rule not satisfied. |
 | `hash_mismatch` | 422 | gateway | Signed hash is not the stored bytes. |
-| `clock_skew` | 422 | gateway, relay | Timestamp outside 60 s tolerance. |
+| `clock_skew` | 422 | gateway, relay | Timestamp outside 60 s tolerance. 401 for a signed request's `ts` (§7.1). |
 | `nonce_reused` | 409 | gateway | Replay. |
 | `nonce_store_behind` | n/a | gateway | Startup refused: nonce store `seq` is behind the chain head; run `signeto ledger repair` (§4.7). |
 | `gateway_signature_invalid` | n/a | device | `gateway_signature` on an approval request failed against the pinned gateway key, or `gateway_id` is not pinned; the request is not rendered (§7.5). |
@@ -887,7 +913,7 @@ Codes are stable strings. HTTP status is advisory; clients MUST branch on `code`
 | `approval-request/` | Request body → `gateway_signature` signing input and signature; negative vectors for an altered `expires_at`, altered `canonical_bytes`, and an unpinned `gateway_id`. |
 | `batch/` | Steps → manifest bytes and hash for `atomic: true`; a reordered-steps negative vector. |
 | `pairing/` | Code, keys → `pairing_id`, `proof`, confirmation signing input, and a substituted-key negative vector. |
-| `relay-auth/` | Request → `Signeto-Gateway` / `Signeto-Device` header value, with body and without. |
+| `relay-auth/` | Request → `Signeto-Gateway` / `Signeto-Device` header value, with body and without (query string in `path`); negative vectors for an expired or future `ts`, the 60 s edge, a wrong key, an altered body, query or method, and a device id under the gateway scheme. |
 | `ledger/` | Chain head signing input; genesis `prev_hash` from a gateway public key. |
 
 ### 9.1 Worked example: canonical action and idempotency key
