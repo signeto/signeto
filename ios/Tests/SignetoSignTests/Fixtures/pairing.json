@@ -1,0 +1,274 @@
+{
+  "description": "Pairing, device side: QR payload, pairing_id, code_hash, HMAC proof, claim, confirmations with and without template pins, and tampering negatives",
+  "gateway_private_key_name": "gateway-ed25519",
+  "device_public_key": {
+    "kty": "EC",
+    "x": "Of8uj529uXHN5vuSVnd9npjQoo3omxCJUxXVYt_WXS8",
+    "y": "ymLO0QWGOus6jSc_kOwiyELsXG3f1Gf9MmJQczzivw4",
+    "crv": "P-256"
+  },
+  "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+  "device_fingerprint": "6b4f c5bb 2730 f669",
+  "qr": {
+    "v": 1,
+    "gateway_public_key": {
+      "crv": "Ed25519",
+      "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28",
+      "kty": "OKP"
+    },
+    "gateway_name": "home-01",
+    "relay": "https://api.signeto.dev",
+    "code": "AwoRGB8mLTQ7QklQV15lbA",
+    "expires_at": "2026-11-07T12:10:00.000Z"
+  },
+  "qr_uri": "signeto://pair?d=eyJjb2RlIjoiQXdvUkdCOG1MVFE3UWtsUVYxNWxiQSIsImV4cGlyZXNfYXQiOiIyMDI2LTExLTA3VDEyOjEwOjAwLjAwMFoiLCJnYXRld2F5X25hbWUiOiJob21lLTAxIiwiZ2F0ZXdheV9wdWJsaWNfa2V5Ijp7ImNydiI6IkVkMjU1MTkiLCJrdHkiOiJPS1AiLCJ4IjoibnVoM0t6M3kxdFM1Slp6RUFxMXRmdWpQb2tmRV9CeVNCS3dpR3pkWUEyOCJ9LCJyZWxheSI6Imh0dHBzOi8vYXBpLnNpZ25ldG8uZGV2IiwidiI6MX0",
+  "qr_manual": "eyJjb2RlIjoiQXdvUkdCOG1MVFE3UWtsUVYxNWxiQSIsImV4cGlyZXNfYXQiOiIyMDI2LTExLTA3VDEyOjEwOjAwLjAwMFoiLCJnYXRld2F5X25hbWUiOiJob21lLTAxIiwiZ2F0ZXdheV9wdWJsaWNfa2V5Ijp7ImNydiI6IkVkMjU1MTkiLCJrdHkiOiJPS1AiLCJ4IjoibnVoM0t6M3kxdFM1Slp6RUFxMXRmdWpQb2tmRV9CeVNCS3dpR3pkWUEyOCJ9LCJyZWxheSI6Imh0dHBzOi8vYXBpLnNpZ25ldG8uZGV2IiwidiI6MX0",
+  "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+  "gateway_fingerprint": "8ed9 7cb9 76c0 d7d6",
+  "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+  "code_hash": "27fc02d8d768d95cc9e92c2abfc5b01a61fa7b2c6b9c3f2ecae171acc36e7696",
+  "proof_signing_input": "{\"device_id\":\"dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q\",\"device_public_key\":{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"Of8uj529uXHN5vuSVnd9npjQoo3omxCJUxXVYt_WXS8\",\"y\":\"ymLO0QWGOus6jSc_kOwiyELsXG3f1Gf9MmJQczzivw4\"},\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\"}",
+  "proof": "SmX_jP3M3WRvKfkTsw4Uu1_QVGVO1jjl4d0WQNvyCSs",
+  "substituted_key_proof": "AT1rnTrilrjonhg42Sq8vAIiUvGIXP6DszpoIjEKEww",
+  "confirmation_signing_input_no_pins": "{\"device_id\":\"dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"paired_at\":\"2026-11-07T12:02:03.456Z\",\"pairing_id\":\"J_wC2Ndo2VzJ6Swqv8WwGm\",\"templates_pinned\":[]}",
+  "confirmation_signing_input_pins": "{\"device_id\":\"dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"paired_at\":\"2026-11-07T12:02:03.456Z\",\"pairing_id\":\"J_wC2Ndo2VzJ6Swqv8WwGm\",\"templates_pinned\":[{\"sha256\":\"3244f6acf15a596bac27c04704af890d1d5e925c7e66683c7c99cc4933c27b7c\",\"template_id\":\"acme.rotate_key\",\"template_version\":3},{\"sha256\":\"b2ad08b9aa9a7f9d5660687cdcb21bd053a109a8cf30f9a92326b4d80a800f3b\",\"template_id\":\"acme.drop_table\",\"template_version\":1}]}",
+  "pins": [
+    {
+      "template_id": "acme.rotate_key",
+      "template_version": 3,
+      "sha256": "3244f6acf15a596bac27c04704af890d1d5e925c7e66683c7c99cc4933c27b7c"
+    },
+    {
+      "template_id": "acme.drop_table",
+      "template_version": 1,
+      "sha256": "b2ad08b9aa9a7f9d5660687cdcb21bd053a109a8cf30f9a92326b4d80a800f3b"
+    }
+  ],
+  "confirmations": [
+    {
+      "description": "no pins, templates_pinned []",
+      "view": {
+        "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+        "status": "confirmed",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "confirmation": "yuRpodrtbInhmfiIFmQ7j03viIb8fTK1TmhNqySSQRfQnLR6nhSkD1zKJ1Y-A030B5sZgHpeugrM5IvFEOa0Cg",
+        "paired_at": "2026-11-07T12:02:03.456Z",
+        "templates_pinned": []
+      },
+      "expected": "ok",
+      "pins": []
+    },
+    {
+      "description": "no pins, templates_pinned absent (treated as [])",
+      "view": {
+        "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+        "status": "confirmed",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "confirmation": "yuRpodrtbInhmfiIFmQ7j03viIb8fTK1TmhNqySSQRfQnLR6nhSkD1zKJ1Y-A030B5sZgHpeugrM5IvFEOa0Cg",
+        "paired_at": "2026-11-07T12:02:03.456Z"
+      },
+      "expected": "ok",
+      "pins": []
+    },
+    {
+      "description": "two pins in the signed order",
+      "view": {
+        "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+        "status": "confirmed",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "confirmation": "xXpQD37lOebt0GS6UoZTiyAanOvpSk2JCa2iycx0TCgI44roDFYn0ad1UCZPPUaW_TPggJJcl1GNcvWc_GQeDw",
+        "paired_at": "2026-11-07T12:02:03.456Z",
+        "templates_pinned": [
+          {
+            "template_id": "acme.rotate_key",
+            "template_version": 3,
+            "sha256": "3244f6acf15a596bac27c04704af890d1d5e925c7e66683c7c99cc4933c27b7c"
+          },
+          {
+            "template_id": "acme.drop_table",
+            "template_version": 1,
+            "sha256": "b2ad08b9aa9a7f9d5660687cdcb21bd053a109a8cf30f9a92326b4d80a800f3b"
+          }
+        ]
+      },
+      "expected": "ok",
+      "pins": [
+        {
+          "template_id": "acme.rotate_key",
+          "template_version": 3,
+          "sha256": "3244f6acf15a596bac27c04704af890d1d5e925c7e66683c7c99cc4933c27b7c"
+        },
+        {
+          "template_id": "acme.drop_table",
+          "template_version": 1,
+          "sha256": "b2ad08b9aa9a7f9d5660687cdcb21bd053a109a8cf30f9a92326b4d80a800f3b"
+        }
+      ]
+    },
+    {
+      "description": "relay reordered the pins",
+      "view": {
+        "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+        "status": "confirmed",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "confirmation": "xXpQD37lOebt0GS6UoZTiyAanOvpSk2JCa2iycx0TCgI44roDFYn0ad1UCZPPUaW_TPggJJcl1GNcvWc_GQeDw",
+        "paired_at": "2026-11-07T12:02:03.456Z",
+        "templates_pinned": [
+          {
+            "template_id": "acme.drop_table",
+            "template_version": 1,
+            "sha256": "b2ad08b9aa9a7f9d5660687cdcb21bd053a109a8cf30f9a92326b4d80a800f3b"
+          },
+          {
+            "template_id": "acme.rotate_key",
+            "template_version": 3,
+            "sha256": "3244f6acf15a596bac27c04704af890d1d5e925c7e66683c7c99cc4933c27b7c"
+          }
+        ]
+      },
+      "expected": "pairing_confirmation_invalid"
+    },
+    {
+      "description": "relay dropped a pin",
+      "view": {
+        "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+        "status": "confirmed",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "confirmation": "xXpQD37lOebt0GS6UoZTiyAanOvpSk2JCa2iycx0TCgI44roDFYn0ad1UCZPPUaW_TPggJJcl1GNcvWc_GQeDw",
+        "paired_at": "2026-11-07T12:02:03.456Z",
+        "templates_pinned": [
+          {
+            "template_id": "acme.rotate_key",
+            "template_version": 3,
+            "sha256": "3244f6acf15a596bac27c04704af890d1d5e925c7e66683c7c99cc4933c27b7c"
+          }
+        ]
+      },
+      "expected": "pairing_confirmation_invalid"
+    },
+    {
+      "description": "relay dropped all pins",
+      "view": {
+        "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+        "status": "confirmed",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "confirmation": "xXpQD37lOebt0GS6UoZTiyAanOvpSk2JCa2iycx0TCgI44roDFYn0ad1UCZPPUaW_TPggJJcl1GNcvWc_GQeDw",
+        "paired_at": "2026-11-07T12:02:03.456Z"
+      },
+      "expected": "pairing_confirmation_invalid"
+    },
+    {
+      "description": "relay added a pin",
+      "view": {
+        "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+        "status": "confirmed",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "confirmation": "yuRpodrtbInhmfiIFmQ7j03viIb8fTK1TmhNqySSQRfQnLR6nhSkD1zKJ1Y-A030B5sZgHpeugrM5IvFEOa0Cg",
+        "paired_at": "2026-11-07T12:02:03.456Z",
+        "templates_pinned": [
+          {
+            "template_id": "acme.rotate_key",
+            "template_version": 3,
+            "sha256": "3244f6acf15a596bac27c04704af890d1d5e925c7e66683c7c99cc4933c27b7c"
+          }
+        ]
+      },
+      "expected": "pairing_confirmation_invalid"
+    },
+    {
+      "description": "relay altered a pin's sha256",
+      "view": {
+        "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+        "status": "confirmed",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "confirmation": "xXpQD37lOebt0GS6UoZTiyAanOvpSk2JCa2iycx0TCgI44roDFYn0ad1UCZPPUaW_TPggJJcl1GNcvWc_GQeDw",
+        "paired_at": "2026-11-07T12:02:03.456Z",
+        "templates_pinned": [
+          {
+            "template_id": "acme.rotate_key",
+            "template_version": 3,
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          {
+            "template_id": "acme.drop_table",
+            "template_version": 1,
+            "sha256": "b2ad08b9aa9a7f9d5660687cdcb21bd053a109a8cf30f9a92326b4d80a800f3b"
+          }
+        ]
+      },
+      "expected": "pairing_confirmation_invalid"
+    },
+    {
+      "description": "pin with an extra member",
+      "view": {
+        "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+        "status": "confirmed",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "confirmation": "xXpQD37lOebt0GS6UoZTiyAanOvpSk2JCa2iycx0TCgI44roDFYn0ad1UCZPPUaW_TPggJJcl1GNcvWc_GQeDw",
+        "paired_at": "2026-11-07T12:02:03.456Z",
+        "templates_pinned": [
+          {
+            "template_id": "acme.rotate_key",
+            "template_version": 3,
+            "sha256": "3244f6acf15a596bac27c04704af890d1d5e925c7e66683c7c99cc4933c27b7c",
+            "elide": []
+          },
+          {
+            "template_id": "acme.drop_table",
+            "template_version": 1,
+            "sha256": "b2ad08b9aa9a7f9d5660687cdcb21bd053a109a8cf30f9a92326b4d80a800f3b"
+          }
+        ]
+      },
+      "expected": "pairing_confirmation_invalid"
+    },
+    {
+      "description": "pins not an array",
+      "view": {
+        "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+        "status": "confirmed",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "confirmation": "yuRpodrtbInhmfiIFmQ7j03viIb8fTK1TmhNqySSQRfQnLR6nhSkD1zKJ1Y-A030B5sZgHpeugrM5IvFEOa0Cg",
+        "paired_at": "2026-11-07T12:02:03.456Z",
+        "templates_pinned": {}
+      },
+      "expected": "pairing_confirmation_invalid"
+    },
+    {
+      "description": "signed by a key other than the QR's",
+      "view": {
+        "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+        "status": "confirmed",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "confirmation": "1a39y_wy4OHzID_hDRem4bdfxN3NnS7JDoJxE2DJiPnvQjNeFPDn5PBGJ1LmZHNYo3OxrOOQYzn7IeEeGxENDQ",
+        "paired_at": "2026-11-07T12:02:03.456Z",
+        "templates_pinned": []
+      },
+      "expected": "pairing_confirmation_invalid"
+    },
+    {
+      "description": "paired_at altered",
+      "view": {
+        "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+        "status": "confirmed",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "confirmation": "yuRpodrtbInhmfiIFmQ7j03viIb8fTK1TmhNqySSQRfQnLR6nhSkD1zKJ1Y-A030B5sZgHpeugrM5IvFEOa0Cg",
+        "paired_at": "2026-11-07T12:02:03.457Z",
+        "templates_pinned": []
+      },
+      "expected": "pairing_confirmation_invalid"
+    },
+    {
+      "description": "confirmation for another device",
+      "view": {
+        "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+        "status": "confirmed",
+        "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+        "confirmation": "uiNmfep4QHHZOPhoTwLpNbOkpi_hupAeC5-n_lFDwp4iPpA94_64XOw4173sSqGrOVH59PucXwxZH2sDPXwWAw",
+        "paired_at": "2026-11-07T12:02:03.456Z",
+        "templates_pinned": []
+      },
+      "expected": "pairing_mismatch"
+    }
+  ]
+}

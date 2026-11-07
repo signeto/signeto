@@ -1,0 +1,289 @@
+{
+  "description": "renderTemplate cases beyond vectors/templates/ ('builtin' = @signeto/protocol builtinRegistries)",
+  "cases": [
+    {
+      "description": "github.create_deployment with elided description",
+      "canonical_bytes": "{\"args_resolved\":{\"description\":\"ship it\",\"environment\":\"production\",\"ref\":\"v2.0.0\",\"repo\":\"acme/api\"},\"expires_at\":\"2026-11-07T12:03:00.000Z\",\"idempotency_key\":\"acf17af5f4e1c69c509fda5cefe37ca5de8b300c8b7185a0380bc9b7848d1f22\",\"issued_at\":\"2026-11-07T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"AAAAAAAAAAAAAAAAAAAAAA\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"github.create_deployment\",\"template_version\":1,\"tier\":3,\"tool\":\"github.create_deployment\"}",
+      "registries": "builtin",
+      "expected": {
+        "status": "ok",
+        "text": "Deploy v2.0.0 to production on acme/api",
+        "hidden": [
+          "description"
+        ]
+      }
+    },
+    {
+      "description": "postgres.execute with unicode and newline in the statement",
+      "canonical_bytes": "{\"args_resolved\":{\"database\":\"prod\",\"host\":\"db-1\",\"statement\":\"UPDATE users SET name = 'Zoë'\\nWHERE id = 7;\",\"statement_kind\":\"dml\"},\"expires_at\":\"2026-11-07T12:03:00.001Z\",\"idempotency_key\":\"e314969b163d74109a15032d4c22e4d01d82e47d51fdb56af6981df816111a43\",\"issued_at\":\"2026-11-07T12:00:00.001Z\",\"mode\":\"enforce\",\"nonce\":\"BBBBBBBBBBBBBBBBBBBBBB\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"postgres.execute\",\"template_version\":1,\"tier\":3,\"tool\":\"postgres.execute\"}",
+      "registries": "builtin",
+      "expected": {
+        "status": "ok",
+        "text": "dml on prod@db-1: UPDATE users SET name = 'Zoë'\nWHERE id = 7;",
+        "hidden": []
+      }
+    },
+    {
+      "description": "alpaca.place_order with both elided keys present",
+      "canonical_bytes": "{\"args_resolved\":{\"account\":\"paper\",\"limit_price\":\"191.24\",\"notional_usd\":\"1912.40\",\"qty\":10,\"side\":\"buy\",\"symbol\":\"AAPL\",\"time_in_force\":\"day\",\"type\":\"limit\"},\"expires_at\":\"2026-11-07T12:03:00.002Z\",\"idempotency_key\":\"330ee2e4593b87809d01d043cebc164668f0a4de9319f6d67a758a9ff58432a2\",\"issued_at\":\"2026-11-07T12:00:00.002Z\",\"mode\":\"enforce\",\"nonce\":\"CCCCCCCCCCCCCCCCCCCCCC\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"alpaca.place_order\",\"template_version\":1,\"tier\":3,\"tool\":\"alpaca.place_order\"}",
+      "registries": "builtin",
+      "expected": {
+        "status": "ok",
+        "text": "Place order: buy 10 AAPL limit on paper (notional 1912.40 USD)",
+        "hidden": [
+          "limit_price",
+          "time_in_force"
+        ]
+      }
+    },
+    {
+      "description": "alpaca.place_order with an unreferenced key",
+      "canonical_bytes": "{\"args_resolved\":{\"account\":\"live\",\"extended_hours\":true,\"notional_usd\":\"250.00\",\"qty\":1,\"side\":\"sell\",\"symbol\":\"TSLA\",\"type\":\"market\"},\"expires_at\":\"2026-11-07T12:03:00.003Z\",\"idempotency_key\":\"b69fbd570cb83d08f53d9f90467e46dd335826b8e4fef4078f0716c3d14fa552\",\"issued_at\":\"2026-11-07T12:00:00.003Z\",\"mode\":\"enforce\",\"nonce\":\"DDDDDDDDDDDDDDDDDDDDDD\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"alpaca.place_order\",\"template_version\":1,\"tier\":3,\"tool\":\"alpaca.place_order\"}",
+      "registries": "builtin",
+      "expected": {
+        "status": "unverified",
+        "reason": "unreferenced_key",
+        "detail": "extended_hours"
+      }
+    },
+    {
+      "description": "advisory mode renders the same line",
+      "canonical_bytes": "{\"args_resolved\":{\"base\":\"main\",\"head_sha\":\"ffffffffffffffffffffffffffffffffffffffff\",\"method\":\"merge\",\"pr\":7,\"repo\":\"acme/web\"},\"expires_at\":\"2026-11-07T12:03:00.004Z\",\"idempotency_key\":\"15b8d6b93bc0795fb6df6de73e076dd020e66fca2250dff606bbb1460f498d07\",\"issued_at\":\"2026-11-07T12:00:00.004Z\",\"mode\":\"advisory\",\"nonce\":\"EEEEEEEEEEEEEEEEEEEEEE\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"github.merge_pull_request\",\"template_version\":1,\"tier\":3,\"tool\":\"github.merge_pull_request\"}",
+      "registries": "builtin",
+      "expected": {
+        "status": "ok",
+        "text": "Merge PR #7 into main on acme/web (merge) at ffffffffffffffffffffffffffffffffffffffff",
+        "hidden": []
+      }
+    },
+    {
+      "description": "hidden list follows ECMAScript key order (array-index keys first)",
+      "canonical_bytes": "{\"args_resolved\":{\"10\":4,\"9\":3,\"a\":1,\"b\":2,\"name\":\"n\"},\"expires_at\":\"2026-11-07T12:03:00.005Z\",\"idempotency_key\":\"2a9ee6625eb7dcb518fae104cba0d411e9c6cc199dffecbffb59c7b98a0c1faf\",\"issued_at\":\"2026-11-07T12:00:00.005Z\",\"mode\":\"enforce\",\"nonce\":\"FFFFFFFFFFFFFFFFFFFFFF\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"custom.keys\",\"template_version\":1,\"tier\":3,\"tool\":\"custom.keys\"}",
+      "registries": [
+        {
+          "adapter": "custom",
+          "templates": [
+            {
+              "template_id": "custom.keys",
+              "template_version": 1,
+              "text": "only {name}",
+              "sha256": "aae12f00f7d1100d9ab09e914aeb2aaef15dc425eef98b0cbe9a98cf9dfc0d64",
+              "elide": [
+                "10",
+                "9",
+                "b",
+                "a"
+              ]
+            },
+            {
+              "template_id": "custom.values",
+              "template_version": 1,
+              "text": "obj {o} arr {a} null {n} num {x} str {s}",
+              "sha256": "96b974a36e8cdbadd04af3b9123eb9868579a88181b84617d93e5c9998bd9e8c"
+            },
+            {
+              "template_id": "custom.badhash",
+              "template_version": 1,
+              "text": "x {a}",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+            },
+            {
+              "template_id": "custom.stray",
+              "template_version": 1,
+              "text": "stray } brace {a}",
+              "sha256": "aa42d5495d80d12617ec1dd9f64805a90c7867f20cd99cf515c0d1b348ebee1c"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "ok",
+        "text": "only n",
+        "hidden": [
+          "9",
+          "10",
+          "a",
+          "b"
+        ]
+      }
+    },
+    {
+      "description": "first unreferenced key follows ECMAScript key order",
+      "canonical_bytes": "{\"args_resolved\":{\"7\":2,\"name\":\"n\",\"zz\":1},\"expires_at\":\"2026-11-07T12:03:00.006Z\",\"idempotency_key\":\"39f8d8377bfbd0d850db3aec6edc1cbc6269425ff53d562de0a5a06d1d493449\",\"issued_at\":\"2026-11-07T12:00:00.006Z\",\"mode\":\"enforce\",\"nonce\":\"GGGGGGGGGGGGGGGGGGGGGG\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"custom.keys\",\"template_version\":1,\"tier\":3,\"tool\":\"custom.keys\"}",
+      "registries": [
+        {
+          "adapter": "c",
+          "templates": [
+            {
+              "template_id": "custom.keys",
+              "template_version": 1,
+              "text": "only {name}",
+              "sha256": "aae12f00f7d1100d9ab09e914aeb2aaef15dc425eef98b0cbe9a98cf9dfc0d64",
+              "elide": []
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "unverified",
+        "reason": "unreferenced_key",
+        "detail": "7"
+      }
+    },
+    {
+      "description": "objects, arrays, null and numbers render as JCS text",
+      "canonical_bytes": "{\"args_resolved\":{\"a\":[true,null,\"s\"],\"n\":null,\"o\":{\"a\":\"x\",\"b\":[1,2.5]},\"s\":\"plain\",\"x\":1e+21},\"expires_at\":\"2026-11-07T12:03:00.007Z\",\"idempotency_key\":\"43080261efe762ba20ea454b3d0d9d54db085e7d0126eaefcc393a7ccbea87a6\",\"issued_at\":\"2026-11-07T12:00:00.007Z\",\"mode\":\"enforce\",\"nonce\":\"HHHHHHHHHHHHHHHHHHHHHH\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"custom.values\",\"template_version\":1,\"tier\":3,\"tool\":\"custom.values\"}",
+      "registries": [
+        {
+          "adapter": "custom",
+          "templates": [
+            {
+              "template_id": "custom.keys",
+              "template_version": 1,
+              "text": "only {name}",
+              "sha256": "aae12f00f7d1100d9ab09e914aeb2aaef15dc425eef98b0cbe9a98cf9dfc0d64",
+              "elide": [
+                "10",
+                "9",
+                "b",
+                "a"
+              ]
+            },
+            {
+              "template_id": "custom.values",
+              "template_version": 1,
+              "text": "obj {o} arr {a} null {n} num {x} str {s}",
+              "sha256": "96b974a36e8cdbadd04af3b9123eb9868579a88181b84617d93e5c9998bd9e8c"
+            },
+            {
+              "template_id": "custom.badhash",
+              "template_version": 1,
+              "text": "x {a}",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+            },
+            {
+              "template_id": "custom.stray",
+              "template_version": 1,
+              "text": "stray } brace {a}",
+              "sha256": "aa42d5495d80d12617ec1dd9f64805a90c7867f20cd99cf515c0d1b348ebee1c"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "ok",
+        "text": "obj {\"a\":\"x\",\"b\":[1,2.5]} arr [true,null,\"s\"] null null num 1e+21 str plain",
+        "hidden": []
+      }
+    },
+    {
+      "description": "template sha256 mismatch",
+      "canonical_bytes": "{\"args_resolved\":{\"a\":1},\"expires_at\":\"2026-11-07T12:03:00.008Z\",\"idempotency_key\":\"4296cc7f181a411bd7844475b23427ea84feb4314b54dc81022924d34bb5cab6\",\"issued_at\":\"2026-11-07T12:00:00.008Z\",\"mode\":\"enforce\",\"nonce\":\"IIIIIIIIIIIIIIIIIIIIII\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"custom.badhash\",\"template_version\":1,\"tier\":3,\"tool\":\"custom.badhash\"}",
+      "registries": [
+        {
+          "adapter": "custom",
+          "templates": [
+            {
+              "template_id": "custom.keys",
+              "template_version": 1,
+              "text": "only {name}",
+              "sha256": "aae12f00f7d1100d9ab09e914aeb2aaef15dc425eef98b0cbe9a98cf9dfc0d64",
+              "elide": [
+                "10",
+                "9",
+                "b",
+                "a"
+              ]
+            },
+            {
+              "template_id": "custom.values",
+              "template_version": 1,
+              "text": "obj {o} arr {a} null {n} num {x} str {s}",
+              "sha256": "96b974a36e8cdbadd04af3b9123eb9868579a88181b84617d93e5c9998bd9e8c"
+            },
+            {
+              "template_id": "custom.badhash",
+              "template_version": 1,
+              "text": "x {a}",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+            },
+            {
+              "template_id": "custom.stray",
+              "template_version": 1,
+              "text": "stray } brace {a}",
+              "sha256": "aa42d5495d80d12617ec1dd9f64805a90c7867f20cd99cf515c0d1b348ebee1c"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "unverified",
+        "reason": "template_hash_mismatch"
+      }
+    },
+    {
+      "description": "malformed template (stray closing brace)",
+      "canonical_bytes": "{\"args_resolved\":{\"a\":1},\"expires_at\":\"2026-11-07T12:03:00.009Z\",\"idempotency_key\":\"03a8d26d94cdad1effe5f028f4b5033c3a2a93e8f5a083ca4c59c9cfeff123b1\",\"issued_at\":\"2026-11-07T12:00:00.009Z\",\"mode\":\"enforce\",\"nonce\":\"JJJJJJJJJJJJJJJJJJJJJJ\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"custom.stray\",\"template_version\":1,\"tier\":3,\"tool\":\"custom.stray\"}",
+      "registries": [
+        {
+          "adapter": "custom",
+          "templates": [
+            {
+              "template_id": "custom.keys",
+              "template_version": 1,
+              "text": "only {name}",
+              "sha256": "aae12f00f7d1100d9ab09e914aeb2aaef15dc425eef98b0cbe9a98cf9dfc0d64",
+              "elide": [
+                "10",
+                "9",
+                "b",
+                "a"
+              ]
+            },
+            {
+              "template_id": "custom.values",
+              "template_version": 1,
+              "text": "obj {o} arr {a} null {n} num {x} str {s}",
+              "sha256": "96b974a36e8cdbadd04af3b9123eb9868579a88181b84617d93e5c9998bd9e8c"
+            },
+            {
+              "template_id": "custom.badhash",
+              "template_version": 1,
+              "text": "x {a}",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+            },
+            {
+              "template_id": "custom.stray",
+              "template_version": 1,
+              "text": "stray } brace {a}",
+              "sha256": "aa42d5495d80d12617ec1dd9f64805a90c7867f20cd99cf515c0d1b348ebee1c"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "unverified",
+        "reason": "malformed_template"
+      }
+    },
+    {
+      "description": "unknown template id",
+      "canonical_bytes": "{\"args_resolved\":{\"a\":1},\"expires_at\":\"2026-11-07T12:03:00.010Z\",\"idempotency_key\":\"f016d5584d3a54be20d053c5bb2be6118caf5746215cb25cf8071f6c0ce84244\",\"issued_at\":\"2026-11-07T12:00:00.010Z\",\"mode\":\"enforce\",\"nonce\":\"KKKKKKKKKKKKKKKKKKKKKK\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"nobody.knows\",\"template_version\":1,\"tier\":3,\"tool\":\"nobody.knows\"}",
+      "registries": "builtin",
+      "expected": {
+        "status": "unverified",
+        "reason": "unknown_template"
+      }
+    },
+    {
+      "description": "non-canonical bytes are action_malformed/not_canonical",
+      "canonical_bytes": "{\n \"args_resolved\": {\n  \"base\": \"main\",\n  \"head_sha\": \"x\",\n  \"method\": \"merge\",\n  \"pr\": 1,\n  \"repo\": \"a/b\"\n },\n \"expires_at\": \"2026-11-07T12:03:00.011Z\",\n \"idempotency_key\": \"a0b9270bc6b9f456507c3805327f1f7fb5cf75f5848b3f6920a3d5c8d8928b9e\",\n \"issued_at\": \"2026-11-07T12:00:00.011Z\",\n \"mode\": \"enforce\",\n \"nonce\": \"LLLLLLLLLLLLLLLLLLLLLL\",\n \"origin_hash\": \"0000000000000000000000000000000000000000000000000000000000000000\",\n \"protocol_version\": \"1.0\",\n \"requester\": {\n  \"agent\": \"claude-code\",\n  \"gateway_id\": \"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\n  \"host\": \"jason-mbp\",\n  \"session_id\": \"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"\n },\n \"template_id\": \"github.merge_pull_request\",\n \"template_version\": 1,\n \"tier\": 3,\n \"tool\": \"github.merge_pull_request\"\n}",
+      "registries": "builtin",
+      "expected": {
+        "status": "unverified",
+        "reason": "action_malformed",
+        "detail": "not_canonical"
+      }
+    }
+  ]
+}

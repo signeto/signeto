@@ -1,0 +1,18 @@
+{
+  "description": "Approval request signed by an ES256 gateway key (vectors/keys/device-es256 reused as a gateway key)",
+  "request": {
+    "action_id": "act_01JBXK4Q9R2T4V6W8Y0Z1A3B5C",
+    "canonical_bytes": "{\"args_resolved\":{\"base\":\"main\",\"head_sha\":\"1111111111111111111111111111111111111111\",\"method\":\"rebase\",\"pr\":9,\"repo\":\"acme/api\"},\"expires_at\":\"2026-11-07T12:08:00.000Z\",\"idempotency_key\":\"97e539d8cb06a1c55d0934b076b6f7420564aadfec7d85e9fdbea0584105fa90\",\"issued_at\":\"2026-11-07T12:05:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"ZZZZZZZZZZZZZZZZZZZZZZ\",\"origin_hash\":\"1111111111111111111111111111111111111111111111111111111111111111\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"github.merge_pull_request\",\"template_version\":1,\"tier\":2,\"tool\":\"github.merge_pull_request\"}",
+    "expires_at": "2026-11-07T12:08:00.000Z",
+    "gateway_signature": "VG9j2reURJj5XygJVRhapFtNhvF5wHp_xE_Mj82NIbOGjI-hG5u54ODtccQwYtvRGa7Nppum157GfrFS6kLU5Q"
+  },
+  "pinned": {
+    "gw_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q": {
+      "kty": "EC",
+      "x": "Of8uj529uXHN5vuSVnd9npjQoo3omxCJUxXVYt_WXS8",
+      "y": "ymLO0QWGOus6jSc_kOwiyELsXG3f1Gf9MmJQczzivw4",
+      "crv": "P-256"
+    }
+  },
+  "signing_input": "{\"action_id\":\"act_01JBXK4Q9R2T4V6W8Y0Z1A3B5C\",\"canonical_bytes_sha256\":\"69bced9f6dda74d209ba00c51d3849aa72b505a7c7f3c04459218723df134a72\",\"expires_at\":\"2026-11-07T12:08:00.000Z\",\"gateway_id\":\"gw_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q\",\"nonce\":\"ZZZZZZZZZZZZZZZZZZZZZZ\"}"
+}

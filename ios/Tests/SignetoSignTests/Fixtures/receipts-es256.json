@@ -1,0 +1,62 @@
+{
+  "description": "ES256 receipts signed by @signeto/protocol signReceipt with vectors/keys/device-es256",
+  "canonical_bytes": "{\"args_resolved\":{\"base\":\"main\",\"head_sha\":\"abc1234abc1234abc1234abc1234abc1234abc12\",\"method\":\"squash\",\"pr\":42,\"repo\":\"acme/api\"},\"expires_at\":\"2026-11-07T12:03:00.012Z\",\"idempotency_key\":\"d6c9ba6711cedcb098ec0694c215d960b8b130a03f74378fc4b31c36fcad5376\",\"issued_at\":\"2026-11-07T12:00:00.012Z\",\"mode\":\"enforce\",\"nonce\":\"MMMMMMMMMMMMMMMMMMMMMM\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"github.merge_pull_request\",\"template_version\":1,\"tier\":3,\"tool\":\"github.merge_pull_request\"}",
+  "issued_at": "2026-11-07T12:00:00.012Z",
+  "expires_at": "2026-11-07T12:03:00.012Z",
+  "device_public_key": {
+    "kty": "EC",
+    "x": "Of8uj529uXHN5vuSVnd9npjQoo3omxCJUxXVYt_WXS8",
+    "y": "ymLO0QWGOus6jSc_kOwiyELsXG3f1Gf9MmJQczzivw4",
+    "crv": "P-256"
+  },
+  "cases": [
+    {
+      "description": "deny with a unicode reason",
+      "receipt": {
+        "receipt_version": "1.0",
+        "action_id": "act_01JBXK4Q9R2T4V6W8Y0Z1A3B5C",
+        "decision": "deny",
+        "reason": "Nicht heute — 不 😀 \"quoted\"\n",
+        "approver_id": "jason",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "alg": "ES256",
+        "signature": "nXMJCy5CacCP3MvGlxo_PK_bi7QskNTXkQT9JywN80c2AiWAAQU4JtNxDWO7o09zcHx1eJo-ENGH7iTVKd7KPA",
+        "signed_at": "2026-11-07T12:01:00.000Z",
+        "canonical_bytes_sha256": "5b26c5dec5ef573496ef92e8821b11e38d85f56542df0f3a9d014a98ffa4f005"
+      },
+      "signing_input": "{\"canonical_bytes_sha256\":\"5b26c5dec5ef573496ef92e8821b11e38d85f56542df0f3a9d014a98ffa4f005\",\"decision\":\"deny\",\"reason\":\"Nicht heute — 不 😀 \\\"quoted\\\"\\n\",\"signed_at\":\"2026-11-07T12:01:00.000Z\"}",
+      "verify": "ok"
+    },
+    {
+      "description": "approve, no reason",
+      "receipt": {
+        "receipt_version": "1.0",
+        "action_id": "act_01JBXK4Q9R2T4V6W8Y0Z1A3B5C",
+        "decision": "approve",
+        "approver_id": "jason",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "alg": "ES256",
+        "signature": "FlJNQ1tNiNICF-vmTR12u2DFDt5kSU41uqLl5ksYqSlW8PrQSy2sVIz_LVDDxDlw1_AfS_ykT3Vj8zFrkOWIMg",
+        "signed_at": "2026-11-07T12:01:00.000Z",
+        "canonical_bytes_sha256": "5b26c5dec5ef573496ef92e8821b11e38d85f56542df0f3a9d014a98ffa4f005"
+      },
+      "signing_input": "{\"canonical_bytes_sha256\":\"5b26c5dec5ef573496ef92e8821b11e38d85f56542df0f3a9d014a98ffa4f005\",\"decision\":\"approve\",\"signed_at\":\"2026-11-07T12:01:00.000Z\"}",
+      "verify": "ok"
+    },
+    {
+      "description": "reason dropped after signing",
+      "receipt": {
+        "receipt_version": "1.0",
+        "action_id": "act_01JBXK4Q9R2T4V6W8Y0Z1A3B5C",
+        "decision": "deny",
+        "approver_id": "jason",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "alg": "ES256",
+        "signature": "nXMJCy5CacCP3MvGlxo_PK_bi7QskNTXkQT9JywN80c2AiWAAQU4JtNxDWO7o09zcHx1eJo-ENGH7iTVKd7KPA",
+        "signed_at": "2026-11-07T12:01:00.000Z",
+        "canonical_bytes_sha256": "5b26c5dec5ef573496ef92e8821b11e38d85f56542df0f3a9d014a98ffa4f005"
+      },
+      "verify": "invalid_signature"
+    }
+  ]
+}

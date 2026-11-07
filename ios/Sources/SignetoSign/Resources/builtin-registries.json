@@ -1,0 +1,48 @@
+[
+  {
+    "adapter": "github",
+    "templates": [
+      {
+        "template_id": "github.merge_pull_request",
+        "template_version": 1,
+        "text": "Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}",
+        "sha256": "0280710fb0ac477803f2002b1c52027717ed45bc7e8da1ec79b87ec7754d75de"
+      },
+      {
+        "template_id": "github.create_deployment",
+        "template_version": 1,
+        "text": "Deploy {ref} to {environment} on {repo}",
+        "sha256": "f76538cd625f09e2729b20d9c745cd0bdc0249e0ec69a85edc37007c367687d1",
+        "elide": [
+          "description"
+        ]
+      }
+    ]
+  },
+  {
+    "adapter": "postgres",
+    "templates": [
+      {
+        "template_id": "postgres.execute",
+        "template_version": 1,
+        "text": "{statement_kind} on {database}@{host}: {statement}",
+        "sha256": "4c2078abc027b5d4b398c910825ca198c0333b899aeef2c69baf964c1bd3d8d6"
+      }
+    ]
+  },
+  {
+    "adapter": "alpaca",
+    "templates": [
+      {
+        "template_id": "alpaca.place_order",
+        "template_version": 1,
+        "text": "Place order: {side} {qty} {symbol} {type} on {account} (notional {notional_usd} USD)",
+        "sha256": "48ee763b6759d14d2196c98cc5fea215795e76cef9fab061cab27a8f78043337",
+        "elide": [
+          "limit_price",
+          "time_in_force"
+        ]
+      }
+    ]
+  }
+]
