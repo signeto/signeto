@@ -839,7 +839,7 @@ sent with `apns-push-type: alert`, `apns-priority: 10`, `apns-collapse-id` equal
 `POST /v1/approvals/{approval_id}/status` — auth `Signeto-Gateway`
 Request: `{ "status": "approved" | "denied" | "executed" | "failed" | "cancelled" | "expired", "at": "..." }`. Lets devices show the outcome. Response `204`. `approved` is not terminal (receipts are still accepted, e.g. for a cooling-off cancellation); the others are. Repeating the current status is `204`; any change from a terminal status, or `approved` → `denied`, is `409 approval_already_decided`. `404 approval_not_found` for another gateway's approval.
 
-### 7.6 Fetch pending (device)
+### 7.6 Fetch pending and history (device)
 
 `GET /v1/approvals?status=pending` — auth `Signeto-Device` or device `Bearer`
 Response `200`:
@@ -859,7 +859,38 @@ Response `200`:
 }
 ```
 `gateway_signature` is the value the gateway submitted (§7.5), returned verbatim; the device verifies it before rendering. `receipts` lists receipts already accepted for this approval (quorum, §4.8).
-Errors: `404 approval_not_found` (unknown, another account's, or its gateway revoked), `403 forbidden` (device not among targets or not paired with the gateway). `status` reads `expired` once `expires_at` has passed without a terminal status. The response also carries `tier`, `targets`, and `steps` when the request had them. The list returns only `pending` approvals that have not expired; `status` is optional and `pending` is its only accepted value.
+Errors: `404 approval_not_found` (unknown, another account's, or its gateway revoked), `403 forbidden` (device not among targets or not paired with the gateway). `status` reads `expired` once `expires_at` has passed without a terminal status. The response also carries `tier`, `targets`, and `steps` when the request had them. The list returns only `pending` approvals that have not expired; `status` is optional and `pending` (the default) or `decided` (history, below) are its accepted values. Query parameters are strict like request bodies: an unknown or repeated parameter is `422 request_malformed`. The detail `GET` serves decided approvals too, under the same authorization, so a device can re-fetch any history item (with `steps`).
+
+#### 7.6.1 History (device)
+
+`GET /v1/approvals?status=decided&limit=50&before=<next>` — same auth (`Signeto-Device` or device `Bearer`)
+
+Approvals the device may fetch (the rule above: same account, gateway not revoked, device paired with it and among its targets) that are no longer pending: `approved`, `denied`, `executed`, `failed`, `cancelled`, and `expired` (including a `pending` or `approved` approval past `expires_at` with no terminal status), whichever device decided them. A device sees approvals decided by another device of the account when it was among their targets; it never sees another account's, an untargeted one, or a revoked gateway's.
+
+Response `200`:
+```json
+{
+  "approvals": [
+    {
+      "approval_id": "apr_...", "action_id": "act_...", "gateway_id": "gw_...", "gateway_name": "home-01",
+      "status": "executed", "tier": 3, "expires_at": "...", "decided_at": "...", "updated_at": "...",
+      "canonical_bytes": "...", "gateway_signature": "...", "template_source": {...} | null,
+      "receipts": [ {...} ]
+    }
+  ],
+  "next": "apr_..." | null
+}
+```
+
+- Order is newest first by `approval_id` (a ULID, so creation order; an approval is decided within minutes of its creation). `next` is the last `approval_id` of the page when more exist, else `null`; pass it as `before` for the next page. Pages do not overlap.
+- `limit` is 1 to the relay's page size (50 by default), which is also the default; a larger value is capped. `limit` and `before` are accepted only with `status=decided`; `before` MUST be an `approval_id`.
+- `status` is the effective status as in the detail `GET`. `decided_at` (present once a receipt was accepted) is when the relay accepted the first receipt; `updated_at` is the latest of creation, a receipt, the gateway's status report `at`, and `expires_at` for one that lapsed.
+- `receipts` lists every receipt accepted for the approval, as stored (with `relay_id`), whichever device sent it. The relay does not verify them.
+- Each item carries `canonical_bytes`, `gateway_signature` and `template_source` verbatim, so the device can re-render and re-verify offline. It MUST verify `gateway_signature` against the pinned gateway key (§7.5) before showing anything from an item, and MUST NOT show the content of one that fails. A device can verify a receipt only against a device key it knows (its own); it MUST NOT present another device's receipt as verified.
+- `steps` (atomic batches) is left out to bound the page size; the detail `GET` has it. Each stored request is at most the relay's body limit (256 KiB), and typical items are 1 to 3 KiB.
+- Retention: a relay MAY delete decided approvals after its retention period, after which they no longer appear here or in the detail `GET`. The reference relay currently keeps them indefinitely (SPEC §10 plans 30 days on Free, one year on Pro).
+
+Errors: `401 unauthorized` / `device_revoked`, `422 request_malformed` (bad `limit` or `before`, unknown or repeated parameter).
 
 ### 7.7 Submit receipt
 
