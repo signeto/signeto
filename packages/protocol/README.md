@@ -1,6 +1,10 @@
 # @signeto/protocol
 
-The trust-path primitives every Signeto component shares. Normative spec: [`docs/protocol.md`](../../docs/protocol.md).
+The trust-path primitives every Signeto component shares. Normative spec: [`docs/protocol.md`](https://github.com/signeto/signeto/blob/main/docs/protocol.md).
+
+```sh
+npm install @signeto/protocol
+```
 
 - `canonicalize` — RFC 8785 JCS. Frozen for `protocol_version` MAJOR 1.
 - `buildCanonicalAction` / `encodeAction` / `parseCanonicalAction` — the canonical action (§2): schema, idempotency key, timestamps, expiry rules, receiver-side canonical check.
@@ -8,6 +12,7 @@ The trust-path primitives every Signeto component shares. Normative spec: [`docs
 - `signApprovalRequest` / `verifyApprovalRequest` — `gateway_signature` on every approval request (§7.5).
 - `renderTemplate` + `builtinRegistries` — display templates (§3): two inputs, byte-identical output on every surface, "unverified template" on any doubt. The result carries the template's note and its review links (§3.5), built from the canonical args and the template's `link_hosts`; `templateSha256` hashes text, note, links and hosts together (§3.1).
 - `gatewayIdFromJwk` / `deviceIdFromJwk` / `fingerprint` / `newActionId` / `newNonce` — identifiers (§2.6, §5.1).
+- `@signeto/protocol/appattest` — `verifyAppAttest` / `verifyDeviceAttestation`: Apple App Attest statements bound to a device key (§5.3 point 3), against the pinned Apple root. Node only. `@signeto/protocol/appattest/testing` builds Apple-shaped statements under a test root.
 
 ## Vectors
 
@@ -17,4 +22,8 @@ Not yet covered: `batch/`, `pairing/`, `relay-auth/`, `ledger/` (P1 and relay wo
 
 ## Runtime
 
-Node 22+. Uses `node:crypto`; a browser build for `@signeto/approver-web` will swap in WebCrypto behind the same API.
+Node 22.13+. Uses `node:crypto`. Browsers: hashing and canonicalisation work with a `node:crypto` shim; verify signatures with WebCrypto (the Signeto portal does this).
+
+## License
+
+Apache-2.0.

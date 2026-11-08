@@ -1,6 +1,6 @@
 {
   "name": "@signeto/adapter-sdk",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Signeto adapter interface: manifest, resolve/mint/custody/execute hooks, AdapterError, manifest validation.",
   "license": "Apache-2.0",
   "type": "module",
@@ -13,8 +13,32 @@
     }
   },
   "files": [
+    "LICENSE",
+    "README.md",
     "dist"
   ],
+  "keywords": [
+    "signeto",
+    "ai-agents",
+    "adapter",
+    "mcp"
+  ],
+  "homepage": "https://github.com/signeto/signeto/tree/main/packages/adapter-sdk#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/signeto/signeto.git",
+    "directory": "packages/adapter-sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/signeto/signeto/issues"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean",
     "test": "vitest run --passWithNoTests",
@@ -22,6 +46,6 @@
     "lint": "echo 'lint: todo'"
   },
   "dependencies": {
-    "@signeto/protocol": "workspace:*"
+    "@signeto/protocol": "workspace:^"
   }
 }

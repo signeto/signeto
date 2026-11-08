@@ -27,16 +27,16 @@ importers:
   adapters/github:
     dependencies:
       '@signeto/adapter-sdk':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../packages/adapter-sdk
       '@signeto/protocol':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../packages/protocol
 
   packages/adapter-sdk:
     dependencies:
       '@signeto/protocol':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../protocol
 
   packages/protocol:

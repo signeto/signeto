@@ -1,0 +1,41 @@
+# Publishes @signeto/protocol, @signeto/adapter-sdk and @signeto/adapter-github to npm with provenance.
+# Changesets: a push to main with pending changesets opens/updates a "Version packages" PR; merging it (or a push
+# where package.json versions are not on npm yet) publishes. Needs the NPM_TOKEN secret (a granular npm token with
+# publish rights on the @signeto scope); without it the publish step is skipped, never half-run.
+name: release
+on:
+  push: { branches: [main] }
+concurrency: { group: release, cancel-in-progress: false }
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write # npm provenance (Sigstore)
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm, registry-url: "https://registry.npmjs.org" }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Check for the npm token
+        id: token
+        env: { NPM_TOKEN: "${{ secrets.NPM_TOKEN }}" }
+        run: echo "present=$([ -n "$NPM_TOKEN" ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+      - name: Version PR or publish
+        if: steps.token.outputs.present == 'yes'
+        uses: changesets/action@v1
+        with:
+          version: pnpm version-packages
+          publish: pnpm release
+          title: "Version packages"
+          commit: "Version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"

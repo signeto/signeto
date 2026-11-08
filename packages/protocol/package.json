@@ -1,7 +1,7 @@
 {
   "name": "@signeto/protocol",
-  "version": "0.0.0",
-  "description": "Canonical action, display templates, receipts, verification. The trust-path primitives shared by every Signeto component.",
+  "version": "0.1.0",
+  "description": "Canonical action bytes (RFC 8785), display templates, receipts and signature verification for Signeto: the trust-path primitives every Signeto component shares.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -21,8 +21,35 @@
     }
   },
   "files": [
+    "LICENSE",
+    "README.md",
     "dist"
   ],
+  "keywords": [
+    "signeto",
+    "ai-agents",
+    "approval",
+    "webauthn",
+    "receipts",
+    "rfc8785",
+    "mcp"
+  ],
+  "homepage": "https://github.com/signeto/signeto/tree/main/packages/protocol#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/signeto/signeto.git",
+    "directory": "packages/protocol"
+  },
+  "bugs": {
+    "url": "https://github.com/signeto/signeto/issues"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsup src/index.ts src/appattest.ts src/appattest-testing.ts --format esm --dts --clean",
     "test": "vitest run --passWithNoTests",
