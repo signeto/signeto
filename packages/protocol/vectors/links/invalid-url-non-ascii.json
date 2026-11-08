@@ -1,0 +1,35 @@
+{
+  "description": "Non-ASCII in the literal URL",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"v\":\"x\"},\"expires_at\":\"1970-01-01T00:03:01.043Z\",\"idempotency_key\":\"92b5106d3876444a302b61604f6c046c1f4c47eecd9ce0b31d7fc68111a17e79\",\"issued_at\":\"1970-01-01T00:00:01.043Z\",\"mode\":\"enforce\",\"nonce\":\"RRRRRRRRRRRRRRRRRRRRRR\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.bad_url_non_ascii\",\"template_version\":1,\"tier\":2,\"tool\":\"test.bad_url_non_ascii\"}",
+    "registries": [
+      {
+        "adapter": "test",
+        "templates": [
+          {
+            "template_id": "test.bad_url_non_ascii",
+            "template_version": 1,
+            "text": "{v}",
+            "sha256": "134b7a28319b9dc6d003593c3cbde04b0dd9cadfa42c615ce260f10a04c5ac38",
+            "links": [
+              {
+                "label": "a",
+                "url": "https://example.com/é/{v}"
+              }
+            ],
+            "link_hosts": [
+              "example.com"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "ok",
+    "text": "x",
+    "hidden": [],
+    "links_error": "url_invalid",
+    "links": []
+  }
+}

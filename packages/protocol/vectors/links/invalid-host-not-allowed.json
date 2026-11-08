@@ -1,0 +1,35 @@
+{
+  "description": "Host not in link_hosts",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"v\":\"x\"},\"expires_at\":\"1970-01-01T00:03:01.024Z\",\"idempotency_key\":\"16fff700e5e2529af7e2c40b0de0d038d3005e8fbcb05db1cf678ac6af851f55\",\"issued_at\":\"1970-01-01T00:00:01.024Z\",\"mode\":\"enforce\",\"nonce\":\"YYYYYYYYYYYYYYYYYYYYYY\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.bad_host_not_allowed\",\"template_version\":1,\"tier\":2,\"tool\":\"test.bad_host_not_allowed\"}",
+    "registries": [
+      {
+        "adapter": "test",
+        "templates": [
+          {
+            "template_id": "test.bad_host_not_allowed",
+            "template_version": 1,
+            "text": "{v}",
+            "sha256": "0b5e85a253c990cf0f167741cd16968e8885f24b8252dd9dad64af8ece9d17d3",
+            "links": [
+              {
+                "label": "a",
+                "url": "https://evil.example/{v}"
+              }
+            ],
+            "link_hosts": [
+              "example.com"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "ok",
+    "text": "x",
+    "hidden": [],
+    "links_error": "host_not_allowed",
+    "links": []
+  }
+}

@@ -86,7 +86,7 @@ const tv = (name, description, bytes, registries, expected) => write("templates/
 const testReg = { adapter: "test", templates: [
   { template_id: "test.braces", template_version: 1, text: "Literal {{braces}} around {name} and {{{name}}}", sha256: P.templateSha256("Literal {{braces}} around {name} and {{{name}}}") },
   { template_id: "test.nested", template_version: 1, text: "{order.side} {order.qty} {order.symbol}; first file {files.0}; flag {flag}; n {n}", sha256: P.templateSha256("{order.side} {order.qty} {order.symbol}; first file {files.0}; flag {flag}; n {n}") },
-  { template_id: "test.elide", template_version: 1, text: "Deploy {ref} to {environment}", sha256: P.templateSha256("Deploy {ref} to {environment}"), elide: ["description", "auto_merge"] },
+  { template_id: "test.elide", template_version: 1, text: "Deploy {ref} to {environment}", sha256: P.templateSha256({ text: "Deploy {ref} to {environment}", elide: ["description", "auto_merge"] }), elide: ["description", "auto_merge"] },
 ]};
 const mk = (tool, template_id, args, now, nonce, tv_ = 1) => P.buildCanonicalAction({ tool, template_id, template_version: tv_, args_resolved: args, requester, origin_hash: "0".repeat(64), tier: 2, mode: "enforce" }, { now, nonce }).canonical_bytes;
 tv("merge-pr-ok", "Builtin github template renders", mergePr.canonical_bytes, regs, { status: "ok", text: "Merge PR #42 into main on acme/api (squash) at abc1234abc1234abc1234abc1234abc1234abc12", hidden: [] });
@@ -95,7 +95,149 @@ tv("nested-array-number-bool", "Dotted paths, array index, number/boolean render
 tv("elide-hidden", "Elided keys are reported as hidden, not unverified", mk("test.elide", "test.elide", { ref: "v1.2.0", environment: "production", description: "hotfix" }, 3, "GGGGGGGGGGGGGGGGGGGGGG"), [testReg], { status: "ok", text: "Deploy v1.2.0 to production", hidden: ["description"] });
 tv("unreferenced-key", "args_resolved key no placeholder mentions → unverified", mk("test.elide", "test.elide", { ref: "v1.2.0", environment: "production", force: true }, 4, "HHHHHHHHHHHHHHHHHHHHHH"), [testReg], { status: "unverified", reason: "unreferenced_key", detail: "force" });
 tv("unresolved-placeholder", "Placeholder path missing from args_resolved → unverified", mk("test.nested", "test.nested", { order: { side: "buy" }, files: [], flag: true, n: 1 }, 5, "JJJJJJJJJJJJJJJJJJJJJJ"), [testReg], { status: "unverified", reason: "unresolved_placeholder", detail: "order.qty" });
-tv("unknown-template-version", "template_version 2 not in registry → unverified", mk("github.merge_pull_request", "github.merge_pull_request", { repo: "acme/api", pr: 1, head_sha: "x", base: "main", method: "merge" }, 6, "KKKKKKKKKKKKKKKKKKKKKK", 2), regs, { status: "unverified", reason: "unknown_template" });
+{
+  // elide widens what the card hides, so it is in the hash (§3.1): a relay cannot add a key to a pinned text-only template_source
+  const text = "Deploy {ref} to {environment}";
+  const bytes = mk("test.pinned_deploy", "test.pinned_deploy", { ref: "v1.2.0", environment: "production", force: true }, 7, "MMMMMMMMMMMMMMMMMMMMMM");
+  tv("elide-added-after-hashing", "elide added to a template hashed (and pinned) as text-only → template_hash_mismatch", bytes,
+    [{ adapter: "pinned", templates: [{ template_id: "test.pinned_deploy", template_version: 1, text, sha256: P.templateSha256(text), elide: ["force"] }] }], { status: "unverified", reason: "template_hash_mismatch" });
+  tv("elide-hashed", "The same template with elide hashed (and pinned) with it renders, the key hidden", bytes,
+    [{ adapter: "pinned", templates: [{ template_id: "test.pinned_deploy", template_version: 1, text, sha256: P.templateSha256({ text, elide: ["force"] }), elide: ["force"] }] }], { status: "ok", text: "Deploy v1.2.0 to production", hidden: ["force"] });
+}
+tv("unknown-template-version", "template_version 3 not in registry → unverified", mk("github.merge_pull_request", "github.merge_pull_request", { repo: "acme/api", pr: 1, head_sha: "x", base: "main", method: "merge" }, 6, "KKKKKKKKKKKKKKKKKKKKKK", 3), regs, { status: "unverified", reason: "unknown_template" });
+
+// ---------- links/ (§3.5 review links, §3.2 note and :short) and template-sha256/ (§3.1)
+// Expected values are written out by hand; vectors.test.ts and the Swift VectorTests check both renderers against them.
+const tpl = (template_id, text, extra = {}) => {
+  const body = { text, ...extra };
+  return { template_id, template_version: 1, text, sha256: P.templateSha256(body), ...extra };
+};
+const HOSTS = { link_hosts: ["example.com"] };
+const injectReg = { adapter: "test", templates: [
+  tpl("test.inject", "{v}", { links: [
+    { label: "plain", url: "https://example.com/p/{v}" },
+    { label: "path", url: "https://example.com/{v:path}/end" },
+    { label: "query", url: "https://example.com/s?q={v}#top" },
+  ], ...HOSTS }),
+] };
+let ln = 0;
+const lmk = (template_id, args) => mk(template_id, template_id, args, 1000 + ln, String.fromCharCode(65 + (ln++ % 26)).repeat(22));
+const lv = (name, description, bytes, registries, expected) => write("links/" + name + ".json", { description, inputs: { canonical_bytes: bytes, registries }, expected });
+const okv = (text, links, extra = {}) => ({ status: "ok", text, hidden: [], ...extra, links });
+const L = (label, url) => ({ label, url });
+const three = (v, plain, path, query) => [
+  ...(plain ? [L("plain", `https://example.com/p/${plain}`)] : []),
+  ...(path ? [L("path", `https://example.com/${path}/end`)] : []),
+  ...(query ? [L("query", `https://example.com/s?q=${query}#top`)] : []),
+];
+const inject = (name, description, v, text, plain, path, query) =>
+  lv(name, description, lmk("test.inject", { v }), [injectReg], okv(text, three(v, plain, path, query)));
+
+// good cases
+lv("github-merge-pr-v2", "Builtin github.merge_pull_request v2: note with {head_sha:short}, three github.com links, {repo:path}",
+  P.buildCanonicalAction({ tool: "github.merge_pull_request", template_version: 2, args_resolved: { repo: "acme/api", pr: 42, head_sha: "abc1234abc1234abc1234abc1234abc1234abc12", base: "main", method: "squash" }, requester, origin_hash: "0".repeat(64), tier: 3, mode: "enforce" }, { now: Date.parse("2026-11-07T12:00:00.000Z"), nonce: "LLLLLLLLLLLLLLLLLLLLLL" }).canonical_bytes,
+  regs, okv("Merge PR #42 into main on acme/api (squash) at abc1234abc1234abc1234abc1234abc1234abc12", [
+    L("View pull request", "https://github.com/acme/api/pull/42"),
+    L("Files changed", "https://github.com/acme/api/pull/42/files"),
+    L("Code at approved commit", "https://github.com/acme/api/tree/abc1234abc1234abc1234abc1234abc1234abc12"),
+  ], { note: "Approving commit abc1234. If the PR changes, this approval will not merge it." }));
+inject("value-owner-name", "A '/' in a plain placeholder is encoded (%2F); {v:path} keeps it as a separator", "acme/api", "acme/api", "acme%2Fapi", "acme/api", "acme%2Fapi");
+inject("value-integer", "An integer renders as its JCS text", 42, "42", "42", "42", "42");
+inject("value-negative-integer", "A negative integer renders as its JCS text", -7, "-7", "-7", "-7", "-7");
+inject("value-unreserved", "RFC 3986 unreserved characters stay as they are", "~user-name_1.0", "~user-name_1.0", "~user-name_1.0", "~user-name_1.0", "~user-name_1.0");
+
+// injection attempts
+inject("inject-query-fragment", "'?' and '#' in a value are encoded, so it cannot start a query or fragment", "a?b#c", "a?b#c", "a%3Fb%23c", "a%3Fb%23c", "a%3Fb%23c");
+inject("inject-userinfo", "'@' in a value is encoded, so it cannot become userinfo", "evil.com@acme", "evil.com@acme", "evil.com%40acme", "evil.com%40acme", "evil.com%40acme");
+inject("inject-percent-encoded-slash", "'%2F' in a value is encoded again ('%' → %25): no double decoding", "%2F..%2F", "%2F..%2F", "%252F..%252F", "%252F..%252F", "%252F..%252F");
+inject("inject-dot-segments", "'..' segments: encoded '/' keeps a plain value one segment; {v:path} with a '..' segment drops that link", "../../etc", "../../etc", "..%2F..%2Fetc", null, "..%2F..%2Fetc");
+inject("inject-dot-dot-value", "A value that is exactly '..' drops every link that uses it", "..", "..", null, null, null);
+inject("inject-dot-value", "A value that is exactly '.' drops every link that uses it", ".", ".", null, null, null);
+inject("inject-dot-segment-in-path", "{v:path} with a '.' segment drops that link", "a/./b", "a/./b", "a%2F.%2Fb", null, "a%2F.%2Fb");
+inject("inject-empty-segment", "{v:path} with an empty segment drops that link", "a//b", "a//b", "a%2F%2Fb", null, "a%2F%2Fb");
+inject("inject-empty-value", "An empty value drops every link that uses it", "", "", null, null, null);
+inject("inject-absolute-url", "A full URL in a value stays data inside the path", "https://evil.com/x", "https://evil.com/x", "https%3A%2F%2Fevil.com%2Fx", null, "https%3A%2F%2Fevil.com%2Fx");
+inject("inject-unicode-space", "Unicode and spaces are UTF-8 percent-encoded", "naïve 😀 x", "naïve 😀 x", "na%C3%AFve%20%F0%9F%98%80%20x", "na%C3%AFve%20%F0%9F%98%80%20x", "na%C3%AFve%20%F0%9F%98%80%20x");
+inject("inject-backslash-controls", "Backslash, tab and newline are encoded (URL parsers would treat or strip them)", "a\\b\tc\nd", "a\\b\tc\nd", "a%5Cb%09c%0Ad", "a%5Cb%09c%0Ad", "a%5Cb%09c%0Ad");
+inject("inject-bidi-override", "A bidi override in a value is encoded", "‮evil", "‮evil", "%E2%80%AEevil", "%E2%80%AEevil", "%E2%80%AEevil");
+inject("inject-combining-after-slash", "{v:path} splits on the code point '/', even when a combining mark follows it", "a/́b", "a/́b", "a%2F%CC%81b", "a/%CC%81b", "a%2F%CC%81b");
+inject("value-float", "A non-integer number drops every link that uses it", 1.5, "1.5", null, null, null);
+inject("value-unsafe-integer", "An integer beyond 2^53 - 1 drops every link that uses it", 9007199254740992, "9007199254740992", null, null, null);
+inject("value-boolean", "A boolean drops every link that uses it", true, "true", null, null, null);
+inject("value-null", "null drops every link that uses it", null, "null", null, null, null);
+inject("value-object", "An object drops every link that uses it", { x: "y" }, "{\"x\":\"y\"}", null, null, null);
+
+const partialReg = { adapter: "test", templates: [tpl("test.partial", "{v}", { links: [L("ok", "https://example.com/{v}"), L("missing", "https://example.com/{nope}"), L("array", "https://example.com/{list.0}")], ...HOSTS })] };
+lv("unresolved-link-placeholder", "A link whose placeholder does not resolve is dropped; the others and the card render", lmk("test.partial", { v: "x" }), [partialReg], okv("x", [L("ok", "https://example.com/x")]));
+
+// template-level failures: the card renders, every link is dropped, links_error names the rule
+const bad = (name, description, extra, code) => {
+  const id = "test.bad_" + name.replace(/-/g, "_");
+  lv("invalid-" + name, description, lmk(id, { v: "x" }), [{ adapter: "test", templates: [tpl(id, "{v}", extra)] }], okv("x", [], { links_error: code }));
+};
+bad("host-not-allowed", "Host not in link_hosts", { links: [L("a", "https://evil.example/{v}")], ...HOSTS }, "host_not_allowed");
+bad("host-placeholder", "Placeholder in the host", { links: [L("a", "https://{v}.example.com/x")], ...HOSTS }, "host_not_literal");
+bad("host-placeholder-suffix", "Placeholder before the '/' that ends the host", { links: [L("a", "https://example.com{v}/x")], ...HOSTS }, "host_not_literal");
+bad("host-no-path", "No '/' after the host", { links: [L("a", "https://example.com")], ...HOSTS }, "host_not_literal");
+bad("http", "http:// is refused", { links: [L("a", "http://example.com/{v}")], ...HOSTS }, "url_not_https");
+bad("scheme-placeholder", "Placeholder in the scheme", { links: [L("a", "{v}://example.com/x")], ...HOSTS }, "url_not_https");
+bad("scheme-uppercase", "The scheme must be the literal lowercase https://", { links: [L("a", "HTTPS://example.com/{v}")], ...HOSTS }, "url_not_https");
+bad("javascript", "javascript: is refused", { links: [L("a", "javascript:alert(1)//{v}")], ...HOSTS }, "url_not_https");
+bad("userinfo", "Userinfo in the literal authority does not match an allowed host", { links: [L("a", "https://user@example.com/{v}")], ...HOSTS }, "host_not_allowed");
+bad("port", "A port in the literal authority does not match an allowed host", { links: [L("a", "https://example.com:8443/{v}")], ...HOSTS }, "host_not_allowed");
+bad("too-many-links", "More than 4 links", { links: [1, 2, 3, 4, 5].map((i) => L("l" + i, `https://example.com/${i}/{v}`)), ...HOSTS }, "too_many_links");
+bad("wildcard-host", "Wildcards are not hostnames", { links: [L("a", "https://example.com/{v}")], link_hosts: ["*.example.com"] }, "link_hosts_invalid");
+bad("uppercase-host", "link_hosts must be lowercase", { links: [L("a", "https://Example.com/{v}")], link_hosts: ["Example.com"] }, "link_hosts_invalid");
+bad("host-with-port", "A port is not a hostname", { links: [L("a", "https://example.com:443/{v}")], link_hosts: ["example.com:443"] }, "link_hosts_invalid");
+bad("no-link-hosts", "Links without link_hosts", { links: [L("a", "https://example.com/{v}")] }, "link_hosts_invalid");
+bad("label-control", "A control character in a label", { links: [L("View\u0007", "https://example.com/{v}")], ...HOSTS }, "label_invalid");
+bad("label-bidi", "A bidi override in a label", { links: [L("‮moc.live", "https://example.com/{v}")], ...HOSTS }, "label_invalid");
+bad("label-empty", "An empty label", { links: [L("", "https://example.com/{v}")], ...HOSTS }, "label_invalid");
+bad("url-space", "A space in the literal URL", { links: [L("a", "https://example.com/a b/{v}")], ...HOSTS }, "url_invalid");
+bad("url-non-ascii", "Non-ASCII in the literal URL", { links: [L("a", "https://example.com/é/{v}")], ...HOSTS }, "url_invalid");
+bad("url-short-formatter", "Only :path is allowed in a URL", { links: [L("a", "https://example.com/{v:short}")], ...HOSTS }, "url_invalid");
+bad("url-two-fragments", "At most one '#'", { links: [L("a", "https://example.com/#a#{v}")], ...HOSTS }, "url_invalid");
+bad("url-escaped-brace", "{{ and }} are literal braces, which a URL cannot contain", { links: [L("a", "https://example.com/{{v}}")], ...HOSTS }, "url_invalid");
+bad("url-bad-percent", "'%' must start a %XX escape", { links: [L("a", "https://example.com/100%/{v}")], ...HOSTS }, "url_invalid");
+
+// links and notes are covered by the template hash; neither counts as mentioning an argument
+{
+  const t = tpl("test.altered", "{v}", { links: [L("a", "https://example.com/{v}")], ...HOSTS });
+  lv("hash-covers-links", "A link changed after hashing: the template fails its sha256", lmk("test.altered", { v: "x" }), [{ adapter: "test", templates: [{ ...t, links: [L("a", "https://example.com/{v}/x")] }] }], { status: "unverified", reason: "template_hash_mismatch" });
+  const n = tpl("test.altered_note", "{v}", { note: "safe" });
+  lv("hash-covers-note", "A note changed after hashing: the template fails its sha256", lmk("test.altered_note", { v: "x" }), [{ adapter: "test", templates: [{ ...n, note: "different" }] }], { status: "unverified", reason: "template_hash_mismatch" });
+  const h = tpl("test.altered_hosts", "{v}", { links: [L("a", "https://example.com/{v}")], ...HOSTS });
+  lv("hash-covers-link-hosts", "link_hosts changed after hashing: the template fails its sha256", lmk("test.altered_hosts", { v: "x" }), [{ adapter: "test", templates: [{ ...h, link_hosts: ["example.com", "evil.example"] }] }], { status: "unverified", reason: "template_hash_mismatch" });
+}
+lv("link-placeholder-not-a-mention", "A key used only in a link is still unreferenced", lmk("test.linkonly", { a: "x", b: "y" }), [{ adapter: "test", templates: [tpl("test.linkonly", "{a}", { links: [L("b", "https://example.com/{b}")], ...HOSTS })] }], { status: "unverified", reason: "unreferenced_key", detail: "b" });
+
+const noteReg = { adapter: "test", templates: [
+  tpl("test.note", "Ship {sha}", { note: "Approving commit {sha:short}." }),
+  tpl("test.note_mention", "{a}", { note: "and {b}" }),
+  tpl("test.note_unresolved", "{a}", { note: "and {missing}" }),
+  tpl("test.note_badfmt", "{a}", { note: "{a:upper}" }),
+  tpl("test.text_fmt", "{a:short}"),
+] };
+lv("note-short", "{sha:short} in a note: the first 7 characters", lmk("test.note", { sha: "0123456789abcdef0123456789abcdef01234567" }), [noteReg], okv("Ship 0123456789abcdef0123456789abcdef01234567", [], { note: "Approving commit 0123456." }));
+lv("note-short-short-value", "{sha:short} of a value shorter than 7: the whole value", lmk("test.note", { sha: "abc" }), [noteReg], okv("Ship abc", [], { note: "Approving commit abc." }));
+lv("note-short-code-points", "{sha:short} counts code points, not UTF-16 units", lmk("test.note", { sha: "😀😀😀😀😀😀😀😀😀" }), [noteReg], okv("Ship 😀😀😀😀😀😀😀😀😀", [], { note: "Approving commit 😀😀😀😀😀😀😀." }));
+lv("note-short-number", "{sha:short} of a number does not resolve → unverified", lmk("test.note", { sha: 1234567890 }), [noteReg], { status: "unverified", reason: "unresolved_placeholder", detail: "sha" });
+lv("note-not-a-mention", "A key used only in the note is still unreferenced", lmk("test.note_mention", { a: "x", b: "y" }), [noteReg], { status: "unverified", reason: "unreferenced_key", detail: "b" });
+lv("note-unresolved", "A note placeholder that does not resolve → unverified", lmk("test.note_unresolved", { a: "x" }), [noteReg], { status: "unverified", reason: "unresolved_placeholder", detail: "missing" });
+lv("note-unknown-formatter", "A formatter other than :short in a note → malformed", lmk("test.note_badfmt", { a: "x" }), [noteReg], { status: "unverified", reason: "malformed_template" });
+lv("text-formatter", "No formatter in text: the sentence shows whole values → malformed", lmk("test.text_fmt", { a: "x" }), [noteReg], { status: "unverified", reason: "malformed_template" });
+
+// template-sha256/: the hash input of §3.1
+const sv = (name, description, template) => write("template-sha256/" + name + ".json", { description, inputs: { template }, expected: { hash_input: P.templateHashInput(template), sha256: P.templateSha256(template) } });
+sv("text-only", "Text-only template: SHA-256 of the UTF-8 text", { text: "Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}" });
+sv("text-elide", "Text and a non-empty elide: the extended form, so elide is covered", { text: "Deploy {ref} to {environment} on {repo}", elide: ["description"] });
+sv("text-empty-elide", "An empty elide counts as absent: the text alone", { text: "Deploy {ref} to {environment} on {repo}", elide: [] });
+sv("empty-extensions", "Empty note, links and link_hosts count as absent: the text alone", { text: "Read PR #{pr} on {repo}", note: "", links: [], link_hosts: [] });
+sv("links", "With links: JCS of text, elide, links and link_hosts", { text: "Run {workflow} on {ref} ({ref_sha}) in {repo}", elide: ["inputs"], links: [L("Actions", "https://github.com/{repo:path}/actions")], link_hosts: ["github.com"] });
+sv("note-only", "A note alone selects the extended form", { text: "Ship {sha}", note: "Approving commit {sha:short}." });
+sv("empty-elide-with-links", "An empty elide is omitted from the extended form", { text: "Read PR #{pr} on {repo}", elide: [], links: [L("View pull request", "https://github.com/{repo:path}/pull/{pr}")], link_hosts: ["github.com"] });
+sv("unicode", "Unicode in the label and note is hashed as JCS UTF-8", { text: "{a}", note: "Zoë 😀", links: [L("Öffnen ↗", "https://example.com/{a}")], link_hosts: ["example.com"] });
+sv("github-merge-pr-v2", "The bundled github.merge_pull_request v2", (({ template_id, template_version, sha256, ...b }) => b)(P.findTemplate(regs, "github.merge_pull_request", 2)));
 
 // ---------- receipts/signing-input/
 const h = mergePr.canonical_bytes_sha256;

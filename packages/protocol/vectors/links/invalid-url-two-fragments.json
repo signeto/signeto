@@ -1,0 +1,35 @@
+{
+  "description": "At most one '#'",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"v\":\"x\"},\"expires_at\":\"1970-01-01T00:03:01.045Z\",\"idempotency_key\":\"5fdad452e7b189288afa2a0f5f089bc7b79a24290d50b17274bb504ea4a461f3\",\"issued_at\":\"1970-01-01T00:00:01.045Z\",\"mode\":\"enforce\",\"nonce\":\"TTTTTTTTTTTTTTTTTTTTTT\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.bad_url_two_fragments\",\"template_version\":1,\"tier\":2,\"tool\":\"test.bad_url_two_fragments\"}",
+    "registries": [
+      {
+        "adapter": "test",
+        "templates": [
+          {
+            "template_id": "test.bad_url_two_fragments",
+            "template_version": 1,
+            "text": "{v}",
+            "sha256": "1f83c91284e9f9887274ed4305af92808f9acab2d25f33b0f14ad6aef74692d0",
+            "links": [
+              {
+                "label": "a",
+                "url": "https://example.com/#a#{v}"
+              }
+            ],
+            "link_hosts": [
+              "example.com"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "ok",
+    "text": "x",
+    "hidden": [],
+    "links_error": "url_invalid",
+    "links": []
+  }
+}

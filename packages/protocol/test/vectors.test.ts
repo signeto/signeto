@@ -37,20 +37,45 @@ describe("canonical-invalid/", () => {
   }
 });
 
-describe("templates/", () => {
-  for (const { name, v } of load("templates")) {
+for (const dir of ["templates", "links"]) {
+  describe(`${dir}/`, () => {
+    for (const { name, v } of load(dir)) {
+      it(name, () => {
+        const r = P.renderTemplate(v.inputs.canonical_bytes, v.inputs.registries);
+        expect(r.status).toBe(v.expected.status);
+        if (r.status === "ok") {
+          expect(r.text).toBe(v.expected.text);
+          expect(r.hidden).toEqual(v.expected.hidden);
+          expect(r.note).toBe(v.expected.note);
+          expect(r.links).toEqual(v.expected.links ?? []);
+          expect(r.links_error).toBe(v.expected.links_error);
+        } else {
+          expect(r.reason).toBe(v.expected.reason);
+          if (v.expected.detail) expect(r.detail).toBe(v.expected.detail);
+        }
+      });
+    }
+  });
+}
+
+describe("template-sha256/", () => {
+  for (const { name, v } of load("template-sha256")) {
     it(name, () => {
-      const r = P.renderTemplate(v.inputs.canonical_bytes, v.inputs.registries);
-      expect(r.status).toBe(v.expected.status);
-      if (r.status === "ok") {
-        expect(r.text).toBe(v.expected.text);
-        expect(r.hidden).toEqual(v.expected.hidden);
-      } else {
-        expect(r.reason).toBe(v.expected.reason);
-        if (v.expected.detail) expect(r.detail).toBe(v.expected.detail);
-      }
+      expect(P.templateHashInput(v.inputs.template)).toBe(v.expected.hash_input);
+      expect(P.templateSha256(v.inputs.template)).toBe(v.expected.sha256);
+      expect(P.sha256hex(v.expected.hash_input)).toBe(v.expected.sha256);
     });
   }
+});
+
+describe("bundled registries", () => {
+  it("every bundled template is valid and hashes to its sha256 (a bad link is a build error)", () => {
+    for (const r of P.builtinRegistries)
+      for (const t of r.templates) {
+        expect(P.templateProblems(t), t.template_id).toEqual([]);
+        expect(P.templateSha256(t), t.template_id).toBe(t.sha256);
+      }
+  });
 });
 
 describe("receipts/signing-input/", () => {

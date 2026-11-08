@@ -1,0 +1,51 @@
+{
+  "description": "A formatter other than :short in a note → malformed",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"a\":\"x\"},\"expires_at\":\"1970-01-01T00:03:01.058Z\",\"idempotency_key\":\"a942f459fbfe09b0fab78b66fb2f819aaebcc631c8a3606f7fd82cc25206767a\",\"issued_at\":\"1970-01-01T00:00:01.058Z\",\"mode\":\"enforce\",\"nonce\":\"GGGGGGGGGGGGGGGGGGGGGG\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.note_badfmt\",\"template_version\":1,\"tier\":2,\"tool\":\"test.note_badfmt\"}",
+    "registries": [
+      {
+        "adapter": "test",
+        "templates": [
+          {
+            "template_id": "test.note",
+            "template_version": 1,
+            "text": "Ship {sha}",
+            "sha256": "b9378dc959f96d85c6c419e683d385f827dd54e1336d847fc362d1f84a0d170b",
+            "note": "Approving commit {sha:short}."
+          },
+          {
+            "template_id": "test.note_mention",
+            "template_version": 1,
+            "text": "{a}",
+            "sha256": "d489c0af313de61a1215aab3d51040d34309ec7af1507834bc93c5dee2d87161",
+            "note": "and {b}"
+          },
+          {
+            "template_id": "test.note_unresolved",
+            "template_version": 1,
+            "text": "{a}",
+            "sha256": "454ef41fe8e7e04333fb8aee986620856570970d72a9769603bfa80c0894e097",
+            "note": "and {missing}"
+          },
+          {
+            "template_id": "test.note_badfmt",
+            "template_version": 1,
+            "text": "{a}",
+            "sha256": "58b5edca015e3577a964af8794ddb880cb84e46cbd92f4497d3d08d2fe6de639",
+            "note": "{a:upper}"
+          },
+          {
+            "template_id": "test.text_fmt",
+            "template_version": 1,
+            "text": "{a:short}",
+            "sha256": "8ad6d276e371ae7673a9df4d3cba89652bf108115efe9c9ce5ee24ea8c3851c6"
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "unverified",
+    "reason": "malformed_template"
+  }
+}

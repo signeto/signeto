@@ -1,0 +1,24 @@
+{
+  "description": "With links: JCS of text, elide, links and link_hosts",
+  "inputs": {
+    "template": {
+      "text": "Run {workflow} on {ref} ({ref_sha}) in {repo}",
+      "elide": [
+        "inputs"
+      ],
+      "links": [
+        {
+          "label": "Actions",
+          "url": "https://github.com/{repo:path}/actions"
+        }
+      ],
+      "link_hosts": [
+        "github.com"
+      ]
+    }
+  },
+  "expected": {
+    "hash_input": "{\"elide\":[\"inputs\"],\"link_hosts\":[\"github.com\"],\"links\":[{\"label\":\"Actions\",\"url\":\"https://github.com/{repo:path}/actions\"}],\"text\":\"Run {workflow} on {ref} ({ref_sha}) in {repo}\"}",
+    "sha256": "003e652df0dab1f9485ad605f824d5566380f6592ad7556acab8e988c168128f"
+  }
+}

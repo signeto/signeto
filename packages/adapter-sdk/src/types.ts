@@ -6,13 +6,19 @@ export type JSONSchema = Record<string, unknown>;
 export interface DisplayTemplate {
   /** Stable identifier, e.g. "github.merge_pull_request". Travels inside the signed bytes. */
   id: string;
-  /** Integer. Bumped whenever `text` changes. Travels inside the signed bytes. */
+  /** Integer. Bumped whenever `text`, `elide`, `note`, `links` or `link_hosts` changes. Travels inside the signed bytes. */
   version: number;
   /** One line. Placeholders are `{field}` paths into resolved args. */
   text: string;
   detail?: string[];
   /** Resolved keys the template intentionally omits (protocol.md §3.4). */
   elide?: string[];
+  /** Optional second line, same placeholders as `text` plus `{field:short}` (protocol.md §3.2). */
+  note?: string;
+  /** Review links built on the device from resolved args, at most 4 (protocol.md §3.5). */
+  links?: { label: string; url: string }[];
+  /** Exact hostnames the links may point to (protocol.md §3.5). Required when `links` is set. */
+  link_hosts?: string[];
 }
 
 export interface ToolSpec {

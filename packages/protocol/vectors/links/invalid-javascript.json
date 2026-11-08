@@ -1,0 +1,35 @@
+{
+  "description": "javascript: is refused",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"v\":\"x\"},\"expires_at\":\"1970-01-01T00:03:01.031Z\",\"idempotency_key\":\"659cff6bb77d056079b30b4837ff809b7f92ab2b02518e7973cb85649015c456\",\"issued_at\":\"1970-01-01T00:00:01.031Z\",\"mode\":\"enforce\",\"nonce\":\"FFFFFFFFFFFFFFFFFFFFFF\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.bad_javascript\",\"template_version\":1,\"tier\":2,\"tool\":\"test.bad_javascript\"}",
+    "registries": [
+      {
+        "adapter": "test",
+        "templates": [
+          {
+            "template_id": "test.bad_javascript",
+            "template_version": 1,
+            "text": "{v}",
+            "sha256": "61ad563480ab1e99a2f762b554e4b4c73becc9e5a3126c88d4f5f47249c6877a",
+            "links": [
+              {
+                "label": "a",
+                "url": "javascript:alert(1)//{v}"
+              }
+            ],
+            "link_hosts": [
+              "example.com"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "ok",
+    "text": "x",
+    "hidden": [],
+    "links_error": "url_not_https",
+    "links": []
+  }
+}

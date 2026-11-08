@@ -1,0 +1,29 @@
+{
+  "description": "The same template with elide hashed (and pinned) with it renders, the key hidden",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"environment\":\"production\",\"force\":true,\"ref\":\"v1.2.0\"},\"expires_at\":\"1970-01-01T00:03:00.007Z\",\"idempotency_key\":\"5a8d56db73aac1e31592948d37aa8e2e5908048846a8dad81fea968d91bca315\",\"issued_at\":\"1970-01-01T00:00:00.007Z\",\"mode\":\"enforce\",\"nonce\":\"MMMMMMMMMMMMMMMMMMMMMM\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.pinned_deploy\",\"template_version\":1,\"tier\":2,\"tool\":\"test.pinned_deploy\"}",
+    "registries": [
+      {
+        "adapter": "pinned",
+        "templates": [
+          {
+            "template_id": "test.pinned_deploy",
+            "template_version": 1,
+            "text": "Deploy {ref} to {environment}",
+            "sha256": "17ea7da0224ee1dce8ca8223394d998cbf0655e7577b6474290555155924ae12",
+            "elide": [
+              "force"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "ok",
+    "text": "Deploy v1.2.0 to production",
+    "hidden": [
+      "force"
+    ]
+  }
+}

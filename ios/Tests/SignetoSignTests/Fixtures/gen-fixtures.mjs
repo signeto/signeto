@@ -72,7 +72,7 @@ let nonceN = 0;
 const mk = (tool, args, opts = {}) => P.buildCanonicalAction({ tool, template_version: opts.version ?? 1, args_resolved: args, requester, origin_hash: "0".repeat(64), tier: 3, mode: opts.mode ?? "enforce" },
   { now: Date.parse("2026-11-07T12:00:00.000Z") + nonceN, nonce: String.fromCharCode(65 + (nonceN++ % 26)).repeat(22) });
 const custom = { adapter: "custom", templates: [
-  { template_id: "custom.keys", template_version: 1, text: "only {name}", sha256: P.templateSha256("only {name}"), elide: ["10", "9", "b", "a"] },
+  { template_id: "custom.keys", template_version: 1, text: "only {name}", sha256: P.templateSha256({ text: "only {name}", elide: ["10", "9", "b", "a"] }), elide: ["10", "9", "b", "a"] },
   { template_id: "custom.values", template_version: 1, text: "obj {o} arr {a} null {n} num {x} str {s}", sha256: P.templateSha256("obj {o} arr {a} null {n} num {x} str {s}") },
   { template_id: "custom.badhash", template_version: 1, text: "x {a}", sha256: "0".repeat(64) },
   { template_id: "custom.stray", template_version: 1, text: "stray } brace {a}", sha256: P.templateSha256("stray } brace {a}") },
@@ -89,7 +89,7 @@ rc("alpaca.place_order with both elided keys present", mk("alpaca.place_order", 
 rc("alpaca.place_order with an unreferenced key", mk("alpaca.place_order", { side: "sell", qty: 1, symbol: "TSLA", type: "market", account: "live", notional_usd: "250.00", extended_hours: true }), "builtin");
 rc("advisory mode renders the same line", mk("github.merge_pull_request", { repo: "acme/web", pr: 7, head_sha: "f".repeat(40), base: "main", method: "merge" }, { mode: "advisory" }), "builtin");
 rc("hidden list follows ECMAScript key order (array-index keys first)", mk("custom.keys", { name: "n", a: 1, b: 2, "9": 3, "10": 4 }), [custom]);
-rc("first unreferenced key follows ECMAScript key order", mk("custom.keys", { name: "n", zz: 1, "7": 2 }), [{ adapter: "c", templates: [{ ...custom.templates[0], elide: [] }] }]);
+rc("first unreferenced key follows ECMAScript key order", mk("custom.keys", { name: "n", zz: 1, "7": 2 }), [{ adapter: "c", templates: [{ ...custom.templates[0], elide: [], sha256: P.templateSha256("only {name}") }] }]);
 rc("objects, arrays, null and numbers render as JCS text", mk("custom.values", { o: { b: [1, 2.5], a: "x" }, a: [true, null, "s"], n: null, x: 1e21, s: "plain" }), [custom]);
 rc("template sha256 mismatch", mk("custom.badhash", { a: 1 }), [custom]);
 rc("malformed template (stray closing brace)", mk("custom.stray", { a: 1 }), [custom]);

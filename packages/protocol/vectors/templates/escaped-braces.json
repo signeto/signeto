@@ -22,7 +22,7 @@
             "template_id": "test.elide",
             "template_version": 1,
             "text": "Deploy {ref} to {environment}",
-            "sha256": "c55cd62ec8c1d21c02e8a63e9575f0e395871ba45e645c361042ecca54fc3d33",
+            "sha256": "981ce6392a914eb21cd3017b69f6d3359776e30e18cad0b543cf2fbef0ae687a",
             "elide": [
               "description",
               "auto_merge"

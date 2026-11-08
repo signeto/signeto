@@ -1,5 +1,6 @@
 // The signed surface of the adapter: resolved schemas and display templates (docs/adapters.md §2, §6).
-// `github.merge_pull_request` v1 must stay byte-identical to the builtin registry in @signeto/protocol.
+// `github.merge_pull_request` v2 must stay byte-identical to the builtin registry in @signeto/protocol.
+// Review links (protocol.md §3.5) are built on the approver's device from the signed args, only to github.com.
 import type { AdapterManifest, ToolSpec } from "@signeto/adapter-sdk";
 import { enm, int, obj, str, stringMap } from "./schema.js";
 
@@ -8,6 +9,10 @@ export const REPO_INPUT_PATTERN = "^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9._-]+$"
 export const SHA_PATTERN = "^[0-9a-f]{40}$";
 export const WORKFLOW_PATTERN = "^[A-Za-z0-9._-]+$";
 export const REF_PATTERN = "^[A-Za-z0-9][A-Za-z0-9._/-]*$";
+
+/** The only host the review links may point to (protocol.md §3.5). */
+export const GITHUB_WEB_HOST = "github.com";
+const LINK_HOSTS = [GITHUB_WEB_HOST];
 
 export const MERGE_METHODS = ["merge", "squash", "rebase"] as const;
 export type MergeMethod = (typeof MERGE_METHODS)[number];
@@ -37,8 +42,16 @@ export const mergePullRequest: ToolSpec = {
   ),
   template: {
     id: "github.merge_pull_request",
-    version: 1,
+    version: 2,
     text: "Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}",
+    // True because execute merges with `sha: head_sha`: GitHub refuses the merge if the head moved.
+    note: "Approving commit {head_sha:short}. If the PR changes, this approval will not merge it.",
+    links: [
+      { label: "View pull request", url: "https://github.com/{repo:path}/pull/{pr}" },
+      { label: "Files changed", url: "https://github.com/{repo:path}/pull/{pr}/files" },
+      { label: "Code at approved commit", url: "https://github.com/{repo:path}/tree/{head_sha}" },
+    ],
+    link_hosts: LINK_HOSTS,
   },
 };
 
@@ -68,9 +81,15 @@ export const dispatchWorkflow: ToolSpec = {
   ),
   template: {
     id: "github.dispatch_workflow",
-    version: 1,
+    version: 2,
     text: "Run {workflow} on {ref} ({ref_sha}) in {repo}",
     elide: ["inputs"],
+    // `workflow` is resolved to the file name under .github/workflows/ (resolveDispatch).
+    links: [
+      { label: "Workflow file at approved commit", url: "https://github.com/{repo:path}/blob/{ref_sha}/.github/workflows/{workflow}" },
+      { label: "Actions", url: "https://github.com/{repo:path}/actions" },
+    ],
+    link_hosts: LINK_HOSTS,
   },
 };
 
@@ -83,8 +102,10 @@ export const readPullRequest: ToolSpec = {
   resolved: obj({ repo: str(REPO_PATTERN, 140), pr: int(1) }, ["repo", "pr"]),
   template: {
     id: "github.read_pull_request",
-    version: 1,
+    version: 2,
     text: "Read PR #{pr} on {repo}",
+    links: [{ label: "View pull request", url: "https://github.com/{repo:path}/pull/{pr}" }],
+    link_hosts: LINK_HOSTS,
   },
 };
 
@@ -92,7 +113,7 @@ export const GITHUB_API_HOST = "api.github.com";
 
 export const manifest: AdapterManifest = {
   name: "github",
-  version: "0.1.0",
+  version: "0.2.0",
   mode: "mint",
   egress: [GITHUB_API_HOST],
   secrets: [

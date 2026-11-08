@@ -1,0 +1,35 @@
+{
+  "description": "Placeholder in the host",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"v\":\"x\"},\"expires_at\":\"1970-01-01T00:03:01.025Z\",\"idempotency_key\":\"81a0c3064b44c29f4b45e15b4b59e859e0b15c198d91b884a79adacc0e41ee35\",\"issued_at\":\"1970-01-01T00:00:01.025Z\",\"mode\":\"enforce\",\"nonce\":\"ZZZZZZZZZZZZZZZZZZZZZZ\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.bad_host_placeholder\",\"template_version\":1,\"tier\":2,\"tool\":\"test.bad_host_placeholder\"}",
+    "registries": [
+      {
+        "adapter": "test",
+        "templates": [
+          {
+            "template_id": "test.bad_host_placeholder",
+            "template_version": 1,
+            "text": "{v}",
+            "sha256": "cede1f7f509cce93474e7748baad35d53aea6cdabacdaa105538f64ae37773c4",
+            "links": [
+              {
+                "label": "a",
+                "url": "https://{v}.example.com/x"
+              }
+            ],
+            "link_hosts": [
+              "example.com"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "ok",
+    "text": "x",
+    "hidden": [],
+    "links_error": "host_not_literal",
+    "links": []
+  }
+}

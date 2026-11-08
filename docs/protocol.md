@@ -219,7 +219,7 @@ Every one of these inputs is supplied by the agent side and is therefore attacke
 
 ### 3.1 Registry
 
-Each adapter ships a template registry: a JSON file listing, for each tool it exposes, one or more templates keyed by `template_id` and `template_version`. Templates are immutable once published; a change to the text MUST increment `template_version`.
+Each adapter ships a template registry: a JSON file listing, for each tool it exposes, one or more templates keyed by `template_id` and `template_version`. A template has `template_id`, `template_version`, `text` and `sha256`, and OPTIONALLY `elide` (§3.4), `note` (§3.2), `links` and `link_hosts` (§3.5). Templates are immutable once published; a change to `text`, `elide`, `note`, `links` or `link_hosts` MUST increment `template_version`. A registry SHOULD keep the previous version so that devices can still render requests from gateways running the older adapter.
 
 ```json
 {
@@ -235,15 +235,44 @@ Each adapter ships a template registry: a JSON file listing, for each tool it ex
 }
 ```
 
+Version 2 of the same template adds a note and review links:
+
+```json
+{
+  "template_id": "github.merge_pull_request",
+  "template_version": 2,
+  "text": "Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}",
+  "sha256": "d004d3b2763f6a8994e632c37b644cad9ad4b5bbabaea49e6c8c1aa135ba8486",
+  "note": "Approving commit {head_sha:short}. If the PR changes, this approval will not merge it.",
+  "links": [
+    { "label": "View pull request", "url": "https://github.com/{repo:path}/pull/{pr}" },
+    { "label": "Files changed", "url": "https://github.com/{repo:path}/pull/{pr}/files" },
+    { "label": "Code at approved commit", "url": "https://github.com/{repo:path}/tree/{head_sha}" }
+  ],
+  "link_hosts": ["github.com"]
+}
+```
+
+**Template hash.** `sha256` is the lowercase hex SHA-256 of the template's *hash input*:
+
+- If the template is text-only, with no `elide`, `note`, `links` or `link_hosts` (an empty string or empty array counts as absent), the hash input is the UTF-8 text.
+- Otherwise, the hash input is the UTF-8 JCS serialization (§2.3) of an object with `text` and each present member of `elide`, `note`, `links` (each entry exactly `{label, url}`) and `link_hosts`, empty ones omitted. A non-empty `elide` alone selects this form: `elide` widens what the card hides (§3.4), so it is always covered by the hash and therefore by every pin; a relay cannot add a key to the `elide` of a `template_source` to hide an argument. For `github.create_deployment` v1 (`elide: ["description"]`) the hash input is `{"elide":["description"],"text":"Deploy {ref} to {environment} on {repo}"}`. For v2 above that is `{"link_hosts":["github.com"],"links":[{"label":"View pull request","url":"https://github.com/{repo:path}/pull/{pr}"},…],"note":"Approving commit {head_sha:short}. …","text":"Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}"}`.
+
+A JCS object starts with `{"`, which is never valid template text (§3.2), so the two forms cannot collide. The elide list, note, links and hosts are therefore part of the template's identity: the same hash checks a bundled registry entry, a pin (§5.4) and a `template_source` (§7.5), and a renderer MUST compute it over the template it is about to use and treat a mismatch as `template_hash_mismatch` (§3.4). `@signeto/protocol` exports `templateHashInput` and `templateSha256`; `vectors/template-sha256/` fixes the bytes.
+
 `@signeto/protocol` bundles the registries of the reference adapters (`github`, `postgres`, `alpaca`). Approver implementations MUST embed the registries of the protocol package version they build against. A gateway MAY also send a template's source alongside an approval request (§7.5, `template_source`); a device MUST treat that copy as unverified unless `template_id`, `template_version`, and `sha256` all match an entry in its embedded registry or an entry pinned at pairing time (§5.4).
 
 ### 3.2 Placeholder syntax
 
 - A placeholder is `{path}` where `path` is a dotted path into `args_resolved`: `{repo}`, `{order.symbol}`, `{files.0}`. Path segments match `[A-Za-z0-9_]+`.
 - `{{` and `}}` render as literal `{` and `}`.
-- No conditionals, loops, filters, or formatting directives. Formatting is the adapter's job at resolution time (for example, `args_resolved.notional_usd = "512.00"`).
+- A placeholder MAY name a formatter: `{path:name}`, `name` matching `[a-z]+`. Only two exist, each allowed in one place: `short` in `note`, and `path` in a link URL (§3.5). `text` allows none. Any other formatter, or one used elsewhere, makes the template malformed (`malformed_template`).
+- `{path:short}` renders the first 7 Unicode code points of a string value (all of it if shorter). A value that is not a string does not resolve (`unresolved_placeholder`). It exists so that a note can name a commit the way people say it; the sentence always shows whole values.
+- No conditionals, loops, filters, or other formatting directives. Formatting is the adapter's job at resolution time (for example, `args_resolved.notional_usd = "512.00"`).
 - Value rendering: strings verbatim; numbers, booleans, `null`, arrays, and objects as their JCS JSON text.
 - The rendered line is the template text with placeholders replaced. Renderers MUST NOT trim, wrap, truncate, or reorder. Line wrapping for display is a presentation concern and MUST be applied after rendering, on a copy.
+- `note` is an optional second line, shown under the sentence. It is rendered like `text`, plus `:short`, and fails like it: a malformed note or a note placeholder that does not resolve makes the request unverified (§3.4). A note is the adapter's statement about the action and MUST be true of how the adapter executes it. `github.merge_pull_request` v2 says "If the PR changes, this approval will not merge it" because the adapter merges with `sha: head_sha` and GitHub refuses the merge when the head has moved.
+- Only placeholders in `text` count as mentioning an argument for the unreferenced-key rule (§3.4). An argument that appears only in the note or a link is still unreferenced, so the sentence alone tells the user everything.
 
 ### 3.3 Renderer rules
 
@@ -252,16 +281,60 @@ Each adapter ships a template registry: a JSON file listing, for each tool it ex
 3. Output MUST be byte-identical across gateway, CLI, phone, and web for the same bytes and the same registry. Conformance vectors (§9) exercise this.
 4. Every approver surface MUST also show the full canonical bytes (pretty-printed is acceptable, with a toggle to the raw JCS string) and MUST show `requester`, `tier`, `mode`, and `expires_at` separately from the template line.
 5. `mode: "advisory"` MUST be visibly labelled on every surface, with wording that says it can be bypassed. See SPEC §9.
+6. The note and the review links (§3.5) are rendered from the same two inputs. A surface MUST NOT show or open a URL obtained any other way: not from the gateway, the relay, the agent or a push, and not from a template it has not verified.
 
 ### 3.4 Unknown or failing templates
 
-If the template is not in the device's registry, the version is unknown, a placeholder path does not resolve, or `args_resolved` contains keys that no placeholder references, the device MUST:
+If the template is not in the device's registry, the version is unknown, the template does not hash to its `sha256` (§3.1), its text or note is malformed, a placeholder path in the text or note does not resolve, or `args_resolved` contains keys that no `text` placeholder references, the device MUST:
 
 - Show the raw canonical bytes as the primary content.
 - Mark the request "unverified template" with a visible warning.
 - Still allow approve and deny. The signature covers the bytes, not the rendering, so an unverified template does not weaken the receipt; it only weakens the human's understanding.
+- Show no note and no review links: they come only from a verified template.
 
 The "unreferenced key" rule exists so that an adapter cannot hide a material argument behind a template that does not mention it. Adapters whose templates intentionally omit arguments MUST list those keys in the template's `elide` array; the device then shows an "N hidden fields" disclosure instead of the warning.
+
+Invalid review links are not in this list: they never make a card unverified (§3.5).
+
+### 3.5 Review links
+
+A template MAY carry review links, so that the approver can open the thing being approved (the pull request, the workflow file) before deciding. The device builds every link itself from the verified template and the canonical bytes; nothing at request time supplies a URL.
+
+**Members.**
+
+- `links`: an array of at most 4 `{label, url}` objects.
+- `link_hosts`: an array of at most 8 exact hostnames the links may point to, REQUIRED when `links` is non-empty. A hostname is lowercase ASCII labels of letters, digits and inner hyphens, 1 to 63 characters each, at least two labels, the last starting with a letter, at most 253 characters: no wildcard, port, userinfo, IP literal or trailing dot.
+- `label`: literal text (no placeholders), 1 to 64 UTF-8 bytes, without C0 or C1 control characters, U+007F, or the bidirectional formatting characters U+200E, U+200F, U+202A to U+202E and U+2066 to U+2069.
+- `url`: a URL template in the §3.2 syntax, at most 2048 UTF-16 code units, whose only allowed formatter is `path`. Every literal character MUST be an RFC 3986 unreserved character (`A-Z a-z 0-9 - . _ ~`), one of `` : / ? # @ ! $ & ' ( ) * + , ; = ``, or `%` followed by two hex digits, with at most one `#` in the whole template (so `{{`, `}}`, spaces and non-ASCII are invalid). The first token MUST be a literal that starts with `https://` (lowercase), and the host MUST be literal and end at a `/` inside that same literal: no placeholder in the scheme or the host. The host MUST equal an entry of `link_hosts` exactly.
+
+`link_hosts` lives on each template, not on the registry or the adapter: the template is the unit that is hashed, pinned (§5.4) and sent as `template_source` (§7.5), so a per-template list is covered by the same hash and travels with it. A registry-level list would sit outside every pin. (An adapter may declare the list once and copy it into each template, as `@signeto/adapter-github` does.)
+
+**Template check.** In this order, the first failure gives the code:
+
+1. `links_malformed`: `links` is not an array of objects with string `label` and `url`, or `link_hosts` is not an array of strings.
+2. `too_many_links`: more than 4 links.
+3. `link_hosts_invalid`: more than 8 hosts, an entry that is not a hostname as above, or links without hosts.
+4. For each link in order: `label_invalid`; `url_invalid` (too long, a stray brace, a bad path or formatter, a literal character outside the set, a second `#`); `url_not_https` (the first token is not a literal starting with `https://`); `host_not_literal` (no `/` after the host in that literal); `host_not_allowed` (the host is not in `link_hosts`).
+
+A bundled template or an adapter manifest that fails is a build and load error (`templateProblems` in `@signeto/protocol`, `validateAdapter` in `@signeto/adapter-sdk`). A verified template that fails at render time, for example a pinned `template_source` from a gateway that did not validate, renders normally without any links, and the device shows a warning that the links were removed. Links never make an otherwise valid card fail.
+
+**Rendering one link.** For each placeholder, in order:
+
+1. Resolve the path in `args_resolved` (§3.2). If it does not resolve, drop this link.
+2. The value MUST be a string, or a number that is an integer of magnitude at most 2^53 − 1, rendered as its JCS text. Anything else (a fraction, a boolean, `null`, an array, an object) drops the link, as does a string with a lone surrogate.
+3. `{p}`: a value that is empty, `.` or `..` drops the link. Otherwise insert it percent-encoded as path-segment data: every UTF-8 byte except the unreserved characters becomes `%XX` with uppercase hex. `/` becomes `%2F`, `?` `%3F`, `#` `%23`, `@` `%40`, `%` `%25`, a space `%20`.
+4. `{p:path}`: for a value that is several segments, such as `owner/name` in `{repo:path}`. Split the value at each U+002F (by code point, never by grapheme); if any segment is empty, `.` or `..`, drop the link; otherwise encode each segment as in step 3 and join them with `/`.
+
+Then concatenate the literals and the encoded values. If the result is longer than 2048 characters, or does not parse as an absolute URL with scheme `https`, the template's host, no userinfo and no port, drop the link (by construction it always parses; the check is a backstop). The output is the list of `{label, url}` for the links that were not dropped, in template order, where `url` is the concatenated string itself, not a parser's normalization of it. The vectors compare it byte for byte.
+
+**Showing links.** A device shows links only on a verified card: after `gateway_signature` verifies (§7.5) and the template verifies (§3.1, §5.4). Each link is a row with its label and the URL text (the whole URL, or at least scheme, host and path), so the user can see where it goes, and opens exactly that string. The accessible name is the label plus "opens <host>". Approve and Deny are unchanged; a link is never a decision control.
+
+**Security rationale.**
+
+- A link is a convenience, not evidence. The approval is bound to the canonical bytes. What a link shows can change after review: a pull request gains a commit, a branch moves, a page is edited. Adapters SHOULD pin execution to what the bytes name and say so in the note, as `github.merge_pull_request` does: the merge carries `sha: head_sha`, so a PR that changed after review is not merged.
+- No URL is supplied at request time. The host and the shape of each URL are in the hashed template; the values come from the verified canonical bytes. A relay or gateway cannot add, change or drop a link of a bundled or pinned template without the hash failing.
+- The literal-host rule and the encoding mean a signed value cannot change the scheme, host, userinfo or port, start a query or fragment, or add a dot segment. A value with `/`, `?`, `#`, `@`, `%2F`, `..`, spaces or non-ASCII stays data inside its segment.
+- Residual: an allowlisted host serves whatever lives at the path the values select. A link to a pull request in a repository the agent controls shows the agent's content. It shows the same thing the signed bytes name, which is what the user is approving.
 
 ---
 
@@ -495,7 +568,7 @@ The gateway's confirmation carries `templates_pinned`: a list of `{template_id, 
 { "approver_id": "jason", "device_id": "dev_...", "gateway_id": "gw_...", "paired_at": "...", "pairing_id": "...", "templates_pinned": [ { "sha256": "<hex>", "template_id": "...", "template_version": 1 } ] }
 ```
 
-with `approver_id` the approver the gateway pinned this device under (§5.3 point 7), the list in the order the gateway sent it, and each entry having exactly those three members. The device MUST verify the confirmation over the `approver_id` and the list it received, and MUST NOT store either from a confirmation that does not verify: a relay that changes or drops the approver, or adds, drops, reorders or alters a pin, breaks the signature, and pairing aborts with `pairing_confirmation_invalid`. The device stores the verified list under the gateway's record. A later `template_source` sent with an approval request (§7.5) is verified against this list; a match renders as a verified template.
+with `approver_id` the approver the gateway pinned this device under (§5.3 point 7), the list in the order the gateway sent it, and each entry having exactly those three members. The device MUST verify the confirmation over the `approver_id` and the list it received, and MUST NOT store either from a confirmation that does not verify: a relay that changes or drops the approver, or adds, drops, reorders or alters a pin, breaks the signature, and pairing aborts with `pairing_confirmation_invalid`. The device stores the verified list under the gateway's record. A later `template_source` sent with an approval request (§7.5) is verified against this list; a match renders as a verified template. The pinned `sha256` is the template hash of §3.1, so it covers every member of the template: `text`, `elide`, `note`, `links` and `link_hosts`. `elide` widens what the card hides, so it is always in the hash: a relay that adds a key to the `elide` of a `template_source` pinned without it (to turn an argument the sentence would have to mention into a hidden field), or that adds, alters or drops a link or a host, or changes the note, makes the `template_source` miss its pin, and the request renders unverified, with no links (§3.4).
 
 ### 5.5 What the relay can and cannot do after pairing
 
@@ -736,11 +809,11 @@ Request:
   "canonical_bytes": "{\"args_resolved\":{...},...}",
   "expires_at": "...",
   "targets": { "tier": 3, "approver_ids": [], "device_ids": [] },
-  "template_source": { "template_id": "...", "template_version": 1, "text": "...", "sha256": "...", "elide": [] },
+  "template_source": { "template_id": "...", "template_version": 1, "text": "...", "sha256": "...", "elide": [], "note": "...", "links": [ { "label": "...", "url": "https://..." } ], "link_hosts": ["..."] },
   "gateway_signature": "<base64url Sign_gw(JCS{canonical_bytes_sha256, action_id, expires_at, nonce, gateway_id})>"
 }
 ```
-`targets.device_ids` empty means every device of the listed approvers; both lists empty means every active device paired with this gateway. Gateways SHOULD send empty `approver_ids`: approver names are local to a gateway (`signeto.yml`, §5.3 point 7) while `approver_ids` here are relay account approver ids (§7.4), and the two namespaces need not match. Who may approve is decided by the gateway when it verifies the receipt (§4.5 steps 5 to 7, then the policy's approvers), not by targeting. A relay MAY still honour `approver_ids` as an optional filter, for deployments where the gateway's approver names are the relay's account approver ids. `template_source` is OPTIONAL. `steps` (OPTIONAL, atomic batches only, §6.6) is an array of each step's canonical bytes as strings in `batch_index` order; when present, `canonical_bytes` is the batch manifest.
+`targets.device_ids` empty means every device of the listed approvers; both lists empty means every active device paired with this gateway. Gateways SHOULD send empty `approver_ids`: approver names are local to a gateway (`signeto.yml`, §5.3 point 7) while `approver_ids` here are relay account approver ids (§7.4), and the two namespaces need not match. Who may approve is decided by the gateway when it verifies the receipt (§4.5 steps 5 to 7, then the policy's approvers), not by targeting. A relay MAY still honour `approver_ids` as an optional filter, for deployments where the gateway's approver names are the relay's account approver ids. `template_source` is OPTIONAL. When present it carries every hashed member of the template (§3.1): `note`, `links` and `link_hosts` when the template has them, so the device can check it against the pin and build the links itself. The relay stores and forwards it unmodified. `steps` (OPTIONAL, atomic batches only, §6.6) is an array of each step's canonical bytes as strings in `batch_index` order; when present, `canonical_bytes` is the batch manifest.
 
 `gateway_signature` is REQUIRED on every approval request, whatever the transport (relay, local socket §7.11, or any push payload that carries content). Its signing input is the UTF-8 JCS serialization of
 
@@ -930,7 +1003,9 @@ Codes are stable strings. HTTP status is advisory; clients MUST branch on `code`
 |---|---|
 | `canonical/` | Action object → JCS bytes, SHA-256, `idempotency_key`. Includes unicode escaping, number formatting, nested arrays, key ordering, optional fields present and absent, batch fields, `effective_at`. |
 | `canonical-invalid/` | Schema violations: extra top-level key, bad timestamp format, expiry over 5 min, tier 4, `batch_index` without `batch_id`, non-canonical input bytes. |
-| `templates/` | Template + canonical bytes → rendered line. Includes escaped braces, nested paths, array index, numeric and boolean values, `elide` lists, unreferenced key (expected `unverified`), unknown template version. |
+| `templates/` | Template + canonical bytes → rendered line. Includes escaped braces, nested paths, array index, numeric and boolean values, `elide` lists, `elide` added after hashing (`template_hash_mismatch`) and the same `elide` hashed in (verified), unreferenced key (expected `unverified`), unknown template version. |
+| `links/` | Same format, with `note`, `links` and `links_error` in `expected`. The bundled `github.merge_pull_request` v2; values with `/`, `?`, `#`, `@`, `%2F`, `..`, `.`, empty segments, unicode, spaces, controls, a combining mark after `/`, non-integer and unsafe numbers; templates with a host not in `link_hosts`, a placeholder in the host or scheme, `http://`, userinfo, a port, more than 4 links, bad hosts and labels; links, note and hosts covered by the hash; `:short` and formatter rules; note and link placeholders not counting as mentions. |
+| `template-sha256/` | Template members → hash input and `sha256` (§3.1): text-only, empty members counting as absent, `elide` alone selecting the JCS form, links and notes, unicode. |
 | `receipts/` | Action, device JWK, receipt → verify result. Positive vectors for ES256, Ed25519, and WebAuthn (with `authenticator_data`, `client_data_json`, challenge equal to SHA-256 of the signing input). Negative vectors for every code in §4.6, plus WebAuthn wrong origin, wrong challenge, and wrong `type`. |
 | `receipts/signing-input/` | Receipt fields → exact signing input bytes, with and without `reason`; the WebAuthn challenge derived from each. |
 | `approval-request/` | Request body → `gateway_signature` signing input and signature; negative vectors for an altered `expires_at`, altered `canonical_bytes`, and an unpinned `gateway_id`. |
@@ -1022,5 +1097,6 @@ This section lists only what the protocol adds to SPEC §9; the SPEC requirement
 - **Clock skew tolerance is asymmetric.** The 60 s window applies to `signed_at` only. `expires_at` on the gateway is strict. A device with a slow clock can still sign a nearly-expired action; the gateway, not the device, decides whether it arrived in time.
 - **Idempotency key collisions across sessions are impossible by construction** because `requester.session_id` is in the hashed object. Two agents proposing identical actions get separate approvals, which is the intended behaviour: an approval is for one requester.
 - **Template registry is a display aid, not a trust boundary.** A wrong or missing template degrades to raw bytes with a warning (§3.4). It MUST NOT degrade to a silently different rendering, and an adapter MUST NOT be able to elide arguments without the device showing a count of hidden fields.
+- **Review links are built, never received.** A link's host and shape are in the hashed, pinned template; its values come from the verified bytes, percent-encoded so they cannot leave the path (§3.5). The page behind a link can change after review; the approval is bound to the bytes, and adapters pin execution to what the bytes name (a merge at `head_sha`).
 - **WebAuthn origin binding.** The gateway's allow-list of approver origins (§4.4) is the only thing that prevents a phishing page from obtaining a valid assertion. Self-hosted deployments MUST configure it; the default MUST be the empty list, not a wildcard.
 - **Threat model.** Attack trees for compromised agent, compromised relay, lost device, malicious adapter, and rogue gateway are in `docs/threat-model.md`. Each mitigation there references a section of this document.

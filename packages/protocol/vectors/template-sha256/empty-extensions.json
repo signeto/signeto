@@ -1,0 +1,15 @@
+{
+  "description": "Empty note, links and link_hosts count as absent: the text alone",
+  "inputs": {
+    "template": {
+      "text": "Read PR #{pr} on {repo}",
+      "note": "",
+      "links": [],
+      "link_hosts": []
+    }
+  },
+  "expected": {
+    "hash_input": "Read PR #{pr} on {repo}",
+    "sha256": "1364144dccfdb543d5d6960623123dc265fc46ee264a8d8801f4a60a7d525365"
+  }
+}

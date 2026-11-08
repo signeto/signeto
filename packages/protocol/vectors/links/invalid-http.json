@@ -1,0 +1,35 @@
+{
+  "description": "http:// is refused",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"v\":\"x\"},\"expires_at\":\"1970-01-01T00:03:01.028Z\",\"idempotency_key\":\"525a43b1dfc3e56c93686ea7734cfd32ecfa738783789b804d1af2c92381b2f8\",\"issued_at\":\"1970-01-01T00:00:01.028Z\",\"mode\":\"enforce\",\"nonce\":\"CCCCCCCCCCCCCCCCCCCCCC\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.bad_http\",\"template_version\":1,\"tier\":2,\"tool\":\"test.bad_http\"}",
+    "registries": [
+      {
+        "adapter": "test",
+        "templates": [
+          {
+            "template_id": "test.bad_http",
+            "template_version": 1,
+            "text": "{v}",
+            "sha256": "32d89165245956bc1e668e9fe58baf2b9819cc04301e67d2462c926d067181dc",
+            "links": [
+              {
+                "label": "a",
+                "url": "http://example.com/{v}"
+              }
+            ],
+            "link_hosts": [
+              "example.com"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "ok",
+    "text": "x",
+    "hidden": [],
+    "links_error": "url_not_https",
+    "links": []
+  }
+}

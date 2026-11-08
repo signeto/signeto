@@ -1,0 +1,98 @@
+{
+  "description": "Builtin github.merge_pull_request v2: note with {head_sha:short}, three github.com links, {repo:path}",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"base\":\"main\",\"head_sha\":\"abc1234abc1234abc1234abc1234abc1234abc12\",\"method\":\"squash\",\"pr\":42,\"repo\":\"acme/api\"},\"expires_at\":\"2026-11-07T12:03:00.000Z\",\"idempotency_key\":\"e565cc13e195b11c811209060cbfa63f8e4408cc2db262ec46faa247664f37fe\",\"issued_at\":\"2026-11-07T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"LLLLLLLLLLLLLLLLLLLLLL\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"github.merge_pull_request\",\"template_version\":2,\"tier\":3,\"tool\":\"github.merge_pull_request\"}",
+    "registries": [
+      {
+        "adapter": "github",
+        "templates": [
+          {
+            "template_id": "github.merge_pull_request",
+            "template_version": 1,
+            "text": "Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}",
+            "sha256": "0280710fb0ac477803f2002b1c52027717ed45bc7e8da1ec79b87ec7754d75de"
+          },
+          {
+            "template_id": "github.merge_pull_request",
+            "template_version": 2,
+            "text": "Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}",
+            "sha256": "d004d3b2763f6a8994e632c37b644cad9ad4b5bbabaea49e6c8c1aa135ba8486",
+            "note": "Approving commit {head_sha:short}. If the PR changes, this approval will not merge it.",
+            "links": [
+              {
+                "label": "View pull request",
+                "url": "https://github.com/{repo:path}/pull/{pr}"
+              },
+              {
+                "label": "Files changed",
+                "url": "https://github.com/{repo:path}/pull/{pr}/files"
+              },
+              {
+                "label": "Code at approved commit",
+                "url": "https://github.com/{repo:path}/tree/{head_sha}"
+              }
+            ],
+            "link_hosts": [
+              "github.com"
+            ]
+          },
+          {
+            "template_id": "github.create_deployment",
+            "template_version": 1,
+            "text": "Deploy {ref} to {environment} on {repo}",
+            "sha256": "a028b1a2c4a7afef58043b6d0f01a4230b1ecc39c0b8c410675a3d28d4f9ede1",
+            "elide": [
+              "description"
+            ]
+          }
+        ]
+      },
+      {
+        "adapter": "postgres",
+        "templates": [
+          {
+            "template_id": "postgres.execute",
+            "template_version": 1,
+            "text": "{statement_kind} on {database}@{host}: {statement}",
+            "sha256": "4c2078abc027b5d4b398c910825ca198c0333b899aeef2c69baf964c1bd3d8d6"
+          }
+        ]
+      },
+      {
+        "adapter": "alpaca",
+        "templates": [
+          {
+            "template_id": "alpaca.place_order",
+            "template_version": 1,
+            "text": "Place order: {side} {qty} {symbol} {type} on {account} (notional {notional_usd} USD)",
+            "sha256": "a51cb02216bbb48f39b64e6c3a1ba38e748612792bbb1b17f203138d519e0123",
+            "elide": [
+              "limit_price",
+              "time_in_force"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "ok",
+    "text": "Merge PR #42 into main on acme/api (squash) at abc1234abc1234abc1234abc1234abc1234abc12",
+    "hidden": [],
+    "note": "Approving commit abc1234. If the PR changes, this approval will not merge it.",
+    "links": [
+      {
+        "label": "View pull request",
+        "url": "https://github.com/acme/api/pull/42"
+      },
+      {
+        "label": "Files changed",
+        "url": "https://github.com/acme/api/pull/42/files"
+      },
+      {
+        "label": "Code at approved commit",
+        "url": "https://github.com/acme/api/tree/abc1234abc1234abc1234abc1234abc1234abc12"
+      }
+    ]
+  }
+}

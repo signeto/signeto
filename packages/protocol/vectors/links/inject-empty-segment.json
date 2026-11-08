@@ -1,0 +1,51 @@
+{
+  "description": "{v:path} with an empty segment drops that link",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"v\":\"a//b\"},\"expires_at\":\"1970-01-01T00:03:01.011Z\",\"idempotency_key\":\"0fcdbcc1e5ca07de29a1171f58e0d3282af1b49de57470b10b4d8e5fe013de3d\",\"issued_at\":\"1970-01-01T00:00:01.011Z\",\"mode\":\"enforce\",\"nonce\":\"LLLLLLLLLLLLLLLLLLLLLL\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.inject\",\"template_version\":1,\"tier\":2,\"tool\":\"test.inject\"}",
+    "registries": [
+      {
+        "adapter": "test",
+        "templates": [
+          {
+            "template_id": "test.inject",
+            "template_version": 1,
+            "text": "{v}",
+            "sha256": "947b983330a8d6f2ac344aed6c6b7d2f369188183c1e28356368317716e1ad21",
+            "links": [
+              {
+                "label": "plain",
+                "url": "https://example.com/p/{v}"
+              },
+              {
+                "label": "path",
+                "url": "https://example.com/{v:path}/end"
+              },
+              {
+                "label": "query",
+                "url": "https://example.com/s?q={v}#top"
+              }
+            ],
+            "link_hosts": [
+              "example.com"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "ok",
+    "text": "a//b",
+    "hidden": [],
+    "links": [
+      {
+        "label": "plain",
+        "url": "https://example.com/p/a%2F%2Fb"
+      },
+      {
+        "label": "query",
+        "url": "https://example.com/s?q=a%2F%2Fb#top"
+      }
+    ]
+  }
+}

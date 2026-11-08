@@ -9,10 +9,34 @@
         "sha256": "0280710fb0ac477803f2002b1c52027717ed45bc7e8da1ec79b87ec7754d75de"
       },
       {
+        "template_id": "github.merge_pull_request",
+        "template_version": 2,
+        "text": "Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}",
+        "sha256": "d004d3b2763f6a8994e632c37b644cad9ad4b5bbabaea49e6c8c1aa135ba8486",
+        "note": "Approving commit {head_sha:short}. If the PR changes, this approval will not merge it.",
+        "links": [
+          {
+            "label": "View pull request",
+            "url": "https://github.com/{repo:path}/pull/{pr}"
+          },
+          {
+            "label": "Files changed",
+            "url": "https://github.com/{repo:path}/pull/{pr}/files"
+          },
+          {
+            "label": "Code at approved commit",
+            "url": "https://github.com/{repo:path}/tree/{head_sha}"
+          }
+        ],
+        "link_hosts": [
+          "github.com"
+        ]
+      },
+      {
         "template_id": "github.create_deployment",
         "template_version": 1,
         "text": "Deploy {ref} to {environment} on {repo}",
-        "sha256": "f76538cd625f09e2729b20d9c745cd0bdc0249e0ec69a85edc37007c367687d1",
+        "sha256": "a028b1a2c4a7afef58043b6d0f01a4230b1ecc39c0b8c410675a3d28d4f9ede1",
         "elide": [
           "description"
         ]
@@ -37,7 +61,7 @@
         "template_id": "alpaca.place_order",
         "template_version": 1,
         "text": "Place order: {side} {qty} {symbol} {type} on {account} (notional {notional_usd} USD)",
-        "sha256": "48ee763b6759d14d2196c98cc5fea215795e76cef9fab061cab27a8f78043337",
+        "sha256": "a51cb02216bbb48f39b64e6c3a1ba38e748612792bbb1b17f203138d519e0123",
         "elide": [
           "limit_price",
           "time_in_force"

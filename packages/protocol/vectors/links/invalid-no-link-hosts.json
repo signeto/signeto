@@ -1,0 +1,32 @@
+{
+  "description": "Links without link_hosts",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"v\":\"x\"},\"expires_at\":\"1970-01-01T00:03:01.038Z\",\"idempotency_key\":\"e6a50b606093295fa12cb8dd5d70c2c02ae00fe811bea961d32a2686fea946d1\",\"issued_at\":\"1970-01-01T00:00:01.038Z\",\"mode\":\"enforce\",\"nonce\":\"MMMMMMMMMMMMMMMMMMMMMM\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.bad_no_link_hosts\",\"template_version\":1,\"tier\":2,\"tool\":\"test.bad_no_link_hosts\"}",
+    "registries": [
+      {
+        "adapter": "test",
+        "templates": [
+          {
+            "template_id": "test.bad_no_link_hosts",
+            "template_version": 1,
+            "text": "{v}",
+            "sha256": "c8500b9528446dfff0f40b44799a2575ef307c3aca838eefa468818450ff1b93",
+            "links": [
+              {
+                "label": "a",
+                "url": "https://example.com/{v}"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "ok",
+    "text": "x",
+    "hidden": [],
+    "links_error": "link_hosts_invalid",
+    "links": []
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "description": "A space in the literal URL",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"v\":\"x\"},\"expires_at\":\"1970-01-01T00:03:01.042Z\",\"idempotency_key\":\"ac9dc707487c0201694142d1ad3f9d506f229c6c018ab5252c147a2169ed661b\",\"issued_at\":\"1970-01-01T00:00:01.042Z\",\"mode\":\"enforce\",\"nonce\":\"QQQQQQQQQQQQQQQQQQQQQQ\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.bad_url_space\",\"template_version\":1,\"tier\":2,\"tool\":\"test.bad_url_space\"}",
+    "registries": [
+      {
+        "adapter": "test",
+        "templates": [
+          {
+            "template_id": "test.bad_url_space",
+            "template_version": 1,
+            "text": "{v}",
+            "sha256": "616b04641e44219d484f0c1c521b8156c9ac82c8167705bcc21d4b099aa847f6",
+            "links": [
+              {
+                "label": "a",
+                "url": "https://example.com/a b/{v}"
+              }
+            ],
+            "link_hosts": [
+              "example.com"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "ok",
+    "text": "x",
+    "hidden": [],
+    "links_error": "url_invalid",
+    "links": []
+  }
+}

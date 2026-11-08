@@ -1,0 +1,13 @@
+{
+  "description": "A note alone selects the extended form",
+  "inputs": {
+    "template": {
+      "text": "Ship {sha}",
+      "note": "Approving commit {sha:short}."
+    }
+  },
+  "expected": {
+    "hash_input": "{\"note\":\"Approving commit {sha:short}.\",\"text\":\"Ship {sha}\"}",
+    "sha256": "b9378dc959f96d85c6c419e683d385f827dd54e1336d847fc362d1f84a0d170b"
+  }
+}

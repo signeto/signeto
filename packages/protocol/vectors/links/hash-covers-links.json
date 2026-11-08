@@ -1,0 +1,32 @@
+{
+  "description": "A link changed after hashing: the template fails its sha256",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"v\":\"x\"},\"expires_at\":\"1970-01-01T00:03:01.048Z\",\"idempotency_key\":\"707ba30d958338a277bd90c14aaa9eacda5ce69a1ede5cb4d57ac53f6c9781a6\",\"issued_at\":\"1970-01-01T00:00:01.048Z\",\"mode\":\"enforce\",\"nonce\":\"WWWWWWWWWWWWWWWWWWWWWW\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.altered\",\"template_version\":1,\"tier\":2,\"tool\":\"test.altered\"}",
+    "registries": [
+      {
+        "adapter": "test",
+        "templates": [
+          {
+            "template_id": "test.altered",
+            "template_version": 1,
+            "text": "{v}",
+            "sha256": "47a360e360fe817950720446bf318795d50a0302cfcde1adeeafec5926210fe6",
+            "links": [
+              {
+                "label": "a",
+                "url": "https://example.com/{v}/x"
+              }
+            ],
+            "link_hosts": [
+              "example.com"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "unverified",
+    "reason": "template_hash_mismatch"
+  }
+}

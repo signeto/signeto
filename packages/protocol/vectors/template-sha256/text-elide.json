@@ -1,0 +1,15 @@
+{
+  "description": "Text and a non-empty elide: the extended form, so elide is covered",
+  "inputs": {
+    "template": {
+      "text": "Deploy {ref} to {environment} on {repo}",
+      "elide": [
+        "description"
+      ]
+    }
+  },
+  "expected": {
+    "hash_input": "{\"elide\":[\"description\"],\"text\":\"Deploy {ref} to {environment} on {repo}\"}",
+    "sha256": "a028b1a2c4a7afef58043b6d0f01a4230b1ecc39c0b8c410675a3d28d4f9ede1"
+  }
+}

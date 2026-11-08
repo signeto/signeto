@@ -1,0 +1,35 @@
+{
+  "description": "A port is not a hostname",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"v\":\"x\"},\"expires_at\":\"1970-01-01T00:03:01.037Z\",\"idempotency_key\":\"8df511b2f08d2d1689ce50041fadd4cd3cd7591a8f6ed2df373c23f646f8cc87\",\"issued_at\":\"1970-01-01T00:00:01.037Z\",\"mode\":\"enforce\",\"nonce\":\"LLLLLLLLLLLLLLLLLLLLLL\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.bad_host_with_port\",\"template_version\":1,\"tier\":2,\"tool\":\"test.bad_host_with_port\"}",
+    "registries": [
+      {
+        "adapter": "test",
+        "templates": [
+          {
+            "template_id": "test.bad_host_with_port",
+            "template_version": 1,
+            "text": "{v}",
+            "sha256": "ab12bcf3be5ba08826b145af8dc45e6576bb67126e010861c504407ff1f36b00",
+            "links": [
+              {
+                "label": "a",
+                "url": "https://example.com:443/{v}"
+              }
+            ],
+            "link_hosts": [
+              "example.com:443"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "ok",
+    "text": "x",
+    "hidden": [],
+    "links_error": "link_hosts_invalid",
+    "links": []
+  }
+}

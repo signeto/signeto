@@ -1,0 +1,22 @@
+{
+  "description": "Unicode in the label and note is hashed as JCS UTF-8",
+  "inputs": {
+    "template": {
+      "text": "{a}",
+      "note": "Zoë 😀",
+      "links": [
+        {
+          "label": "Öffnen ↗",
+          "url": "https://example.com/{a}"
+        }
+      ],
+      "link_hosts": [
+        "example.com"
+      ]
+    }
+  },
+  "expected": {
+    "hash_input": "{\"link_hosts\":[\"example.com\"],\"links\":[{\"label\":\"Öffnen ↗\",\"url\":\"https://example.com/{a}\"}],\"note\":\"Zoë 😀\",\"text\":\"{a}\"}",
+    "sha256": "bb63626bb2e5557492c054bfc9c0cb0b828714ae6f641b17fbe05885d46623e8"
+  }
+}

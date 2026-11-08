@@ -1,0 +1,30 @@
+{
+  "description": "The bundled github.merge_pull_request v2",
+  "inputs": {
+    "template": {
+      "text": "Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}",
+      "note": "Approving commit {head_sha:short}. If the PR changes, this approval will not merge it.",
+      "links": [
+        {
+          "label": "View pull request",
+          "url": "https://github.com/{repo:path}/pull/{pr}"
+        },
+        {
+          "label": "Files changed",
+          "url": "https://github.com/{repo:path}/pull/{pr}/files"
+        },
+        {
+          "label": "Code at approved commit",
+          "url": "https://github.com/{repo:path}/tree/{head_sha}"
+        }
+      ],
+      "link_hosts": [
+        "github.com"
+      ]
+    }
+  },
+  "expected": {
+    "hash_input": "{\"link_hosts\":[\"github.com\"],\"links\":[{\"label\":\"View pull request\",\"url\":\"https://github.com/{repo:path}/pull/{pr}\"},{\"label\":\"Files changed\",\"url\":\"https://github.com/{repo:path}/pull/{pr}/files\"},{\"label\":\"Code at approved commit\",\"url\":\"https://github.com/{repo:path}/tree/{head_sha}\"}],\"note\":\"Approving commit {head_sha:short}. If the PR changes, this approval will not merge it.\",\"text\":\"Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}\"}",
+    "sha256": "d004d3b2763f6a8994e632c37b644cad9ad4b5bbabaea49e6c8c1aa135ba8486"
+  }
+}

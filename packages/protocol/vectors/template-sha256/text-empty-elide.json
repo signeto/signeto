@@ -1,0 +1,13 @@
+{
+  "description": "An empty elide counts as absent: the text alone",
+  "inputs": {
+    "template": {
+      "text": "Deploy {ref} to {environment} on {repo}",
+      "elide": []
+    }
+  },
+  "expected": {
+    "hash_input": "Deploy {ref} to {environment} on {repo}",
+    "sha256": "f76538cd625f09e2729b20d9c745cd0bdc0249e0ec69a85edc37007c367687d1"
+  }
+}

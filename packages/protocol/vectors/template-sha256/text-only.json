@@ -1,0 +1,12 @@
+{
+  "description": "Text-only template: SHA-256 of the UTF-8 text",
+  "inputs": {
+    "template": {
+      "text": "Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}"
+    }
+  },
+  "expected": {
+    "hash_input": "Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}",
+    "sha256": "0280710fb0ac477803f2002b1c52027717ed45bc7e8da1ec79b87ec7754d75de"
+  }
+}

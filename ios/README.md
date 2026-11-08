@@ -12,7 +12,7 @@ Swift can use it too.
 | `Keys.swift` | §5.1 | Public JWKs (EC P-256, OKP Ed25519), RFC 7638 thumbprints, `gw_`/`dev_` ids, fingerprints, ES256 and Ed25519 verification. |
 | `Signer.swift` | §4.2, §7.9 | `DeviceSigner`: `SecureEnclaveSigner` (fresh biometric prompt per signature) and `SoftwareP256Signer` (tests and the simulator only); Keychain persistence. |
 | `CanonicalAction.swift` | §2 | Receiver-side parse: schema, `not_canonical`, idempotency key, hash of the bytes as received. |
-| `Templates.swift` | §3 | The renderer and the bundled registries (`Resources/builtin-registries.json`, a data port of `@signeto/protocol` `builtinRegistries`); pinned `template_source`; the §3.4 fallback. |
+| `Templates.swift` | §3 | The renderer and the bundled registries (`Resources/builtin-registries.json`, a data port of `@signeto/protocol` `builtinRegistries`); the template hash (§3.1); notes and `:short` (§3.2); review links built from the verified args with the host allowlist (§3.5); pinned `template_source`; the §3.4 fallback. |
 | `ApprovalRequest.swift` | §7.5 | `gateway_signature` verification against the pinned gateway key. Only a `VerifiedApprovalRequest` reaches the renderer. |
 | `Receipt.swift` | §4 | Signing input, building and signing receipts, standalone verification (incl. WebAuthn, for the vectors). |
 | `RelayAuth.swift` | §7.1 | `Signeto-Device` request signing for software keys (and relay-side verification for conformance tests). A biometric-bound key uses the relay's device session instead. |
@@ -54,7 +54,7 @@ swift test
 ```
 
 The suite runs the shared conformance vectors in `../packages/protocol/vectors/` (located from the test files
-with `#filePath`): `canonical/`, `canonical-invalid/`, `templates/`, `receipts/` (ES256, Ed25519, WebAuthn and
+with `#filePath`): `canonical/`, `canonical-invalid/`, `templates/`, `links/`, `template-sha256/`, `receipts/` (ES256, Ed25519, WebAuthn and
 every negative code), `receipts/signing-input/`, `approval-request/`, `ids/`, `relay-auth/`.
 
 `Tests/SignetoSignTests/Fixtures/` holds what the vectors do not cover yet, generated from the built TS package:

@@ -1,0 +1,26 @@
+{
+  "description": "elide added to a template hashed (and pinned) as text-only → template_hash_mismatch",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"environment\":\"production\",\"force\":true,\"ref\":\"v1.2.0\"},\"expires_at\":\"1970-01-01T00:03:00.007Z\",\"idempotency_key\":\"5a8d56db73aac1e31592948d37aa8e2e5908048846a8dad81fea968d91bca315\",\"issued_at\":\"1970-01-01T00:00:00.007Z\",\"mode\":\"enforce\",\"nonce\":\"MMMMMMMMMMMMMMMMMMMMMM\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.pinned_deploy\",\"template_version\":1,\"tier\":2,\"tool\":\"test.pinned_deploy\"}",
+    "registries": [
+      {
+        "adapter": "pinned",
+        "templates": [
+          {
+            "template_id": "test.pinned_deploy",
+            "template_version": 1,
+            "text": "Deploy {ref} to {environment}",
+            "sha256": "c55cd62ec8c1d21c02e8a63e9575f0e395871ba45e645c361042ecca54fc3d33",
+            "elide": [
+              "force"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "unverified",
+    "reason": "template_hash_mismatch"
+  }
+}

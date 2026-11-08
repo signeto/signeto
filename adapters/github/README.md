@@ -27,6 +27,21 @@ What `resolve` pins:
 Repository names are lower-cased and merge methods normalised, so two spellings of the same action produce the same
 canonical bytes (idempotency, SPEC §5).
 
+### Card note and review links (templates v2)
+
+All three templates are version 2: they add review links the approver's device builds from the signed args, only to
+`github.com` (protocol.md §3.5), and the merge template adds a note. Version 1 of `github.merge_pull_request` stays in
+the bundled registry for older gateways.
+
+| Tool | Note | Links |
+|---|---|---|
+| `merge_pull_request` | `Approving commit {head_sha:short}. If the PR changes, this approval will not merge it.` | View pull request `https://github.com/{repo:path}/pull/{pr}`, Files changed `…/pull/{pr}/files`, Code at approved commit `…/tree/{head_sha}` |
+| `dispatch_workflow` | none | Workflow file at approved commit `https://github.com/{repo:path}/blob/{ref_sha}/.github/workflows/{workflow}`, Actions `https://github.com/{repo:path}/actions` |
+| `read_pull_request` | none | View pull request `https://github.com/{repo:path}/pull/{pr}` |
+
+The note is true because `execute` merges with `sha: head_sha`. The links show the pages as they are when opened,
+which can differ from what was signed; the approval is bound to the signed SHA.
+
 ## Secrets
 
 Configure these in the gateway credential store for adapter `github`:

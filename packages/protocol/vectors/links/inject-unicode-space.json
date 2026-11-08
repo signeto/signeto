@@ -1,0 +1,55 @@
+{
+  "description": "Unicode and spaces are UTF-8 percent-encoded",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"v\":\"naïve 😀 x\"},\"expires_at\":\"1970-01-01T00:03:01.014Z\",\"idempotency_key\":\"e7e47dc5be629a32cb1ae7678415e1639ba061b5512a071211c3062c9f37990e\",\"issued_at\":\"1970-01-01T00:00:01.014Z\",\"mode\":\"enforce\",\"nonce\":\"OOOOOOOOOOOOOOOOOOOOOO\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.inject\",\"template_version\":1,\"tier\":2,\"tool\":\"test.inject\"}",
+    "registries": [
+      {
+        "adapter": "test",
+        "templates": [
+          {
+            "template_id": "test.inject",
+            "template_version": 1,
+            "text": "{v}",
+            "sha256": "947b983330a8d6f2ac344aed6c6b7d2f369188183c1e28356368317716e1ad21",
+            "links": [
+              {
+                "label": "plain",
+                "url": "https://example.com/p/{v}"
+              },
+              {
+                "label": "path",
+                "url": "https://example.com/{v:path}/end"
+              },
+              {
+                "label": "query",
+                "url": "https://example.com/s?q={v}#top"
+              }
+            ],
+            "link_hosts": [
+              "example.com"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "ok",
+    "text": "naïve 😀 x",
+    "hidden": [],
+    "links": [
+      {
+        "label": "plain",
+        "url": "https://example.com/p/na%C3%AFve%20%F0%9F%98%80%20x"
+      },
+      {
+        "label": "path",
+        "url": "https://example.com/na%C3%AFve%20%F0%9F%98%80%20x/end"
+      },
+      {
+        "label": "query",
+        "url": "https://example.com/s?q=na%C3%AFve%20%F0%9F%98%80%20x#top"
+      }
+    ]
+  }
+}

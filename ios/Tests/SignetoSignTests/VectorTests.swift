@@ -18,7 +18,7 @@ final class CanonicalVectorTests: XCTestCase {
             case .success(let enc):
                 XCTAssertEqual(enc.canonicalBytesSHA256, expected["canonical_bytes_sha256"]!.s, name)
                 if let rendered = expected["rendered"]?.stringValue {
-                    XCTAssertEqual(Templates.render(enc, registries: Templates.builtinRegistries), .ok(text: rendered, template: Templates.find(Templates.builtinRegistries, id: enc.action.templateId, version: 1)!, hidden: []), name)
+                    XCTAssertEqual(Templates.render(enc, registries: Templates.builtinRegistries), .ok(RenderedTemplate(text: rendered, template: Templates.find(Templates.builtinRegistries, id: enc.action.templateId, version: 1)!, hidden: [])), name)
                 }
             }
         }
@@ -44,10 +44,20 @@ final class TemplateVectorTests: XCTestCase {
     func check(_ name: String, bytes: String, regs: [TemplateRegistry], expected e: JSONValue) {
         let r = Templates.render(canonicalBytes: bytes, registries: regs)
         switch r {
-        case .ok(let text, _, let hidden):
+        case .ok(let ok):
+            let text = ok.text
             XCTAssertEqual(e["status"]?.s, "ok", "\(name): rendered \(text)")
             XCTAssertTrue(exactlyEqual(text, e["text"]?.s ?? ""), "\(name): \(text.debugDescription) != \(String(describing: e["text"]))")
-            XCTAssertEqual(hidden, e["hidden"]?.arrayValue?.map(\.s), name)
+            XCTAssertEqual(ok.hidden, e["hidden"]?.arrayValue?.map(\.s), name)
+            // §3.2 note and §3.5 links, byte for byte (absent in a vector means none)
+            XCTAssertTrue(exactlyEqual(ok.note ?? "<none>", e["note"]?.stringValue ?? "<none>"), "\(name): note \(String(describing: ok.note))")
+            let want = (e["links"]?.arrayValue ?? []).map { ($0["label"]!.s, $0["url"]!.s) }
+            XCTAssertEqual(ok.links.count, want.count, "\(name): links \(ok.links.map(\.url))")
+            for (got, w) in zip(ok.links, want) {
+                XCTAssertTrue(exactlyEqual(got.label, w.0) && exactlyEqual(got.url, w.1), "\(name): \(got.label) \(got.url) != \(w.0) \(w.1)")
+                XCTAssertTrue(got.url.hasPrefix("https://\(got.host)/"), name)
+            }
+            XCTAssertEqual(ok.linksError?.rawValue, e["links_error"]?.stringValue, name)
         case .unverified(let reason, let detail, let raw):
             XCTAssertEqual(e["status"]?.s, "unverified", "\(name): \(reason)")
             XCTAssertEqual(reason.rawValue, e["reason"]?.s, name)
@@ -59,6 +69,24 @@ final class TemplateVectorTests: XCTestCase {
     func testTemplates() throws {
         for (name, v) in try vectors("templates") {
             check(name, bytes: v["inputs"]!["canonical_bytes"]!.s, regs: try registries(v["inputs"]!["registries"]!), expected: v["expected"]!)
+        }
+    }
+
+    /// §3.5 review links and §3.2 notes: good cases, injection attempts, invalid templates.
+    func testLinks() throws {
+        for (name, v) in try vectors("links") {
+            check(name, bytes: v["inputs"]!["canonical_bytes"]!.s, regs: try registries(v["inputs"]!["registries"]!), expected: v["expected"]!)
+        }
+    }
+
+    /// §3.1 template hash input: text alone, or JCS of the extended members.
+    func testTemplateSHA256() throws {
+        for (name, v) in try vectors("template-sha256") {
+            let t = v["inputs"]!["template"]!
+            let links = t["links"]?.arrayValue?.map { TemplateLink(label: $0["label"]!.s, url: $0["url"]!.s) }
+            let input = Templates.hashInput(text: t["text"]!.s, elide: t["elide"]?.arrayValue?.map(\.s), note: t["note"]?.stringValue, links: links, linkHosts: t["link_hosts"]?.arrayValue?.map(\.s))
+            XCTAssertTrue(exactlyEqual(input, v["expected"]!["hash_input"]!.s), "\(name): \(input)")
+            XCTAssertEqual(Digest.sha256Hex(input), v["expected"]!["sha256"]!.s, name)
         }
     }
 
@@ -74,7 +102,13 @@ final class TemplateVectorTests: XCTestCase {
         let want = try JSONDecoder().decode([TemplateRegistry].self, from: JCS.canonicalData(fixture("builtin-registries.json")))
         XCTAssertFalse(Templates.builtinRegistries.isEmpty)
         XCTAssertEqual(Templates.builtinRegistries, want)
-        for r in Templates.builtinRegistries { for t in r.templates { XCTAssertEqual(Templates.sha256(t.text), t.sha256, t.templateId) } }
+        for r in Templates.builtinRegistries {
+            for t in r.templates {
+                XCTAssertEqual(t.computedSHA256, t.sha256, t.templateId)
+                XCTAssertNil(Templates.linksError(t), t.templateId)
+            }
+        }
+        XCTAssertEqual(Templates.find(Templates.builtinRegistries, id: "github.merge_pull_request", version: 2)?.links?.count, 3)
     }
 
     func testTemplateSourceOnlyWhenPinned() throws {
@@ -89,6 +123,40 @@ final class TemplateVectorTests: XCTestCase {
         // pinned at another version
         let v2 = TemplatePin(templateId: "acme.rotate_key", templateVersion: 2, sha256: src.sha256)
         XCTAssertEqual(Templates.registries(templateSource: src, pinned: [v2]).count, Templates.builtinRegistries.count)
+    }
+
+    /// The pin covers elide: a relay cannot hide a field by adding it to a pinned text-only template_source.
+    func testTemplateSourceElideCoveredByPin() throws {
+        let text = "Rotate {key} in {vault}"
+        let textOnlyPin = TemplatePin(templateId: "acme.rotate_key", templateVersion: 3, sha256: Templates.sha256(text))
+        let added = TemplateSource(templateId: "acme.rotate_key", templateVersion: 3, text: text, sha256: Templates.sha256(text), elide: ["force"])
+        XCTAssertEqual(Templates.registries(templateSource: added, pinned: [textOnlyPin]).count, Templates.builtinRegistries.count)
+        // pinned with the elide, it verifies
+        let withElide = Template(templateId: "acme.rotate_key", templateVersion: 3, text: text, elide: ["force"])
+        XCTAssertNotEqual(withElide.sha256, Templates.sha256(text))
+        let src = TemplateSource(templateId: "acme.rotate_key", templateVersion: 3, text: text, sha256: withElide.sha256, elide: ["force"])
+        XCTAssertEqual(Templates.registries(templateSource: src, pinned: [TemplatePin(templateId: "acme.rotate_key", templateVersion: 3, sha256: withElide.sha256)]).last?.templates.first, withElide)
+        // an empty elide is absent: a text-only pin still matches
+        let empty = TemplateSource(templateId: "acme.rotate_key", templateVersion: 3, text: text, sha256: Templates.sha256(text), elide: [])
+        XCTAssertEqual(Templates.registries(templateSource: empty, pinned: [textOnlyPin]).count, Templates.builtinRegistries.count + 1)
+    }
+
+    /// The pin covers links: a relay cannot add, change or drop a link of a pinned template_source.
+    func testTemplateSourceLinksCoveredByPin() throws {
+        let text = "Rotate {key} in {vault}"
+        let links = [TemplateLink(label: "Open vault", url: "https://vault.example.com/{vault}/keys/{key}")]
+        let good = Template(templateId: "acme.rotate_key", templateVersion: 4, text: text, links: links, linkHosts: ["vault.example.com"])
+        let pin = TemplatePin(templateId: good.templateId, templateVersion: 4, sha256: good.sha256)
+        XCTAssertNotEqual(good.sha256, Templates.sha256(text))
+        let src = TemplateSource(templateId: good.templateId, templateVersion: 4, text: text, sha256: good.sha256, elide: [], links: links, linkHosts: ["vault.example.com"])
+        XCTAssertEqual(Templates.registries(templateSource: src, pinned: [pin]).last?.templates.first, good)
+        for forged in [
+            TemplateSource(templateId: good.templateId, templateVersion: 4, text: text, sha256: good.sha256, links: [TemplateLink(label: "Open vault", url: "https://vault.example.com/{vault}")], linkHosts: ["vault.example.com"]),
+            TemplateSource(templateId: good.templateId, templateVersion: 4, text: text, sha256: good.sha256, links: links, linkHosts: ["vault.example.com", "evil.example"]),
+            TemplateSource(templateId: good.templateId, templateVersion: 4, text: text, sha256: good.sha256),
+        ] {
+            XCTAssertEqual(Templates.registries(templateSource: forged, pinned: [pin]).count, Templates.builtinRegistries.count)
+        }
     }
 }
 

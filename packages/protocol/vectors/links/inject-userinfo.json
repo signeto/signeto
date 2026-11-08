@@ -1,0 +1,55 @@
+{
+  "description": "'@' in a value is encoded, so it cannot become userinfo",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"v\":\"evil.com@acme\"},\"expires_at\":\"1970-01-01T00:03:01.005Z\",\"idempotency_key\":\"11d4c9d956a26c5701c90aafb2124769c1c50fc58269151726ce917406d1ac6e\",\"issued_at\":\"1970-01-01T00:00:01.005Z\",\"mode\":\"enforce\",\"nonce\":\"FFFFFFFFFFFFFFFFFFFFFF\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.inject\",\"template_version\":1,\"tier\":2,\"tool\":\"test.inject\"}",
+    "registries": [
+      {
+        "adapter": "test",
+        "templates": [
+          {
+            "template_id": "test.inject",
+            "template_version": 1,
+            "text": "{v}",
+            "sha256": "947b983330a8d6f2ac344aed6c6b7d2f369188183c1e28356368317716e1ad21",
+            "links": [
+              {
+                "label": "plain",
+                "url": "https://example.com/p/{v}"
+              },
+              {
+                "label": "path",
+                "url": "https://example.com/{v:path}/end"
+              },
+              {
+                "label": "query",
+                "url": "https://example.com/s?q={v}#top"
+              }
+            ],
+            "link_hosts": [
+              "example.com"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "ok",
+    "text": "evil.com@acme",
+    "hidden": [],
+    "links": [
+      {
+        "label": "plain",
+        "url": "https://example.com/p/evil.com%40acme"
+      },
+      {
+        "label": "path",
+        "url": "https://example.com/evil.com%40acme/end"
+      },
+      {
+        "label": "query",
+        "url": "https://example.com/s?q=evil.com%40acme#top"
+      }
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "description": "More than 4 links",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"v\":\"x\"},\"expires_at\":\"1970-01-01T00:03:01.034Z\",\"idempotency_key\":\"8d3beedc16d5ac34ea6892ea8339553d7722f89a5a30e5ec425a87072bdb6939\",\"issued_at\":\"1970-01-01T00:00:01.034Z\",\"mode\":\"enforce\",\"nonce\":\"IIIIIIIIIIIIIIIIIIIIII\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.bad_too_many_links\",\"template_version\":1,\"tier\":2,\"tool\":\"test.bad_too_many_links\"}",
+    "registries": [
+      {
+        "adapter": "test",
+        "templates": [
+          {
+            "template_id": "test.bad_too_many_links",
+            "template_version": 1,
+            "text": "{v}",
+            "sha256": "f0486f293f71571c30663c46308e0834a913a8a2298eddb10ee9cecd700b8d8a",
+            "links": [
+              {
+                "label": "l1",
+                "url": "https://example.com/1/{v}"
+              },
+              {
+                "label": "l2",
+                "url": "https://example.com/2/{v}"
+              },
+              {
+                "label": "l3",
+                "url": "https://example.com/3/{v}"
+              },
+              {
+                "label": "l4",
+                "url": "https://example.com/4/{v}"
+              },
+              {
+                "label": "l5",
+                "url": "https://example.com/5/{v}"
+              }
+            ],
+            "link_hosts": [
+              "example.com"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "ok",
+    "text": "x",
+    "hidden": [],
+    "links_error": "too_many_links",
+    "links": []
+  }
+}

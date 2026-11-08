@@ -1,5 +1,5 @@
 // Manifest validation at startup (docs/adapters.md §2, §3). The gateway refuses to start on any failure.
-import { templateSha256, tokenizeTemplate, type TemplateRegistry } from "@signeto/protocol";
+import { templateLinksError, templateSha256, tokenizeTemplate, type TemplateBody, type TemplateRegistry } from "@signeto/protocol";
 import type { Adapter, AdapterManifest, ToolSpec } from "./types.js";
 
 export interface AdapterLoadError {
@@ -38,36 +38,64 @@ export function validateAdapter(adapter: Adapter): AdapterLoadError[] {
 
 function checkPlaceholders(adapterName: string, t: ToolSpec): AdapterLoadError[] {
   const out: AdapterLoadError[] = [];
+  const err = (message: string) => out.push({ adapter: adapterName, tool: t.name, message });
   const toks = tokenizeTemplate(t.template.text);
   if (!toks) return [{ adapter: adapterName, tool: t.name, message: "template text has a stray brace or invalid placeholder" }];
   const props = ((t.resolved as { properties?: Record<string, unknown> }).properties ?? {}) as Record<string, unknown>;
   const required = new Set(((t.resolved as { required?: string[] }).required ?? []) as string[]);
   const referenced = new Set<string>();
-  for (const tok of toks) {
-    if (tok.kind !== "ph") continue;
-    const root = tok.path[0] as string;
-    referenced.add(root);
-    if (!(root in props)) out.push({ adapter: adapterName, tool: t.name, message: `template placeholder {${tok.path.join(".")}} is not a resolved property` });
-    else if (!required.has(root)) out.push({ adapter: adapterName, tool: t.name, message: `template placeholder {${root}} must be a required resolved property` });
+  // `where` names the part of the template; note and link placeholders must resolve too, but only `text`
+  // placeholders count as mentioning an argument (protocol.md §3.4).
+  const check = (tokens: NonNullable<ReturnType<typeof tokenizeTemplate>>, where: string, mention: boolean) => {
+    for (const tok of tokens) {
+      if (tok.kind !== "ph") continue;
+      const root = tok.path[0] as string;
+      if (mention) referenced.add(root);
+      if (!(root in props)) err(`${where} placeholder {${tok.path.join(".")}} is not a resolved property`);
+      else if (!required.has(root)) err(`${where} placeholder {${root}} must be a required resolved property`);
+    }
+  };
+  check(toks, "template", true);
+  if (t.template.note !== undefined) {
+    const nt = tokenizeTemplate(t.template.note, ["short"]);
+    if (!nt) err("template note has a stray brace, an invalid placeholder or a formatter other than :short");
+    else check(nt, "template note", false);
   }
+  const linksError = templateLinksError(bodyOf(t));
+  if (linksError) err(`template links are invalid (protocol.md §3.5): ${linksError}`);
+  else for (const l of t.template.links ?? []) check(tokenizeTemplate(l.url, ["path"]) ?? [], `template link "${l.label}"`, false);
   const elide = new Set(t.template.elide ?? []);
   for (const k of Object.keys(props)) {
-    if (!referenced.has(k) && !elide.has(k)) out.push({ adapter: adapterName, tool: t.name, message: `resolved property "${k}" is neither referenced by the template nor listed in elide` });
+    if (!referenced.has(k) && !elide.has(k)) err(`resolved property "${k}" is neither referenced by the template nor listed in elide`);
   }
   return out;
+}
+
+/** The hashed members of a tool's template (protocol.md §3.1). */
+function bodyOf(t: ToolSpec): TemplateBody {
+  const d = t.template;
+  return {
+    text: d.text,
+    ...(d.elide ? { elide: d.elide } : {}),
+    ...(d.note !== undefined ? { note: d.note } : {}),
+    ...(d.links ? { links: d.links } : {}),
+    ...(d.link_hosts ? { link_hosts: d.link_hosts } : {}),
+  };
+}
+
+/** sha256 of a tool's template as pinned at pairing and sent in `template_source` (protocol.md §3.1, §5.4). */
+export function toolTemplateSha256(t: ToolSpec): string {
+  return templateSha256(bodyOf(t));
 }
 
 /** Build the protocol template registry entry for an adapter so the gateway renders with the same code as every approver. */
 export function registryFromManifest(m: AdapterManifest): TemplateRegistry {
   return {
     adapter: m.name,
-    templates: m.tools.map((t) => ({
-      template_id: t.template.id,
-      template_version: t.template.version,
-      text: t.template.text,
-      sha256: templateSha256(t.template.text),
-      ...(t.template.elide ? { elide: t.template.elide } : {}),
-    })),
+    templates: m.tools.map((t) => {
+      const { text, ...rest } = bodyOf(t);
+      return { template_id: t.template.id, template_version: t.template.version, text, sha256: toolTemplateSha256(t), ...rest };
+    }),
   };
 }
 

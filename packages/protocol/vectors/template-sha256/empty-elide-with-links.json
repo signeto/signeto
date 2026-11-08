@@ -1,0 +1,22 @@
+{
+  "description": "An empty elide is omitted from the extended form",
+  "inputs": {
+    "template": {
+      "text": "Read PR #{pr} on {repo}",
+      "elide": [],
+      "links": [
+        {
+          "label": "View pull request",
+          "url": "https://github.com/{repo:path}/pull/{pr}"
+        }
+      ],
+      "link_hosts": [
+        "github.com"
+      ]
+    }
+  },
+  "expected": {
+    "hash_input": "{\"link_hosts\":[\"github.com\"],\"links\":[{\"label\":\"View pull request\",\"url\":\"https://github.com/{repo:path}/pull/{pr}\"}],\"text\":\"Read PR #{pr} on {repo}\"}",
+    "sha256": "0fc249639e53f5c75f69df355c4de539583cd4b91e5bab9ea20be51f8a7208a8"
+  }
+}
