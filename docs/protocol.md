@@ -972,6 +972,18 @@ Frames are the same JSON objects this section defines, one per line, `\n`-delimi
 
 On the socket `approval_id` equals `action_id` and `relay_id` is absent. Signature-based request authentication (`Signeto-Gateway`, `Signeto-Device`) is not used: the uid check protects the transport, and the signed objects (the request's `gateway_signature`, the receipt's signature) protect the content. The CLI approver MUST verify `gateway_signature` exactly as a remote device would; a local transport does not relax §7.5.
 
+**Gateway information and MCP sessions.** The socket also carries frames with no relay counterpart. They let every MCP client of one machine share the single gateway of a home (`docs/architecture.md` §3.1): each client's `signeto serve` relays the client's MCP messages to the gateway instead of running a gateway of its own.
+
+| Frame `type` | Direction | Body |
+|---|---|---|
+| `info` | client → gateway | `{}`; response frame `info`: `{gateway_id, gateway_name, pid, version, policy_path, policy_hash, adapters, mcp_sessions, live_actions, pending_approvals}` |
+| `mcp.open` | client → gateway | `{cwd?}`; response frame `mcp.opened`: `{session_id, gateway_id, gateway_name, pid, version, policy_path, policy_hash, adapters}` |
+| `mcp` | both | `{message}`: one MCP JSON-RPC message, unchanged |
+
+After `mcp.opened` the connection is one MCP session: the gateway serves it as it would an MCP client on stdio. The gateway mints `session_id`, which becomes `requester.session_id` of every action in the session; `requester.agent` comes from the client's own `initialize`; `tool_use_id` (for `origin_hash`, §2.8) is the client's JSON-RPC request id; progress notifications and `notifications/cancelled` travel as ordinary `mcp` frames. `cwd`, at most 1024 printable characters, is the forwarding process's working directory. The gateway records it on the `requested` ledger entry as `project`. Like `origin_hash` it is supplied by the agent side: it is not part of the canonical action and MUST NOT be used in a policy decision.
+
+A connection that sent `mcp.open` MAY afterwards send only `mcp` frames. The gateway answers any other frame on it with `error` `mcp_session_only`, so a session can never list, fetch or answer approvals, and nothing in a session can change the policy, the tier or the approval of an action. Closing the connection ends the session and cancels its calls in flight, as an MCP client disconnecting does. Other `error` codes: `mcp_session_required` (an `mcp` frame before `mcp.open`), `request_malformed` (a bad `cwd`, or an `mcp` frame without a JSON-RPC message), `gateway_closing`. A gateway that predates these frames answers them with `unknown_frame`. The socket mode and peer uid rule above apply unchanged; these frames are never exposed over TCP or through a relay.
+
 ---
 
 ## 8. Error codes
