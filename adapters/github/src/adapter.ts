@@ -126,7 +126,8 @@ export function createGithubAdapter(opts: GithubAdapterOptions = {}): Adapter {
       if (typeof token !== "string" || token.length === 0) throw new AdapterError("credential_failed", "credential material is not an installation token");
       const headers = githubHeaders(`Bearer ${token}`, { "content-type": "application/json" });
       const signal = signalFor(ctx.deadline);
-      const call = (path: string, init: RequestInit) => executeRequest(ctx.fetch, path, { ...init, headers, signal });
+      // `init.signal` may narrow the deadline signal (the post-merge check run has its own short budget).
+      const call = (path: string, init: RequestInit) => executeRequest(ctx.fetch, path, { headers, signal, ...init });
       switch (shortTool(action.tool)) {
         case "merge_pull_request":
           return executeMerge(call, action, ctx, (credential as Partial<GithubCredential>).permissions?.["checks"] === "write");
@@ -273,6 +274,16 @@ async function executeMerge(call: Call, action: FrozenAction, ctx: ExecuteContex
   const body = await parseJson(res, "merge").catch(() => undefined);
   const mergeSha = getString(body, "sha");
   if (asRecord(body)?.merged !== true || !mergeSha) throw new AdapterError("upstream_rejected", `GitHub did not confirm the merge of PR #${pr}`, false, { repo, pr });
+  // The same check on the commit that landed on the base branch, so the branch history shows which commits came
+  // through an approval. After the merge nothing may fail the action: own short budget, every error swallowed.
+  let mergeCheckRunId: number | null | undefined;
+  if (canPostCheck && ctx.approval && mergeSha !== head_sha) {
+    const budget = Math.min(POST_MERGE_CHECK_MS, ctx.deadline.getTime() - Date.now() - POST_MERGE_MARGIN_MS);
+    mergeCheckRunId =
+      budget > 0
+        ? await postCheckRun(call, repo, mergeSha, ctx.approval, ctx.logger, { mergeOf: { pr, headSha: head_sha }, signal: AbortSignal.timeout(budget) }).catch(() => null)
+        : null;
+  }
   return {
     content: { merged: true, sha: mergeSha, message: getString(body, "message") ?? "" },
     evidence: {
@@ -283,9 +294,14 @@ async function executeMerge(call: Call, action: FrozenAction, ctx: ExecuteContex
       base: typeof base === "string" ? base : null,
       method,
       ...(checkRunId !== undefined ? { check_run_id: checkRunId } : {}),
+      ...(mergeCheckRunId !== undefined ? { merge_check_run_id: mergeCheckRunId } : {}),
     },
   };
 }
+
+/** Time allowed for the check run on the merge commit, and the margin it leaves before the action deadline. */
+const POST_MERGE_CHECK_MS = 5_000;
+const POST_MERGE_MARGIN_MS = 2_000;
 
 /** Escape text for GitHub markdown (approver and device names are chosen by people, not by us). */
 export function escapeMarkdown(s: string): string {
@@ -293,7 +309,7 @@ export function escapeMarkdown(s: string): string {
 }
 
 /** Title and summary of the "Signeto" check run for one approval. */
-export function checkRunOutput(approval: ApprovalInfo, headSha: string): { title: string; summary: string } {
+export function checkRunOutput(approval: ApprovalInfo, headSha: string, mergeOf?: { pr: number }): { title: string; summary: string } {
   const device = approval.device_name ? `${approval.device_name}` : approval.device_id;
   const title = `Approved by ${approval.approver_id} on ${device}`.slice(0, 255);
   const rows: [string, string][] = [
@@ -306,7 +322,9 @@ export function checkRunOutput(approval: ApprovalInfo, headSha: string): { title
     ["Receipt SHA-256", `\`${approval.receipt_sha256}\``],
   ];
   const summary = [
-    "This merge was approved on a paired device through [Signeto](https://signeto.dev). The approver signed this exact commit; GitHub refuses the merge if the branch moved.",
+    mergeOf
+      ? `This commit is the merge of PR #${mergeOf.pr}, approved on a paired device through [Signeto](https://signeto.dev). The approver signed the PR's head commit below; GitHub refuses the merge if the branch moved.`
+      : "This merge was approved on a paired device through [Signeto](https://signeto.dev). The approver signed this exact commit; GitHub refuses the merge if the branch moved.",
     "",
     "| | |",
     "|---|---|",
@@ -318,19 +336,29 @@ export function checkRunOutput(approval: ApprovalInfo, headSha: string): { title
 }
 
 /** `POST /repos/{repo}/check-runs`; returns the check run id, or null (logged) when GitHub refused or was unreachable. */
-async function postCheckRun(call: Call, repo: string, headSha: string, approval: ApprovalInfo, logger: Logger): Promise<number | null> {
+async function postCheckRun(
+  call: Call,
+  repo: string,
+  sha: string,
+  approval: ApprovalInfo,
+  logger: Logger,
+  opts: { mergeOf?: { pr: number; headSha: string }; signal?: AbortSignal } = {},
+): Promise<number | null> {
+  // The approved commit is the PR head; on the merge commit the summary says so and names it.
+  const approvedSha = opts.mergeOf?.headSha ?? sha;
   try {
     const res = await call(`/repos/${repo}/check-runs`, {
       method: "POST",
+      ...(opts.signal ? { signal: opts.signal } : {}),
       body: JSON.stringify({
         name: CHECK_RUN_NAME,
-        head_sha: headSha,
+        head_sha: sha,
         status: "completed",
         conclusion: "success",
         external_id: approval.action_id,
         started_at: approval.signed_at,
         completed_at: approval.signed_at,
-        output: checkRunOutput(approval, headSha),
+        output: checkRunOutput(approval, approvedSha, opts.mergeOf),
       }),
     });
     if (res.status !== 201) {
@@ -339,7 +367,7 @@ async function postCheckRun(call: Call, repo: string, headSha: string, approval:
     }
     return getNumber(await parseJson(res, "check-runs").catch(() => undefined), "id") ?? null;
   } catch (e) {
-    if (e instanceof AdapterError && e.code === "timeout") throw e;
+    if (e instanceof AdapterError && e.code === "timeout" && !opts.mergeOf) throw e;
     logger.warn("github: check run not created", { repo, err: errorMessage(e) });
     return null;
   }

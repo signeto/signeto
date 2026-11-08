@@ -124,6 +124,10 @@ completed, successful check run named `Signeto` on the approved head commit, jus
 - title `Approved by <approver> on <device>`; the summary lists approver, device, `signed_at`, the approved commit,
   the action id and the receipt SHA-256, and how to find the receipt in the ledger;
 - `external_id` is the action id; the check run id is added to the evidence as `check_run_id`;
+- after the merge, the same check goes on the commit that landed on the base branch (the squash or merge commit),
+  so the branch's commit list shows a green check on every commit that came through an approval and none on anything
+  that did not; its id is `merge_check_run_id`. It has its own 5 second budget, is skipped when the action deadline is
+  less than 2 seconds away, and any failure is recorded as `null`: a merge that happened is never reported as failed;
 - best effort: a refused or failed check run is logged and recorded as `check_run_id: null`, and the approved merge
   still goes ahead (the approval is already in the ledger). The adapter learns who approved from
   `ExecuteContext.approval`, which the gateway fills from the verified receipt; tier 1 actions have none and get no check.

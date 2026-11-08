@@ -51,6 +51,7 @@ describe("execute merge_pull_request", () => {
       expect(m.calls.map((c) => [c.method, c.path])).toEqual([
         ["POST", "/repos/acme/api/check-runs"],
         ["PUT", "/repos/acme/api/pulls/42/merge"],
+        ["POST", "/repos/acme/api/check-runs"],
       ]);
       expect(m.calls[0]!.headers.authorization).toBe(`Bearer ${TOKEN}`);
       const body = m.calls[0]!.body as { name: string; head_sha: string; status: string; conclusion: string; external_id: string; output: { title: string; summary: string } };
@@ -60,7 +61,34 @@ describe("execute merge_pull_request", () => {
       expect(body.output.summary).toContain(`| Approved commit | \`${HEAD_SHA}\` |`);
       expect(body.output.summary).toContain(`signeto ledger --action ${approval.action_id}`);
       expect(body.output.summary).not.toContain("Approvals");
-      expect(r.evidence).toMatchObject({ merge_sha: MERGE_SHA, check_run_id: 4242 });
+      expect(r.evidence).toMatchObject({ merge_sha: MERGE_SHA, check_run_id: 4242, merge_check_run_id: 4242 });
+      // The same approval on the commit that landed on the base branch; the summary names the approved head.
+      const after = m.calls[2]!.body as { head_sha: string; external_id: string; output: { title: string; summary: string } };
+      expect(after).toMatchObject({ head_sha: MERGE_SHA, external_id: approval.action_id });
+      expect(after.output.title).toBe(body.output.title);
+      expect(after.output.summary).toContain("This commit is the merge of PR #42");
+      expect(after.output.summary).toContain(`| Approved commit | \`${HEAD_SHA}\` |`);
+    });
+
+    it("the check run on the merge commit never fails the merge, and is skipped close to the deadline", async () => {
+      // First check-runs POST succeeds, the one after the merge fails (server error, or its own budget runs out).
+      for (const second of [{ ...checkOk, status: 500 }, { ...checkOk, throws: new DOMException("aborted", "AbortError") }]) {
+        const first = mockFetch([checkOk, mergeOk]);
+        const after = mockFetch([second]);
+        let posts = 0;
+        const f: typeof fetch = (input, init) => {
+          const isCheck = String(input).endsWith("/check-runs");
+          if (isCheck) posts++;
+          return isCheck && posts === 2 ? after.fetch(input, init) : first.fetch(input, init);
+        };
+        const r = await githubAdapter.execute({ ...executeCtx(f), approval }, mergeAction, withChecks);
+        expect(posts).toBe(2);
+        expect(r.evidence).toMatchObject({ merge_sha: MERGE_SHA, check_run_id: 4242, merge_check_run_id: null });
+      }
+      const late = mockFetch([checkOk, mergeOk]);
+      const r = await githubAdapter.execute({ ...executeCtx(late.fetch), deadline: new Date(Date.now() + 1_500), approval }, mergeAction, withChecks);
+      expect(late.calls.map((c) => c.method)).toEqual(["POST", "PUT"]);
+      expect(r.evidence).toMatchObject({ merge_check_run_id: null });
     });
 
     it("a refused or unreachable check run is a warning; the approved merge still happens", async () => {
