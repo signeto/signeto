@@ -25,7 +25,10 @@ export class GithubApiError extends Error {
  * the adapter checks the shape at runtime and refuses anything else (`resolve_failed`).
  */
 export interface GithubReadOnlyClient {
-  /** GET `path` (relative to https://api.github.com) and return the parsed JSON body. Rejects with GithubApiError on non-2xx. */
+  /**
+   * GET `path` (relative to https://api.github.com) and return the parsed JSON body. Rejects with GithubApiError on
+   * non-2xx. The App-backed client (`createAppReadOnlyClient`) also rejects with an AdapterError when it cannot mint.
+   */
   get(path: string, opts?: { signal?: AbortSignal }): Promise<unknown>;
 }
 
@@ -40,7 +43,10 @@ export interface ReadOnlyClientOptions {
   baseUrl?: string;
 }
 
-/** A GET-only client over api.github.com. There is no method parameter, so it cannot write by construction. */
+/**
+ * A GET-only client over api.github.com with one fixed token. There is no method parameter, so it cannot write by
+ * construction. See `createAppReadOnlyClient` for the variant that mints read-only tokens from the GitHub App.
+ */
 export function createReadOnlyClient(opts: ReadOnlyClientOptions): GithubReadOnlyClient {
   const f = opts.fetch ?? globalThis.fetch;
   const base = opts.baseUrl ?? GITHUB_API_BASE;

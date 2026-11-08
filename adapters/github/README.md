@@ -44,9 +44,19 @@ never falls back to a stored long-lived credential.
 ### Read-only client for `resolve`
 
 `resolve` only receives the gateway's read-only upstream client. For this adapter that is a `GithubReadOnlyClient`
-(a `get(path)` over `https://api.github.com`), built with `createReadOnlyClient({ token })`. Give it a **read-only**
-credential: either an installation token minted out of band with `pull_requests:read`, `contents:read`,
-`actions:read`, or a fine-grained PAT limited to the same. The client has no method parameter, so it cannot write.
+(a `get(path)` over `https://api.github.com`, no method parameter, so it cannot write). Two constructors:
+
+- `createAppReadOnlyClient({ appId, privateKey, installationId? })` uses the same App secrets as `mint`, so no extra
+  credential is stored. It serves only `GET /repos/{owner}/{repo}/...` (anything else is refused), and for each
+  repository mints an installation token with `contents:read`, `pull_requests:read`, `actions:read` (GitHub adds
+  `metadata:read`) scoped to `repositories: [repo]`. It never requests a write level, refuses a grant broader than
+  that, and caches each token until about five minutes before its `expires_at`. Failures fail `resolve` closed.
+- `createReadOnlyClient({ token })` takes a read-only credential you already have: a fine-grained PAT limited to the
+  same three read permissions, or an installation token minted out of band.
+
+`signeto serve` picks, first match wins: `SIGNETO_GITHUB_READ_TOKEN`; the `github/read_token` secret if it looks like
+a GitHub token (`github_pat_`, `ghp_`, `ghs_`, `gho_`; anything else is ignored with a warning); the App
+(`app_id` + `private_key`). With none, github tools fail closed at `resolve`.
 
 ## Creating the GitHub App
 
@@ -101,11 +111,12 @@ fetch; pass the gateway's restricted fetch there in production.
 ## Usage
 
 ```ts
-import { createGithubAdapter, createReadOnlyClient, manifest } from "@signeto/adapter-github";
+import { createAppReadOnlyClient, createGithubAdapter, manifest } from "@signeto/adapter-github";
 
 const adapter = createGithubAdapter({ fetch: restrictedFetch });
-// gateway deps:
-//   upstreamReadOnly: () => createReadOnlyClient({ token: process.env.GITHUB_READ_TOKEN!, fetch: restrictedFetch })
+const readOnly = createAppReadOnlyClient({ appId, privateKey: () => store.get("github").private_key, fetch: restrictedFetch });
+// gateway deps (create the client once: it caches one read token per repository):
+//   upstreamReadOnly: () => readOnly
 //   secrets: () => ({ app_id, private_key, installation_id? })
 ```
 
@@ -116,6 +127,7 @@ pnpm --filter @signeto/adapter-github typecheck build test
 ```
 
 Tests run offline against a routed mock fetch: manifest validation, resolve determinism/normalisation, JWT
-verification against a test public key, mint scope and fail-closed paths, execute preconditions (`sha`, 405/409),
+verification against a test public key, mint scope and fail-closed paths, the App read-only client (read-only scope,
+per-repository cache and refresh, path confinement, broader grants refused), execute preconditions (`sha`, 405/409),
 revoke, and `(agentArgs, upstreamState) → resolved args → rendered template` fixtures rendered with
 `renderTemplate` from `@signeto/protocol`.
