@@ -641,7 +641,8 @@ The request also carries every step's canonical bytes (`steps[]` in the request 
 - Three authentication schemes:
   - `Bearer <session>` — account session obtained by email + passkey login. Used for account-level operations: gateway registration, device enrollment.
   - `Signeto-Gateway <gateway_id>.<ts>.<sig>` — request signed by the gateway key. `sig` is base64url of the signature over the signing input `JCS({"method", "path", "ts", "body_sha256"})`. `ts` is RFC 3339; the relay MUST reject requests whose `ts` is more than 60 s from its clock. `body_sha256` is the hex SHA-256 of the raw request body, or of the empty string when there is none.
-  - `Signeto-Device <device_id>.<ts>.<sig>` — same construction with the device key. For WebAuthn devices, the relay issues a device session token at enrollment instead, delivered as `Bearer`, because WebAuthn cannot sign arbitrary requests without a user gesture; such sessions MUST be scoped to read-only approval fetches, and receipt submission is still authenticated by the receipt's own signature.
+  - `Signeto-Device <device_id>.<ts>.<sig>` — same construction with the device key.
+- **Device sessions.** A device whose key needs a user gesture for every signature cannot sign each relay request: WebAuthn authenticators, and hardware keys bound to biometrics such as a Secure Enclave key created with `.biometryCurrentSet`. For these the relay issues a device session token at enrollment (§7.4), sent as `Bearer`, and the device key signs only the objects that carry their own signature. A device session MUST be scoped to: fetching approvals (§7.6), claiming a pairing and reading its status (§7.3), submitting receipts (§7.7) and freeze objects (§7.9), whose own signatures authenticate them and which the relay and gateway verify regardless of how the request was authenticated, and revoking its own device (§7.4). It MUST NOT be accepted for account operations, for another device, or for anything gateway-side. It is revoked with its device. What a stolen session allows is in `docs/threat-model.md`; it cannot approve anything.
 - Signed request details (`@signeto/protocol` `signRelayRequest` / `verifyRelayRequest`, vectors in `relay-auth/`):
   - `method` is the HTTP method in upper case.
   - `path` is the request-target exactly as sent on the request line (RFC 9112 origin-form): the absolute path plus `?` and the query string when present, byte for byte, percent-encoding untouched. No scheme, host, port or fragment. A relay behind a proxy that rewrites paths MUST verify against the path the client sent.
@@ -680,7 +681,7 @@ Request: `{ "pairing_id": "...", "code_hash": "<hex SHA-256(code)>", "expires_at
 Response `201`: `{ "pairing_id": "...", "status": "open" }`
 Errors: `409 pairing_exists`, `422 pairing_expired` (expiry in the past or more than 10 min plus the 60 s skew allowance out), `422 request_malformed` (`pairing_id` is not `base64url(code_hash bytes)[0:22]`; both derive from the same SHA-256, so the relay checks they agree).
 
-`POST /v1/pairings/{pairing_id}/claim` — auth `Signeto-Device` (or `Bearer` device session for WebAuthn)
+`POST /v1/pairings/{pairing_id}/claim` — auth `Signeto-Device`, or the device's `Bearer` device session (§7.1)
 
 Request:
 ```json
@@ -711,10 +712,10 @@ Request:
 { "public_key": {...}, "platform": "ios" | "web" | "macos-cli" | "android", "name": "...", "attestation": {...} | null, "push": { "kind": "apns" | "webpush" | "none", "token": "..." } }
 ```
 Response `201`: `{ "device_id": "dev_...", "approver_id": "jason", "enrolled_at": "...", "software": false, "attestation_status": "none" | "unverified" | "verified", "device_session"?: "<token>" }`
-`software` is `false` only when the relay has verified a hardware attestation for this key; a relay that does not verify attestation reports `true` for every key and `attestation_status: "unverified"` when one was supplied (the gateway still runs its own check at pairing, §5.3 point 3). `device_session` is present for `platform: "web"` only: the device `Bearer` token of §7.1, shown once. `push` is optional (default `{ "kind": "none" }`); `token` is required for `apns` and `webpush`.
+`software` is `false` only when the relay has verified a hardware attestation for this key; a relay that does not verify attestation reports `true` for every key and `attestation_status: "unverified"` when one was supplied (the gateway still runs its own check at pairing, §5.3 point 3). `device_session` is present for `platform` `"web"`, `"ios"` and `"android"` (devices whose keys need a user gesture per signature) and absent for `"macos-cli"`: the device `Bearer` token of §7.1, shown once. `push` is optional (default `{ "kind": "none" }`); `token` is required for `apns` and `webpush`.
 Errors: `422 key_invalid`, `422 attestation_invalid` (not `{format, data}`, or attestation on an Ed25519 key), `409 device_exists` (thumbprint already enrolled, in any account or state), `403 device_limit` (free tier: two active devices).
 
-`DELETE /v1/devices/{device_id}` — auth `Bearer` or `Signeto-Device` (an enrolled device of the same account, including the device itself). Revokes, and revokes its device session. Response `204`, also when already revoked. `404 not_found` for a device of another account. The relay MUST propagate `device.revoked` to every gateway the device is paired with (§7.8). Gateways MUST then refuse receipts from it (§4.5 step 5).
+`DELETE /v1/devices/{device_id}` — auth `Bearer` (account session), `Signeto-Device` (an enrolled device of the same account, including the device itself), or a device session for its own device only (`403 forbidden` for any other `device_id`). Revokes, and revokes its device session. Response `204`, also when already revoked. `404 not_found` for a device of another account. The relay MUST propagate `device.revoked` to every gateway the device is paired with (§7.8). Gateways MUST then refuse receipts from it (§4.5 step 5).
 
 ### 7.5 Submit approval request
 
@@ -804,7 +805,7 @@ Events are retained for at least 24 hours. A gateway that reconnects with a stal
 
 ### 7.9 Freeze flag
 
-`PUT /v1/accounts/me/freeze` — auth `Signeto-Device` (signed; WebAuthn devices use the receipt-style WebAuthn assertion)
+`PUT /v1/accounts/me/freeze` — auth `Signeto-Device` or the device's `Bearer` device session; either way the freeze object's own `signature` authenticates the change (WebAuthn devices use the receipt-style WebAuthn assertion)
 Request: `{ "frozen": true, "signed_at": "...", "signature": "<Sign_dev(JCS{frozen, signed_at})>" }`
 Response `200`: `{ "frozen": true, "set_by_device_id": "dev_...", "signed_at": "..." }`
 

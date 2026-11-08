@@ -54,7 +54,8 @@ public enum RelayAuth {
         }
     }
 
-    /// The `Authorization` header value for one request, signed with `signer` (device scheme).
+    /// The `Authorization` header value for one request, signed with `signer` (device scheme). For software
+    /// keys; a key that needs a biometric per signature uses the relay's device session instead (§7.1).
     /// `path` is the request-target exactly as it will be sent (base path + path + query).
     public static func deviceHeader(method: String, path: String, body: Data?, ts: String, signer: DeviceSigner) throws -> String {
         let si = try signingInput(method: method, path: path, ts: ts, bodySHA256: bodySHA256(body))

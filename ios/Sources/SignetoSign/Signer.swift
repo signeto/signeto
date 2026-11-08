@@ -1,11 +1,12 @@
-// Device signing keys (docs/protocol.md §5.1). The device key signs three things and nothing else:
-// receipts (§4.2), relay requests (§7.1, `Signeto-Device`) and freeze objects (§7.9).
+// Device signing keys (docs/protocol.md §5.1). A device key signs receipts (§4.2) and freeze objects (§7.9);
+// a software key may also sign relay requests (§7.1, `Signeto-Device`). A key that needs a biometric per
+// signature (the Secure Enclave key below) authenticates to the relay with a device session instead.
 //
 // The auditable signing path is short:
 //   signing input (UTF-8 JCS) → DeviceSigner.sign(data) → CryptoKit ECDSA P-256 over SHA-256(data)
 //   → raw r||s (64 bytes) → base64url (86 characters).
 // `SecureEnclaveSigner` holds the private key in the Secure Enclave; the key never leaves it. Its access
-// control requires a current biometric enrollment for every use (`.privateKeyUsage` + `.biometryCurrentSet`):
+// control requires a fresh biometric match for every use (`.privateKeyUsage` + `.biometryCurrentSet`):
 // adding a fingerprint or face, or removing the biometric set, makes the key permanently unusable.
 import CryptoKit
 import Foundation
@@ -67,15 +68,18 @@ public struct SoftwareP256Signer: DeviceSigner {
 
 // MARK: - Secure Enclave
 
-/// A Secure Enclave P-256 key. Each instance is bound to one `LAContext`:
-///   - an evaluated context authorises signatures without prompting until it is invalidated;
-///   - an unevaluated (or nil) context makes every signature prompt for Face ID / Touch ID.
-/// Callers that want "one biometric prompt per decision" create a fresh context per decision.
-public struct SecureEnclaveSigner: DeviceSigner, @unchecked Sendable {
+/// A Secure Enclave P-256 key whose every signature asks for Face ID / Touch ID.
+///
+/// `sign` builds a new, unevaluated `LAContext` for each call (with `promptReason` as the text the system
+/// shows), opens the key with it and signs: the Secure Enclave then requires a fresh biometric match for that
+/// one operation. There is deliberately no way to hand in an already-evaluated context, so one prompt can
+/// never authorise more than one signature. `sign` blocks while the prompt is up: call it off the main thread.
+public struct SecureEnclaveSigner: DeviceSigner {
     /// The encrypted key blob (only this device's Secure Enclave can use it).
     public let dataRepresentation: Data
     public let publicKey: PublicJWK
-    private let context: LAContext?
+    /// Shown in the biometric prompt.
+    public var promptReason: String = "Sign with your Signeto key"
 
     public var isHardwareBacked: Bool { true }
 
@@ -94,36 +98,32 @@ public struct SecureEnclaveSigner: DeviceSigner, @unchecked Sendable {
     public static func generate() throws -> SecureEnclaveSigner {
         guard SecureEnclave.isAvailable else { throw SignerError.secureEnclaveUnavailable }
         let key = try SecureEnclave.P256.Signing.PrivateKey(compactRepresentable: false, accessControl: try accessControl())
-        return SecureEnclaveSigner(dataRepresentation: key.dataRepresentation, publicKey: PublicJWK(p256: key.publicKey), context: nil)
+        return SecureEnclaveSigner(dataRepresentation: key.dataRepresentation, publicKey: PublicJWK(p256: key.publicKey))
     }
 
     /// Re-open a key from its blob. Reading the public key needs no authentication.
-    public init(dataRepresentation: Data, context: LAContext? = nil) throws {
+    public init(dataRepresentation: Data) throws {
         guard SecureEnclave.isAvailable else { throw SignerError.secureEnclaveUnavailable }
-        let key = try SecureEnclave.P256.Signing.PrivateKey(dataRepresentation: dataRepresentation, authenticationContext: context)
-        self.init(dataRepresentation: dataRepresentation, publicKey: PublicJWK(p256: key.publicKey), context: context)
+        let key = try SecureEnclave.P256.Signing.PrivateKey(dataRepresentation: dataRepresentation)
+        self.init(dataRepresentation: dataRepresentation, publicKey: PublicJWK(p256: key.publicKey))
     }
 
-    private init(dataRepresentation: Data, publicKey: PublicJWK, context: LAContext?) {
+    private init(dataRepresentation: Data, publicKey: PublicJWK) {
         self.dataRepresentation = dataRepresentation
         self.publicKey = publicKey
-        self.context = context
     }
 
-    /// The same key, authorised through `context`.
-    public func with(context: LAContext) -> SecureEnclaveSigner {
-        SecureEnclaveSigner(dataRepresentation: dataRepresentation, publicKey: publicKey, context: context)
-    }
-
-    /// Ask for Face ID / Touch ID for this key's signing operation and return a signer bound to the evaluated
-    /// context. The default is a new context, so each call (each receipt) has its own prompt.
-    public func authorized(reason: String, context: LAContext = LAContext()) async throws -> SecureEnclaveSigner {
-        let ac = try Self.accessControl()
-        _ = try await context.evaluateAccessControl(ac, operation: .useKeySign, localizedReason: reason)
-        return with(context: context)
+    /// The same key, with `reason` in the biometric prompt.
+    public func prompting(_ reason: String) -> SecureEnclaveSigner {
+        var s = self
+        s.promptReason = reason
+        return s
     }
 
     public func sign(_ data: Data) throws -> Data {
+        let context = LAContext() // fresh and unevaluated: the Secure Enclave asks for a biometric match now
+        context.localizedReason = promptReason
+        defer { context.invalidate() }
         let key = try SecureEnclave.P256.Signing.PrivateKey(dataRepresentation: dataRepresentation, authenticationContext: context)
         return try key.signature(for: data).rawRepresentation
     }

@@ -10,12 +10,12 @@ Swift can use it too.
 | `JSON.swift`, `JCS.swift` | §2.3 | Strict JSON parser with `JSON.parse` semantics; RFC 8785 canonicalization byte-identical to `@signeto/protocol` (ECMAScript number formatting, UTF-16 member order, `JSON.stringify` escaping). |
 | `Encoding.swift`, `Timestamp.swift` | §2.5 | base64url, hex, SHA-256, exact (non-normalising) string comparison, the fixed-width timestamp format. |
 | `Keys.swift` | §5.1 | Public JWKs (EC P-256, OKP Ed25519), RFC 7638 thumbprints, `gw_`/`dev_` ids, fingerprints, ES256 and Ed25519 verification. |
-| `Signer.swift` | §4.2, §7.1 | `DeviceSigner`: `SecureEnclaveSigner` and `SoftwareP256Signer` (tests and the simulator only); Keychain persistence. |
+| `Signer.swift` | §4.2, §7.9 | `DeviceSigner`: `SecureEnclaveSigner` (fresh biometric prompt per signature) and `SoftwareP256Signer` (tests and the simulator only); Keychain persistence. |
 | `CanonicalAction.swift` | §2 | Receiver-side parse: schema, `not_canonical`, idempotency key, hash of the bytes as received. |
 | `Templates.swift` | §3 | The renderer and the bundled registries (`Resources/builtin-registries.json`, a data port of `@signeto/protocol` `builtinRegistries`); pinned `template_source`; the §3.4 fallback. |
 | `ApprovalRequest.swift` | §7.5 | `gateway_signature` verification against the pinned gateway key. Only a `VerifiedApprovalRequest` reaches the renderer. |
 | `Receipt.swift` | §4 | Signing input, building and signing receipts, standalone verification (incl. WebAuthn, for the vectors). |
-| `RelayAuth.swift` | §7.1 | `Signeto-Device` request signing (and relay-side verification for conformance tests). |
+| `RelayAuth.swift` | §7.1 | `Signeto-Device` request signing for software keys (and relay-side verification for conformance tests). A biometric-bound key uses the relay's device session instead. |
 | `Pairing.swift` | §5 | QR parsing, `pairing_id`, `code_hash`, HMAC proof, claim body, confirmation verification including `templates_pinned` (§5.4), the pinned-gateway record. |
 | `Freeze.swift` | §7.9 | Device-signed freeze objects. |
 
@@ -26,15 +26,18 @@ package:
 
 1. **Receipt** (`Receipts.sign`): the hash is computed here from the canonical bytes the caller rendered,
    never taken from the network. Signing input = UTF-8 JCS of `{canonical_bytes_sha256, decision, reason?, signed_at}`.
-2. **Relay request** (`RelayAuth.deviceHeader`): UTF-8 JCS of `{body_sha256, method, path, ts}`.
-3. **Freeze** (`Freeze.body`): UTF-8 JCS of `{frozen, signed_at}`.
+2. **Freeze** (`Freeze.body`): UTF-8 JCS of `{frozen, signed_at}`.
+3. **Relay request** (`RelayAuth.deviceHeader`), software keys only: UTF-8 JCS of `{body_sha256, method, path, ts}`.
+   A Secure Enclave key that needs Face ID per signature authenticates to the relay with the device session
+   the relay issues at enrollment (protocol.md §7.1) and signs only receipts and freezes.
 
-`SecureEnclaveSigner.sign` re-opens the Secure Enclave key from its encrypted blob and calls CryptoKit's
-ECDSA P-256 over SHA-256 of the input; `rawRepresentation` is the 64-byte `r || s` the protocol requires
-(base64url, 86 characters). The key is created with `SecAccessControl` `.privateKeyUsage` +
-`.biometryCurrentSet` and `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, so every signature needs Face ID or
-Touch ID unless the caller passes an `LAContext` it already evaluated (`SecureEnclaveSigner.authorized(reason:)`),
-and the key dies if the biometric enrollment changes. The blob is stored in the data-protection Keychain,
+`SecureEnclaveSigner.sign` creates a new, unevaluated `LAContext` (with `promptReason` as its text), re-opens
+the Secure Enclave key from its encrypted blob with it and calls CryptoKit's ECDSA P-256 over SHA-256 of the
+input; `rawRepresentation` is the 64-byte `r || s` the protocol requires (base64url, 86 characters). The key is
+created with `SecAccessControl` `.privateKeyUsage` + `.biometryCurrentSet` and
+`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, so every signature needs its own Face ID or Touch ID match:
+there is no API for passing in an already-evaluated context. `sign` blocks while the prompt is shown; call it
+off the main thread. The key dies if the biometric enrollment changes. The blob is stored in the data-protection Keychain,
 this-device-only, never synced.
 
 Before anything is rendered, `ApprovalRequests.verify` rebuilds the `gateway_signature` signing input from the
