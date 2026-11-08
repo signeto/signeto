@@ -70,9 +70,10 @@ final class PairingTests: XCTestCase {
     func testConfirmations() throws {
         let q = try qr()
         let device = f["device_public_key"]!.jwk()!
-        XCTAssertEqual(Pairing.confirmationSigningInput(gatewayId: q.gatewayId, deviceId: device.deviceId, pairingId: q.pairingId, pairedAt: "2026-11-07T12:02:03.456Z", templatesPinned: []), f["confirmation_signing_input_no_pins"]!.s)
+        let approver = f["approver_id"]!.s
+        XCTAssertEqual(Pairing.confirmationSigningInput(gatewayId: q.gatewayId, deviceId: device.deviceId, pairingId: q.pairingId, pairedAt: "2026-11-07T12:02:03.456Z", approverId: approver, templatesPinned: []), f["confirmation_signing_input_no_pins"]!.s)
         let pins = Pairing.parseTemplatesPinned(f["pins"])!
-        XCTAssertEqual(Pairing.confirmationSigningInput(gatewayId: q.gatewayId, deviceId: device.deviceId, pairingId: q.pairingId, pairedAt: "2026-11-07T12:02:03.456Z", templatesPinned: pins), f["confirmation_signing_input_pins"]!.s)
+        XCTAssertEqual(Pairing.confirmationSigningInput(gatewayId: q.gatewayId, deviceId: device.deviceId, pairingId: q.pairingId, pairedAt: "2026-11-07T12:02:03.456Z", approverId: approver, templatesPinned: pins), f["confirmation_signing_input_pins"]!.s)
 
         for c in f["confirmations"]!.arrayValue! {
             let name = c["description"]!.s
@@ -85,6 +86,9 @@ final class PairingTests: XCTestCase {
                 XCTAssertEqual(pinned.gatewayFingerprint, f["gateway_fingerprint"]!.s)
                 XCTAssertEqual(pinned.deviceFingerprint, f["device_fingerprint"]!.s)
                 XCTAssertEqual(pinned.templatesPinned, Pairing.parseTemplatesPinned(c["pins"])!, name)
+                // the approver name comes from the signed confirmation (§5.3 point 7)
+                XCTAssertEqual(pinned.approverId, approver, name)
+                XCTAssertFalse(pinned.needsRepair)
                 // the record round-trips through Codable storage
                 let back = try JSONDecoder().decode(PinnedGateway.self, from: JSONEncoder().encode(pinned))
                 XCTAssertEqual(back, pinned)
@@ -94,5 +98,32 @@ final class PairingTests: XCTestCase {
         }
         // still open: nothing to accept yet
         XCTAssertNil(Pairing.acceptConfirmation(qr: q, devicePublicKey: device, view: ["pairing_id": .string(q.pairingId), "status": "claimed"]))
+        // every approver_id negative in the fixture is there
+        let names = f["confirmations"]!.arrayValue!.map { $0["description"]!.s }
+        XCTAssertTrue(names.contains("relay dropped approver_id"))
+        XCTAssertTrue(names.contains("relay replaced approver_id with the account's approver id"))
+    }
+
+    func testApproverIdBounds() {
+        XCTAssertTrue(Pairing.isValidApproverId("jason"))
+        XCTAssertTrue(Pairing.isValidApproverId(String(repeating: "a", count: 64)))
+        XCTAssertFalse(Pairing.isValidApproverId(""))
+        XCTAssertFalse(Pairing.isValidApproverId(String(repeating: "a", count: 65)))
+        XCTAssertFalse(Pairing.isValidApproverId("ja\u{7F}son"))
+        XCTAssertFalse(Pairing.isValidApproverId("ja\tson"))
+    }
+
+    /// A record stored before confirmations named the approver decodes with no approver: it needs re-pairing.
+    func testPinWithoutApproverDecodesAsNeedingRepair() throws {
+        let q = try qr()
+        let device = f["device_public_key"]!.jwk()!
+        guard case .success(let pinned)? = Pairing.acceptConfirmation(qr: q, devicePublicKey: device, view: f["confirmations"]!.arrayValue![0]["view"]!) else { return XCTFail() }
+        var o = try JSONParser.parse(data: JSONEncoder().encode(pinned)).objectValue!
+        XCTAssertEqual(o["approver_id"], .string(f["approver_id"]!.s))
+        o["approver_id"] = nil
+        let old = try JSONDecoder().decode(PinnedGateway.self, from: JCS.canonicalData(.object(o)))
+        XCTAssertNil(old.approverId)
+        XCTAssertTrue(old.needsRepair)
+        XCTAssertEqual(old.gatewayId, pinned.gatewayId)
     }
 }

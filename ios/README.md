@@ -16,7 +16,7 @@ Swift can use it too.
 | `ApprovalRequest.swift` | §7.5 | `gateway_signature` verification against the pinned gateway key. Only a `VerifiedApprovalRequest` reaches the renderer. |
 | `Receipt.swift` | §4 | Signing input, building and signing receipts, standalone verification (incl. WebAuthn, for the vectors). |
 | `RelayAuth.swift` | §7.1 | `Signeto-Device` request signing for software keys (and relay-side verification for conformance tests). A biometric-bound key uses the relay's device session instead. |
-| `Pairing.swift` | §5 | QR parsing, `pairing_id`, `code_hash`, HMAC proof, claim body, confirmation verification including `templates_pinned` (§5.4), the pinned-gateway record. |
+| `Pairing.swift` | §5 | QR parsing, `pairing_id`, `code_hash`, HMAC proof, claim body, confirmation verification including `approver_id` (§5.3) and `templates_pinned` (§5.4), the pinned-gateway record. |
 | `Freeze.swift` | §7.9 | Device-signed freeze objects. |
 
 ## The signing path (what to audit)
@@ -43,7 +43,8 @@ this-device-only, never synced.
 Before anything is rendered, `ApprovalRequests.verify` rebuilds the `gateway_signature` signing input from the
 request as received (nonce and gateway id from inside the canonical bytes) and checks it against the key pinned
 from the gateway's QR. The pin itself comes only from `Pairing.acceptConfirmation`, which verifies the gateway's
-confirmation (with `templates_pinned` in the order received) using the QR's key.
+confirmation (with `approver_id` and `templates_pinned` in the order received) using the QR's key. Receipts for a
+gateway carry the `approver_id` that gateway's confirmation named, never the relay account's approver id.
 
 ## Tests
 

@@ -1,8 +1,9 @@
 // docs/protocol.md §5: the pairing handshake, device side.
 //   parse QR (gateway key comes from here and nowhere else, §5.3 point 1)
 //   → claim body with HMAC proof (§5.3 point 2)
-//   → verify the gateway's confirmation with the QR's key, including templates_pinned (§5.3 point 4, §5.4)
-//   → PinnedGateway record.
+//   → verify the gateway's confirmation with the QR's key, including approver_id and templates_pinned
+//     (§5.3 points 4 and 7, §5.4)
+//   → PinnedGateway record, whose approverId every receipt for that gateway carries.
 // Mirrors packages/gateway/src/pairing/{qr,handshake}.ts. As there: SHA-256(code) and the HMAC key are
 // over the UTF-8 text of the 22-character code as printed, not its decoded bytes.
 import CryptoKit
@@ -58,12 +59,34 @@ public struct PinnedGateway: Equatable, Codable, Sendable, Identifiable {
     public let pairingId: String
     public let pairedAt: String
     public let relay: String
+    /// The approver this gateway pinned the device under (its `signeto.yml` name, not the relay account's id),
+    /// covered by the confirmation signature (§5.3 point 7). Every receipt for this gateway carries it.
+    /// `nil` only for a record stored before confirmations named the approver: do not sign, ask to re-pair.
+    public let approverId: String?
     /// Covered by the gateway's confirmation signature (§5.4).
     public let templatesPinned: [TemplatePin]
 
+    /// A pin from before confirmations carried `approver_id`: receipts for this gateway cannot be signed.
+    public var needsRepair: Bool { approverId == nil }
+
+    public init(gatewayId: String, gatewayName: String, gatewayPublicKey: PublicJWK, gatewayFingerprint: String, deviceId: String, deviceFingerprint: String, pairingId: String, pairedAt: String, relay: String, approverId: String?, templatesPinned: [TemplatePin]) {
+        self.gatewayId = gatewayId
+        self.gatewayName = gatewayName
+        self.gatewayPublicKey = gatewayPublicKey
+        self.gatewayFingerprint = gatewayFingerprint
+        self.deviceId = deviceId
+        self.deviceFingerprint = deviceFingerprint
+        self.pairingId = pairingId
+        self.pairedAt = pairedAt
+        self.relay = relay
+        self.approverId = approverId
+        self.templatesPinned = templatesPinned
+    }
+
     enum CodingKeys: String, CodingKey {
         case gatewayId = "gateway_id", gatewayName = "gateway_name", gatewayPublicKey = "gateway_public_key", gatewayFingerprint = "gateway_fingerprint"
-        case deviceId = "device_id", deviceFingerprint = "device_fingerprint", pairingId = "pairing_id", pairedAt = "paired_at", relay, templatesPinned = "templates_pinned"
+        case deviceId = "device_id", deviceFingerprint = "device_fingerprint", pairingId = "pairing_id", pairedAt = "paired_at", relay
+        case approverId = "approver_id", templatesPinned = "templates_pinned"
     }
 }
 
@@ -167,9 +190,16 @@ public enum Pairing {
         return out
     }
 
-    /// `JCS{device_id, gateway_id, paired_at, pairing_id, templates_pinned}`, pins in the order received.
-    public static func confirmationSigningInput(gatewayId: String, deviceId: String, pairingId: String, pairedAt: String, templatesPinned: [TemplatePin]) -> String {
+    /// §5.3 point 7: a confirmation's `approver_id` is 1 to 64 characters (UTF-16 code units, as JavaScript counts
+    /// them, matching a receipt's bounds) with no control characters.
+    public static func isValidApproverId(_ s: String) -> Bool {
+        (1...64).contains(s.utf16.count) && !s.unicodeScalars.contains { $0.value < 0x20 || $0.value == 0x7F }
+    }
+
+    /// `JCS{approver_id, device_id, gateway_id, paired_at, pairing_id, templates_pinned}`, pins in the order received.
+    public static func confirmationSigningInput(gatewayId: String, deviceId: String, pairingId: String, pairedAt: String, approverId: String, templatesPinned: [TemplatePin]) -> String {
         try! JCS.canonicalize([
+            "approver_id": .string(approverId),
             "device_id": .string(deviceId),
             "gateway_id": .string(gatewayId),
             "paired_at": .string(pairedAt),
@@ -178,16 +208,18 @@ public enum Pairing {
         ])
     }
 
-    /// §5.3 point 4 and §5.4: verify the confirmation with the key from the QR (never one from the relay)
-    /// over the pin list as received, then produce the record to store. Nothing is pinned on failure.
-    public static func acceptConfirmation(qr: QRPayload, devicePublicKey: PublicJWK, pairingId: String, deviceId: String?, pairedAt: String, confirmation: String, templatesPinned: JSONValue?) -> Result<PinnedGateway, ConfirmationError> {
+    /// §5.3 points 4 and 7, §5.4: verify the confirmation with the key from the QR (never one from the relay)
+    /// over the approver and the pin list as received, then produce the record to store. Nothing is pinned on
+    /// failure. A confirmation without a valid `approver_id` is invalid.
+    public static func acceptConfirmation(qr: QRPayload, devicePublicKey: PublicJWK, pairingId: String, deviceId: String?, pairedAt: String, confirmation: String, approverId: JSONValue?, templatesPinned: JSONValue?) -> Result<PinnedGateway, ConfirmationError> {
         let gatewayId = qr.gatewayId
         let ownDeviceId = devicePublicKey.deviceId
         guard exactlyEqual(pairingId, qr.pairingId), deviceId.map({ exactlyEqual($0, ownDeviceId) }) ?? true else { return .failure(.pairingMismatch) }
         guard let pins = parseTemplatesPinned(templatesPinned) else { return .failure(.confirmationInvalid) }
-        let si = confirmationSigningInput(gatewayId: gatewayId, deviceId: ownDeviceId, pairingId: pairingId, pairedAt: pairedAt, templatesPinned: pins)
+        guard let approver = approverId?.stringValue, isValidApproverId(approver) else { return .failure(.confirmationInvalid) }
+        let si = confirmationSigningInput(gatewayId: gatewayId, deviceId: ownDeviceId, pairingId: pairingId, pairedAt: pairedAt, approverId: approver, templatesPinned: pins)
         guard qr.gatewayPublicKey.verify(base64URLSignature: confirmation, over: si) else { return .failure(.confirmationInvalid) }
-        return .success(PinnedGateway(gatewayId: gatewayId, gatewayName: qr.gatewayName, gatewayPublicKey: qr.gatewayPublicKey, gatewayFingerprint: qr.gatewayFingerprint, deviceId: ownDeviceId, deviceFingerprint: devicePublicKey.fingerprint, pairingId: pairingId, pairedAt: pairedAt, relay: qr.relay, templatesPinned: pins))
+        return .success(PinnedGateway(gatewayId: gatewayId, gatewayName: qr.gatewayName, gatewayPublicKey: qr.gatewayPublicKey, gatewayFingerprint: qr.gatewayFingerprint, deviceId: ownDeviceId, deviceFingerprint: devicePublicKey.fingerprint, pairingId: pairingId, pairedAt: pairedAt, relay: qr.relay, approverId: approver, templatesPinned: pins))
     }
 
     /// `GET /v1/pairings/{id}` view → confirmation acceptance. Returns nil while still open/claimed.
@@ -196,7 +228,7 @@ public enum Pairing {
         guard let pairedAt = view["paired_at"]?.stringValue, let conf = view["confirmation"]?.stringValue else { return .failure(.confirmationInvalid) }
         // The pairing id is our own (derived from the QR code), as the CLI does; the relay's echo is not trusted.
         if let pid = view["pairing_id"]?.stringValue, !exactlyEqual(pid, qr.pairingId) { return .failure(.pairingMismatch) }
-        return acceptConfirmation(qr: qr, devicePublicKey: devicePublicKey, pairingId: qr.pairingId, deviceId: view["device_id"]?.stringValue, pairedAt: pairedAt, confirmation: conf, templatesPinned: view["templates_pinned"])
+        return acceptConfirmation(qr: qr, devicePublicKey: devicePublicKey, pairingId: qr.pairingId, deviceId: view["device_id"]?.stringValue, pairedAt: pairedAt, confirmation: conf, approverId: view["approver_id"], templatesPinned: view["templates_pinned"])
     }
 
     // MARK: App Attest binding

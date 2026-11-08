@@ -1,5 +1,6 @@
 {
-  "description": "Pairing, device side: QR payload, pairing_id, code_hash, HMAC proof, claim, confirmations with and without template pins, and tampering negatives",
+  "description": "Pairing, device side: QR payload, pairing_id, code_hash, HMAC proof, claim, confirmations (approver_id, with and without template pins), and tampering negatives",
+  "approver_id": "jason",
   "gateway_private_key_name": "gateway-ed25519",
   "device_public_key": {
     "kty": "EC",
@@ -30,8 +31,8 @@
   "proof_signing_input": "{\"device_id\":\"dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q\",\"device_public_key\":{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"Of8uj529uXHN5vuSVnd9npjQoo3omxCJUxXVYt_WXS8\",\"y\":\"ymLO0QWGOus6jSc_kOwiyELsXG3f1Gf9MmJQczzivw4\"},\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\"}",
   "proof": "SmX_jP3M3WRvKfkTsw4Uu1_QVGVO1jjl4d0WQNvyCSs",
   "substituted_key_proof": "AT1rnTrilrjonhg42Sq8vAIiUvGIXP6DszpoIjEKEww",
-  "confirmation_signing_input_no_pins": "{\"device_id\":\"dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"paired_at\":\"2026-11-07T12:02:03.456Z\",\"pairing_id\":\"J_wC2Ndo2VzJ6Swqv8WwGm\",\"templates_pinned\":[]}",
-  "confirmation_signing_input_pins": "{\"device_id\":\"dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"paired_at\":\"2026-11-07T12:02:03.456Z\",\"pairing_id\":\"J_wC2Ndo2VzJ6Swqv8WwGm\",\"templates_pinned\":[{\"sha256\":\"3244f6acf15a596bac27c04704af890d1d5e925c7e66683c7c99cc4933c27b7c\",\"template_id\":\"acme.rotate_key\",\"template_version\":3},{\"sha256\":\"b2ad08b9aa9a7f9d5660687cdcb21bd053a109a8cf30f9a92326b4d80a800f3b\",\"template_id\":\"acme.drop_table\",\"template_version\":1}]}",
+  "confirmation_signing_input_no_pins": "{\"approver_id\":\"jason\",\"device_id\":\"dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"paired_at\":\"2026-11-07T12:02:03.456Z\",\"pairing_id\":\"J_wC2Ndo2VzJ6Swqv8WwGm\",\"templates_pinned\":[]}",
+  "confirmation_signing_input_pins": "{\"approver_id\":\"jason\",\"device_id\":\"dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"paired_at\":\"2026-11-07T12:02:03.456Z\",\"pairing_id\":\"J_wC2Ndo2VzJ6Swqv8WwGm\",\"templates_pinned\":[{\"sha256\":\"3244f6acf15a596bac27c04704af890d1d5e925c7e66683c7c99cc4933c27b7c\",\"template_id\":\"acme.rotate_key\",\"template_version\":3},{\"sha256\":\"b2ad08b9aa9a7f9d5660687cdcb21bd053a109a8cf30f9a92326b4d80a800f3b\",\"template_id\":\"acme.drop_table\",\"template_version\":1}]}",
   "pins": [
     {
       "template_id": "acme.rotate_key",
@@ -51,8 +52,9 @@
         "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
         "status": "confirmed",
         "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
-        "confirmation": "yuRpodrtbInhmfiIFmQ7j03viIb8fTK1TmhNqySSQRfQnLR6nhSkD1zKJ1Y-A030B5sZgHpeugrM5IvFEOa0Cg",
+        "confirmation": "C-yCCcRg4GxLLgaL1hTL9Y3p4QW1dZd1tF3OQSZox0L1ugR1ZP0ZzvcNeJp305kgGID_gnsOolXJnxbzODRgDA",
         "paired_at": "2026-11-07T12:02:03.456Z",
+        "approver_id": "jason",
         "templates_pinned": []
       },
       "expected": "ok",
@@ -64,8 +66,9 @@
         "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
         "status": "confirmed",
         "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
-        "confirmation": "yuRpodrtbInhmfiIFmQ7j03viIb8fTK1TmhNqySSQRfQnLR6nhSkD1zKJ1Y-A030B5sZgHpeugrM5IvFEOa0Cg",
-        "paired_at": "2026-11-07T12:02:03.456Z"
+        "confirmation": "C-yCCcRg4GxLLgaL1hTL9Y3p4QW1dZd1tF3OQSZox0L1ugR1ZP0ZzvcNeJp305kgGID_gnsOolXJnxbzODRgDA",
+        "paired_at": "2026-11-07T12:02:03.456Z",
+        "approver_id": "jason"
       },
       "expected": "ok",
       "pins": []
@@ -76,8 +79,9 @@
         "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
         "status": "confirmed",
         "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
-        "confirmation": "xXpQD37lOebt0GS6UoZTiyAanOvpSk2JCa2iycx0TCgI44roDFYn0ad1UCZPPUaW_TPggJJcl1GNcvWc_GQeDw",
+        "confirmation": "j6K5M-DhUH8ntwldSona807jFVA_Ed0AtLJkOkiTs3MNlDjHZ2jzois9TuGvdPckpxlXF9mjPG_kzPBDHRWpDQ",
         "paired_at": "2026-11-07T12:02:03.456Z",
+        "approver_id": "jason",
         "templates_pinned": [
           {
             "template_id": "acme.rotate_key",
@@ -111,8 +115,9 @@
         "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
         "status": "confirmed",
         "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
-        "confirmation": "xXpQD37lOebt0GS6UoZTiyAanOvpSk2JCa2iycx0TCgI44roDFYn0ad1UCZPPUaW_TPggJJcl1GNcvWc_GQeDw",
+        "confirmation": "j6K5M-DhUH8ntwldSona807jFVA_Ed0AtLJkOkiTs3MNlDjHZ2jzois9TuGvdPckpxlXF9mjPG_kzPBDHRWpDQ",
         "paired_at": "2026-11-07T12:02:03.456Z",
+        "approver_id": "jason",
         "templates_pinned": [
           {
             "template_id": "acme.drop_table",
@@ -134,8 +139,9 @@
         "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
         "status": "confirmed",
         "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
-        "confirmation": "xXpQD37lOebt0GS6UoZTiyAanOvpSk2JCa2iycx0TCgI44roDFYn0ad1UCZPPUaW_TPggJJcl1GNcvWc_GQeDw",
+        "confirmation": "j6K5M-DhUH8ntwldSona807jFVA_Ed0AtLJkOkiTs3MNlDjHZ2jzois9TuGvdPckpxlXF9mjPG_kzPBDHRWpDQ",
         "paired_at": "2026-11-07T12:02:03.456Z",
+        "approver_id": "jason",
         "templates_pinned": [
           {
             "template_id": "acme.rotate_key",
@@ -152,8 +158,9 @@
         "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
         "status": "confirmed",
         "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
-        "confirmation": "xXpQD37lOebt0GS6UoZTiyAanOvpSk2JCa2iycx0TCgI44roDFYn0ad1UCZPPUaW_TPggJJcl1GNcvWc_GQeDw",
-        "paired_at": "2026-11-07T12:02:03.456Z"
+        "confirmation": "j6K5M-DhUH8ntwldSona807jFVA_Ed0AtLJkOkiTs3MNlDjHZ2jzois9TuGvdPckpxlXF9mjPG_kzPBDHRWpDQ",
+        "paired_at": "2026-11-07T12:02:03.456Z",
+        "approver_id": "jason"
       },
       "expected": "pairing_confirmation_invalid"
     },
@@ -163,8 +170,9 @@
         "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
         "status": "confirmed",
         "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
-        "confirmation": "yuRpodrtbInhmfiIFmQ7j03viIb8fTK1TmhNqySSQRfQnLR6nhSkD1zKJ1Y-A030B5sZgHpeugrM5IvFEOa0Cg",
+        "confirmation": "C-yCCcRg4GxLLgaL1hTL9Y3p4QW1dZd1tF3OQSZox0L1ugR1ZP0ZzvcNeJp305kgGID_gnsOolXJnxbzODRgDA",
         "paired_at": "2026-11-07T12:02:03.456Z",
+        "approver_id": "jason",
         "templates_pinned": [
           {
             "template_id": "acme.rotate_key",
@@ -181,8 +189,9 @@
         "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
         "status": "confirmed",
         "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
-        "confirmation": "xXpQD37lOebt0GS6UoZTiyAanOvpSk2JCa2iycx0TCgI44roDFYn0ad1UCZPPUaW_TPggJJcl1GNcvWc_GQeDw",
+        "confirmation": "j6K5M-DhUH8ntwldSona807jFVA_Ed0AtLJkOkiTs3MNlDjHZ2jzois9TuGvdPckpxlXF9mjPG_kzPBDHRWpDQ",
         "paired_at": "2026-11-07T12:02:03.456Z",
+        "approver_id": "jason",
         "templates_pinned": [
           {
             "template_id": "acme.rotate_key",
@@ -204,8 +213,9 @@
         "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
         "status": "confirmed",
         "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
-        "confirmation": "xXpQD37lOebt0GS6UoZTiyAanOvpSk2JCa2iycx0TCgI44roDFYn0ad1UCZPPUaW_TPggJJcl1GNcvWc_GQeDw",
+        "confirmation": "j6K5M-DhUH8ntwldSona807jFVA_Ed0AtLJkOkiTs3MNlDjHZ2jzois9TuGvdPckpxlXF9mjPG_kzPBDHRWpDQ",
         "paired_at": "2026-11-07T12:02:03.456Z",
+        "approver_id": "jason",
         "templates_pinned": [
           {
             "template_id": "acme.rotate_key",
@@ -228,8 +238,9 @@
         "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
         "status": "confirmed",
         "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
-        "confirmation": "yuRpodrtbInhmfiIFmQ7j03viIb8fTK1TmhNqySSQRfQnLR6nhSkD1zKJ1Y-A030B5sZgHpeugrM5IvFEOa0Cg",
+        "confirmation": "C-yCCcRg4GxLLgaL1hTL9Y3p4QW1dZd1tF3OQSZox0L1ugR1ZP0ZzvcNeJp305kgGID_gnsOolXJnxbzODRgDA",
         "paired_at": "2026-11-07T12:02:03.456Z",
+        "approver_id": "jason",
         "templates_pinned": {}
       },
       "expected": "pairing_confirmation_invalid"
@@ -240,8 +251,9 @@
         "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
         "status": "confirmed",
         "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
-        "confirmation": "1a39y_wy4OHzID_hDRem4bdfxN3NnS7JDoJxE2DJiPnvQjNeFPDn5PBGJ1LmZHNYo3OxrOOQYzn7IeEeGxENDQ",
+        "confirmation": "UF56jWzFgivfvHY2RaSHfe-NGT4rtCAvaaBwsP9OYvO3xMohLjnibj5-z9OxfVb_gbrKgrEt7Lvn4J01sbYcDg",
         "paired_at": "2026-11-07T12:02:03.456Z",
+        "approver_id": "jason",
         "templates_pinned": []
       },
       "expected": "pairing_confirmation_invalid"
@@ -252,8 +264,9 @@
         "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
         "status": "confirmed",
         "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
-        "confirmation": "yuRpodrtbInhmfiIFmQ7j03viIb8fTK1TmhNqySSQRfQnLR6nhSkD1zKJ1Y-A030B5sZgHpeugrM5IvFEOa0Cg",
+        "confirmation": "C-yCCcRg4GxLLgaL1hTL9Y3p4QW1dZd1tF3OQSZox0L1ugR1ZP0ZzvcNeJp305kgGID_gnsOolXJnxbzODRgDA",
         "paired_at": "2026-11-07T12:02:03.457Z",
+        "approver_id": "jason",
         "templates_pinned": []
       },
       "expected": "pairing_confirmation_invalid"
@@ -264,11 +277,101 @@
         "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
         "status": "confirmed",
         "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
-        "confirmation": "uiNmfep4QHHZOPhoTwLpNbOkpi_hupAeC5-n_lFDwp4iPpA94_64XOw4173sSqGrOVH59PucXwxZH2sDPXwWAw",
+        "confirmation": "UuN-13xhegCtqK7k5Sx03uVKz-SLFKkd9paWE6jYIyaPbdJpCTPSE7v7hn4JzTDKorv57IlTgFPbyxdts-YADA",
         "paired_at": "2026-11-07T12:02:03.456Z",
+        "approver_id": "jason",
         "templates_pinned": []
       },
       "expected": "pairing_mismatch"
+    },
+    {
+      "description": "relay replaced approver_id with the account's approver id",
+      "view": {
+        "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+        "status": "confirmed",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "confirmation": "C-yCCcRg4GxLLgaL1hTL9Y3p4QW1dZd1tF3OQSZox0L1ugR1ZP0ZzvcNeJp305kgGID_gnsOolXJnxbzODRgDA",
+        "paired_at": "2026-11-07T12:02:03.456Z",
+        "approver_id": "jaseinsa",
+        "templates_pinned": []
+      },
+      "expected": "pairing_confirmation_invalid"
+    },
+    {
+      "description": "relay dropped approver_id",
+      "view": {
+        "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+        "status": "confirmed",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "confirmation": "C-yCCcRg4GxLLgaL1hTL9Y3p4QW1dZd1tF3OQSZox0L1ugR1ZP0ZzvcNeJp305kgGID_gnsOolXJnxbzODRgDA",
+        "paired_at": "2026-11-07T12:02:03.456Z",
+        "templates_pinned": []
+      },
+      "expected": "pairing_confirmation_invalid"
+    },
+    {
+      "description": "gateway without approver_id (pre-§5.3 point 7 confirmation)",
+      "view": {
+        "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+        "status": "confirmed",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "confirmation": "yuRpodrtbInhmfiIFmQ7j03viIb8fTK1TmhNqySSQRfQnLR6nhSkD1zKJ1Y-A030B5sZgHpeugrM5IvFEOa0Cg",
+        "paired_at": "2026-11-07T12:02:03.456Z",
+        "templates_pinned": []
+      },
+      "expected": "pairing_confirmation_invalid"
+    },
+    {
+      "description": "approver_id empty",
+      "view": {
+        "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+        "status": "confirmed",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "confirmation": "m9xs68n_vZzub-lDdkNKTXm0onXeehMk0uSHMgAihmPpvdJjPpcdzBmEFpowjmZK_-S7UJ0UefFt7jDeCM0oBg",
+        "paired_at": "2026-11-07T12:02:03.456Z",
+        "approver_id": "",
+        "templates_pinned": []
+      },
+      "expected": "pairing_confirmation_invalid"
+    },
+    {
+      "description": "approver_id not a string",
+      "view": {
+        "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+        "status": "confirmed",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "confirmation": "C-yCCcRg4GxLLgaL1hTL9Y3p4QW1dZd1tF3OQSZox0L1ugR1ZP0ZzvcNeJp305kgGID_gnsOolXJnxbzODRgDA",
+        "paired_at": "2026-11-07T12:02:03.456Z",
+        "approver_id": 7,
+        "templates_pinned": []
+      },
+      "expected": "pairing_confirmation_invalid"
+    },
+    {
+      "description": "approver_id longer than 64 characters",
+      "view": {
+        "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+        "status": "confirmed",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "confirmation": "tyXiMaehgze6l5_dWFYXG5gAp7x2Q0kypplDI1m-cVy0HSgD3K_VFxUXzyIUiZp9CUk7J0qHpZB4HGCN_lP-Bg",
+        "paired_at": "2026-11-07T12:02:03.456Z",
+        "approver_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "templates_pinned": []
+      },
+      "expected": "pairing_confirmation_invalid"
+    },
+    {
+      "description": "approver_id with a control character",
+      "view": {
+        "pairing_id": "J_wC2Ndo2VzJ6Swqv8WwGm",
+        "status": "confirmed",
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "confirmation": "ZPz6BAbSPi5nGsPUaCr0aaLQHcG3Lg3eKSur2ozIbgqMJyIL1Xgf0ezxe9w9EAE2or1gJH9zS65vk03SSBtXDw",
+        "paired_at": "2026-11-07T12:02:03.456Z",
+        "approver_id": "ja\nson",
+        "templates_pinned": []
+      },
+      "expected": "pairing_confirmation_invalid"
     }
   ]
 }

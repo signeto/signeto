@@ -127,8 +127,14 @@ const qr = { v: 1, gateway_public_key: pub(gwKey), gateway_name: "home-01", rela
 const manual = P.base64url.encode(P.utf8.encode(P.canonicalize(qr)));
 const proofInput = (device_id, device_public_key) => P.canonicalize({ device_id, device_public_key, gateway_id });
 const proof = (device_id, device_public_key) => P.base64url.encode(new Uint8Array(createHmac("sha256", Buffer.from(code, "utf8")).update(Buffer.from(proofInput(device_id, device_public_key), "utf8")).digest()));
-const confInput = (device_id, paired_at, templates_pinned) => P.canonicalize({ device_id, gateway_id, paired_at, pairing_id, templates_pinned: templates_pinned.map((t) => ({ sha256: t.sha256, template_id: t.template_id, template_version: t.template_version })) });
-const confirm = (device_id, paired_at, pins, k = gwKey) => P.base64url.encode(P.signWithJwk(P.utf8.encode(confInput(device_id, paired_at, pins)), k).signature);
+// §5.3 point 7: the gateway's local approver name for the device, inside the signed input. Deliberately not the
+// relay account's approver id ("jaseinsa" below plays a relay substituting it).
+const approver_id = "jason";
+const confInput = (device_id, paired_at, templates_pinned, approver = approver_id) => P.canonicalize({ approver_id: approver, device_id, gateway_id, paired_at, pairing_id, templates_pinned: templates_pinned.map((t) => ({ sha256: t.sha256, template_id: t.template_id, template_version: t.template_version })) });
+// The pre-approver_id signing input, for the negative "old gateway" case.
+const legacyConfInput = (device_id, paired_at) => P.canonicalize({ device_id, gateway_id, paired_at, pairing_id, templates_pinned: [] });
+const sign = (input, k = gwKey) => P.base64url.encode(P.signWithJwk(P.utf8.encode(input), k).signature);
+const confirm = (device_id, paired_at, pins, k = gwKey) => sign(confInput(device_id, paired_at, pins), k);
 const paired_at = "2026-11-07T12:02:03.456Z";
 const pins = [
   { template_id: "acme.rotate_key", template_version: 3, sha256: P.templateSha256("Rotate {key} in {vault}") },
@@ -136,10 +142,12 @@ const pins = [
 ];
 const c0 = confirm(devEsId, paired_at, []);
 const c2 = confirm(devEsId, paired_at, pins);
-const view = (confirmation, templates_pinned) => ({ pairing_id, status: "confirmed", device_id: devEsId, confirmation, paired_at, ...(templates_pinned !== undefined ? { templates_pinned } : {}) });
+const DROP = Symbol("no approver_id member");
+const view = (confirmation, templates_pinned, approver = approver_id) => ({ pairing_id, status: "confirmed", device_id: devEsId, confirmation, paired_at, ...(approver !== DROP ? { approver_id: approver } : {}), ...(templates_pinned !== undefined ? { templates_pinned } : {}) });
 const otherDevId = P.deviceIdFromJwk(devEd);
 write("pairing.json", {
-  description: "Pairing, device side: QR payload, pairing_id, code_hash, HMAC proof, claim, confirmations with and without template pins, and tampering negatives",
+  description: "Pairing, device side: QR payload, pairing_id, code_hash, HMAC proof, claim, confirmations (approver_id, with and without template pins), and tampering negatives",
+  approver_id,
   gateway_private_key_name: "gateway-ed25519",
   device_public_key: pub(devEs),
   device_id: devEsId,
@@ -171,6 +179,13 @@ write("pairing.json", {
     { description: "signed by a key other than the QR's", view: view(confirm(devEsId, paired_at, [], devEd), []), expected: "pairing_confirmation_invalid" },
     { description: "paired_at altered", view: { ...view(c0, []), paired_at: "2026-11-07T12:02:03.457Z" }, expected: "pairing_confirmation_invalid" },
     { description: "confirmation for another device", view: { ...view(confirm(otherDevId, paired_at, []), []), device_id: otherDevId }, expected: "pairing_mismatch" },
+    { description: "relay replaced approver_id with the account's approver id", view: view(c0, [], "jaseinsa"), expected: "pairing_confirmation_invalid" },
+    { description: "relay dropped approver_id", view: view(c0, [], DROP), expected: "pairing_confirmation_invalid" },
+    { description: "gateway without approver_id (pre-§5.3 point 7 confirmation)", view: view(sign(legacyConfInput(devEsId, paired_at)), [], DROP), expected: "pairing_confirmation_invalid" },
+    { description: "approver_id empty", view: view(sign(confInput(devEsId, paired_at, [], "")), [], ""), expected: "pairing_confirmation_invalid" },
+    { description: "approver_id not a string", view: view(c0, [], 7), expected: "pairing_confirmation_invalid" },
+    { description: "approver_id longer than 64 characters", view: view(sign(confInput(devEsId, paired_at, [], "a".repeat(65))), [], "a".repeat(65)), expected: "pairing_confirmation_invalid" },
+    { description: "approver_id with a control character", view: view(sign(confInput(devEsId, paired_at, [], "ja\nson")), [], "ja\nson"), expected: "pairing_confirmation_invalid" },
   ],
 });
 console.log("fixtures written under", here);

@@ -277,7 +277,7 @@ A receipt is the approver's signed decision about one canonical action. Approval
 | `action_id` | string | MUST | The gateway's `action_id` (§2.6), copied from the approval request. Unsigned routing handle. |
 | `decision` | string | MUST | `"approve"` or `"deny"`. |
 | `reason` | string | MAY | Free text entered by the approver. At most 512 UTF-8 bytes. Returned to the agent verbatim on denial. MUST NOT contain the matching policy rule. |
-| `approver_id` | string | MUST | Account-level approver name as it appears in `signeto.yml` `approvers:`. |
+| `approver_id` | string | MUST | Approver name as it appears in the gateway's `signeto.yml` `approvers:`. The device takes it from that gateway's pairing confirmation (§5.3) and uses it for every receipt it signs for that gateway; it is not the relay account's approver id (§7.4). |
 | `device_id` | string | MUST | `dev_` + base64url RFC 7638 JWK thumbprint of the signing public key (§5.1). |
 | `alg` | string | MUST | `"ES256"` or `"Ed25519"`. No other value is valid. |
 | `signature` | string | MUST | base64url without padding. ES256: 64 bytes, `r || s` fixed-width (JWS form, not DER). Ed25519: 64 bytes. |
@@ -470,10 +470,10 @@ sequenceDiagram
     D->>R: POST /v1/pairings/{pairing_id}/claim {device_public_key, attestation, proof}  [device-signed]
     R->>G: event pairing.claimed {pairing_id, device_public_key, attestation, proof}
     G->>G: recompute proof with own code; verify; verify attestation; pin device key
-    G->>G: confirmation = Sign_gw(JCS{gateway_id, device_id, pairing_id, paired_at, templates_pinned})
-    G->>R: POST /v1/pairings/{pairing_id}/confirm {confirmation, paired_at, templates_pinned}
+    G->>G: confirmation = Sign_gw(JCS{approver_id, device_id, gateway_id, paired_at, pairing_id, templates_pinned})
+    G->>R: POST /v1/pairings/{pairing_id}/confirm {confirmation, paired_at, approver_id, templates_pinned}
     R->>D: push {pairing_id}; D fetches GET /v1/pairings/{pairing_id}
-    D->>D: verify confirmation with gateway_public_key from QR; pin gateway key
+    D->>D: verify confirmation with gateway_public_key from QR; pin gateway key and approver_id
     D-->>G: both display fingerprints; pairing complete
 ```
 
@@ -484,17 +484,18 @@ Normative points:
 3. The gateway MUST verify the attestation where the platform provides one (App Attest, WebAuthn attestation, Android Key Attestation) and MUST record `software: true` when none is provided or the policy permits software keys.
 4. The device MUST verify `confirmation` with the QR's key before pinning. A confirmation that fails verification MUST abort pairing on the device side, and the device SHOULD tell the user the relay or network may be hostile.
 5. The gateway MUST reject a claim after `expires_at` or a second claim for the same `pairing_id`.
-6. The pairing record on both sides stores: the peer's public key, the peer's identifier, `paired_at`, `attestation` (gateway side), and `software` flag.
+6. The pairing record on both sides stores: the peer's public key, the peer's identifier, `paired_at`, the approver the gateway pinned the device under (`approver_id`), `attestation` (gateway side), and `software` flag.
+7. Approver names are local to each gateway: they are the keys of its `signeto.yml` `approvers:` and need not equal the relay account's approver id (§7.4). The gateway names the approver it pinned the device under in the confirmation's `approver_id`, which is part of the signed input (§5.4). The device MUST take `approver_id` only from a confirmation that verifies, MUST store it with the gateway's record, and MUST put it in the `approver_id` of every receipt it signs for that gateway (§4.1), whatever name the relay knows it by. A confirmation without `approver_id`, or whose `approver_id` is not a string of 1 to 64 characters without control characters, is invalid (`pairing_confirmation_invalid`). A device holding a pin with no stored `approver_id` MUST NOT sign receipts for that gateway and SHOULD ask the user to pair it again.
 
 ### 5.4 Template pinning at pairing
 
 The gateway's confirmation carries `templates_pinned`: a list of `{template_id, template_version, sha256}` for custom adapters not bundled in `@signeto/protocol`, `[]` when there are none. The list is part of the confirmation's signing input, which is the UTF-8 JCS serialization of
 
 ```json
-{ "device_id": "dev_...", "gateway_id": "gw_...", "paired_at": "...", "pairing_id": "...", "templates_pinned": [ { "sha256": "<hex>", "template_id": "...", "template_version": 1 } ] }
+{ "approver_id": "jason", "device_id": "dev_...", "gateway_id": "gw_...", "paired_at": "...", "pairing_id": "...", "templates_pinned": [ { "sha256": "<hex>", "template_id": "...", "template_version": 1 } ] }
 ```
 
-with the list in the order the gateway sent it and each entry having exactly those three members. The device MUST verify the confirmation over the list it received, and MUST NOT store any pin from a confirmation that does not verify: a relay that adds, drops, reorders or alters a pin breaks the signature, and pairing aborts with `pairing_confirmation_invalid`. The device stores the verified list under the gateway's record. A later `template_source` sent with an approval request (§7.5) is verified against this list; a match renders as a verified template.
+with `approver_id` the approver the gateway pinned this device under (§5.3 point 7), the list in the order the gateway sent it, and each entry having exactly those three members. The device MUST verify the confirmation over the `approver_id` and the list it received, and MUST NOT store either from a confirmation that does not verify: a relay that changes or drops the approver, or adds, drops, reorders or alters a pin, breaks the signature, and pairing aborts with `pairing_confirmation_invalid`. The device stores the verified list under the gateway's record. A later `template_source` sent with an approval request (§7.5) is verified against this list; a match renders as a verified template.
 
 ### 5.5 What the relay can and cannot do after pairing
 
@@ -694,11 +695,12 @@ Response `200`: `{ "status": "claimed" }`
 Errors: `404 pairing_not_found` (also when the pairing belongs to a gateway of another account: a device claims only pairings opened by its own account's gateways), `410 pairing_expired`, `409 pairing_already_claimed`, `403 forbidden` (`device.public_key` is not the authenticated device's enrolled key). The relay does not verify `proof`; it cannot. It forwards `device` exactly as sent (the proof covers the JWK as the device serialised it) in the `pairing.claimed` event.
 
 `GET /v1/pairings/{pairing_id}` — auth `Signeto-Gateway` or the claiming device
-Response `200`: `{ "pairing_id": "...", "status": "open" | "claimed" | "confirmed" | "rejected" | "expired", "device_id"?: "dev_...", "device"?: {...}, "proof"?: "...", "confirmation"?: "...", "paired_at"?: "...", "templates_pinned"?: [...] }`. `expired` is reported for an `open` or `claimed` pairing past `expires_at`. Anyone other than the owning gateway and the claiming device gets `404 pairing_not_found`.
+Response `200`: `{ "pairing_id": "...", "status": "open" | "claimed" | "confirmed" | "rejected" | "expired", "device_id"?: "dev_...", "device"?: {...}, "proof"?: "...", "confirmation"?: "...", "paired_at"?: "...", "approver_id"?: "...", "templates_pinned"?: [...] }`. `confirmation`, `paired_at`, `approver_id` and `templates_pinned` are the confirm request's values, returned verbatim. `expired` is reported for an `open` or `claimed` pairing past `expires_at`. Anyone other than the owning gateway and the claiming device gets `404 pairing_not_found`.
 
 `POST /v1/pairings/{pairing_id}/confirm` — auth `Signeto-Gateway`
-Request: `{ "confirmation": "<base64url Sign_gw>", "paired_at": "...", "templates_pinned": [ { "template_id", "template_version", "sha256" } ] }`
-Response `200`: `{ "status": "confirmed" }`. The relay pushes `{pairing_id}` to the device. Repeating the identical confirmation returns `200`; a different one for a confirmed pairing is `409 pairing_already_claimed`. The relay does not verify `confirmation`; the device does, with the QR's key. A confirmed pairing is what makes a device "paired with this gateway" for §7.5 and §7.6.
+Request: `{ "confirmation": "<base64url Sign_gw>", "paired_at": "...", "approver_id": "jason", "templates_pinned": [ { "template_id", "template_version", "sha256" } ] }`
+`approver_id` is REQUIRED: the gateway's local approver name for the device, a string of 1 to 64 characters without control characters (§5.3 point 7). It is opaque to the relay and is not the account's approver id; the relay stores it and returns it verbatim. `templates_pinned` is optional (default `[]`).
+Response `200`: `{ "status": "confirmed" }`. The relay pushes `{pairing_id}` to the device. Repeating the identical confirmation (same `confirmation`, `paired_at` and `approver_id`) returns `200`; a different one for a confirmed pairing is `409 pairing_already_claimed`. The relay does not verify `confirmation`; the device does, with the QR's key. A confirmed pairing is what makes a device "paired with this gateway" for §7.5 and §7.6.
 Errors: `409 pairing_not_claimed` (open or rejected), `410 pairing_expired`.
 
 `POST /v1/pairings/{pairing_id}/reject` — auth `Signeto-Gateway`. Proof failed on the gateway. Response `204` (also when already rejected); status becomes `rejected`. Rejecting a confirmed pairing withdraws it: the device is no longer paired with that gateway. The relay SHOULD notify the device and MUST ledger the event in its audit mirror.
@@ -711,7 +713,7 @@ Request:
 ```json
 { "public_key": {...}, "platform": "ios" | "web" | "macos-cli" | "android", "name": "...", "attestation": {...} | null, "push": { "kind": "apns" | "webpush" | "none", "token": "..." } }
 ```
-Response `201`: `{ "device_id": "dev_...", "approver_id": "jason", "enrolled_at": "...", "software": false, "attestation_status": "none" | "unverified" | "verified", "device_session"?: "<token>" }`
+Response `201`: `{ "device_id": "dev_...", "approver_id": "jaseinsa", "enrolled_at": "...", "software": false, "attestation_status": "none" | "unverified" | "verified", "device_session"?: "<token>" }`
 `software` is `false` only when the relay has verified a hardware attestation for this key; a relay that does not verify attestation reports `true` for every key and `attestation_status: "unverified"` when one was supplied (the gateway still runs its own check at pairing, §5.3 point 3). `device_session` is present for `platform` `"web"`, `"ios"` and `"android"` (devices whose keys need a user gesture per signature) and absent for `"macos-cli"`: the device `Bearer` token of §7.1, shown once. `push` is optional (default `{ "kind": "none" }`); `token` is required for `apns` and `webpush`.
 Errors: `422 key_invalid`, `422 attestation_invalid` (not `{format, data}`, or attestation on an Ed25519 key), `409 device_exists` (thumbprint already enrolled, in any account or state), `403 device_limit` (free tier: two active devices).
 
@@ -727,12 +729,12 @@ Request:
   "action_id": "act_...",
   "canonical_bytes": "{\"args_resolved\":{...},...}",
   "expires_at": "...",
-  "targets": { "tier": 3, "approver_ids": ["jason"], "device_ids": [] },
+  "targets": { "tier": 3, "approver_ids": [], "device_ids": [] },
   "template_source": { "template_id": "...", "template_version": 1, "text": "...", "sha256": "...", "elide": [] },
   "gateway_signature": "<base64url Sign_gw(JCS{canonical_bytes_sha256, action_id, expires_at, nonce, gateway_id})>"
 }
 ```
-`targets.device_ids` empty means every device of the listed approvers (Tier 2: every device paired with this gateway). `template_source` is OPTIONAL. `steps` (OPTIONAL, atomic batches only, §6.6) is an array of each step's canonical bytes as strings in `batch_index` order; when present, `canonical_bytes` is the batch manifest.
+`targets.device_ids` empty means every device of the listed approvers; both lists empty means every active device paired with this gateway. Gateways SHOULD send empty `approver_ids`: approver names are local to a gateway (`signeto.yml`, §5.3 point 7) while `approver_ids` here are relay account approver ids (§7.4), and the two namespaces need not match. Who may approve is decided by the gateway when it verifies the receipt (§4.5 steps 5 to 7, then the policy's approvers), not by targeting. A relay MAY still honour `approver_ids` as an optional filter, for deployments where the gateway's approver names are the relay's account approver ids. `template_source` is OPTIONAL. `steps` (OPTIONAL, atomic batches only, §6.6) is an array of each step's canonical bytes as strings in `batch_index` order; when present, `canonical_bytes` is the batch manifest.
 
 `gateway_signature` is REQUIRED on every approval request, whatever the transport (relay, local socket §7.11, or any push payload that carries content). Its signing input is the UTF-8 JCS serialization of
 
