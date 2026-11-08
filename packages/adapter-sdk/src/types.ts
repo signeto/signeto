@@ -75,10 +75,29 @@ export interface Credential {
   revoke?(): Promise<void>;
 }
 
+/**
+ * Who approved the action, for adapters that record the approval upstream (e.g. a GitHub check run).
+ * Informational only: the gateway has already verified the receipt and written it to the ledger.
+ */
+export interface ApprovalInfo {
+  action_id: string;
+  approver_id: string;
+  device_id: string;
+  /** The device's name from its pairing entry, when known. */
+  device_name?: string;
+  signed_at: string;
+  /** SHA-256 (hex) of the JCS receipt, as in the ledger `approved` entry. */
+  receipt_sha256: string;
+  /** Number of approvals when a quorum rule applied. */
+  approvals: number;
+}
+
 export interface ExecuteContext {
   deadline: Date;
   logger: Logger;
   fetch: typeof fetch;
+  /** Present for tier 2 and 3 actions (absent for tier 1, which nobody signs). */
+  approval?: ApprovalInfo;
 }
 export interface FrozenAction {
   readonly id: string;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { verify } from "node:crypto";
 import { AdapterError } from "@signeto/adapter-sdk";
-import { buildAppJwt, createGithubAdapter, MINT_PERMISSIONS } from "../src/index.js";
+import { buildAppJwt, createGithubAdapter, MINT_PERMISSIONS, type GithubCredential } from "../src/index.js";
 import { HEAD_SHA, REF_SHA, TEST_APP_ID, TEST_PRIVATE_KEY_PEM, TEST_PUBLIC_KEY, credentialCtx, frozen, mockFetch, recordingLogger, type Route } from "./helpers.js";
 
 const NOW = 1_700_000_000_000;
@@ -88,11 +88,43 @@ describe("mint", () => {
     expect(r.calls[1]!.body).toEqual({ repositories: ["api"], permissions: { pull_requests: "read" } });
   });
 
-  it("uses installation_id from secrets instead of looking it up", async () => {
+  it("uses installation_id from secrets instead of looking it up (merge reads the installation's permissions; a failed read is not fatal)", async () => {
     const m = mockFetch([{ method: "POST", path: "/app/installations/777/access_tokens", status: 201, body: { token: TOKEN, expires_at: expiresIn(3_600_000) } }]);
     const cred = await createGithubAdapter({ fetch: m.fetch, now: () => NOW }).mint!(credentialCtx({ ...secrets, installation_id: "777" }), mergeAction);
-    expect(m.calls.map((c) => c.path)).toEqual(["/app/installations/777/access_tokens"]);
+    expect(m.calls.map((c) => c.path)).toEqual(["/app/installations/777", "/app/installations/777/access_tokens"]);
     expect(cred.scope).toContain("installation=777");
+    expect(m.calls[1]!.body).toEqual({ repositories: ["api"], permissions: { contents: "write", pull_requests: "write" } });
+    const r = mockFetch([{ method: "POST", path: "/app/installations/777/access_tokens", status: 201, body: { token: TOKEN, expires_at: expiresIn(3_600_000) } }]);
+    await createGithubAdapter({ fetch: r.fetch, now: () => NOW }).mint!(credentialCtx({ ...secrets, installation_id: "777" }), readAction);
+    expect(r.calls.map((c) => c.path)).toEqual(["/app/installations/777/access_tokens"]);
+  });
+
+  it("adds checks:write to the merge token only when the installation has accepted it", async () => {
+    const granted = { token: TOKEN, expires_at: expiresIn(3_600_000), permissions: { contents: "write", pull_requests: "write", checks: "write", metadata: "read" }, repositories: [{ full_name: "acme/api" }] };
+    const m = mockFetch(tokenRoutes({ body: granted }, { id: 99, permissions: { contents: "write", pull_requests: "write", checks: "write", metadata: "read" } }));
+    const cred = (await createGithubAdapter({ fetch: m.fetch, now: () => NOW }).mint!(credentialCtx(secrets), mergeAction)) as GithubCredential;
+    expect(m.calls[1]!.body).toEqual({ repositories: ["api"], permissions: { contents: "write", pull_requests: "write", checks: "write" } });
+    expect(cred.permissions).toEqual({ contents: "write", pull_requests: "write", checks: "write" });
+    expect(cred.scope).toContain("checks:write contents:write pull_requests:write");
+
+    // With installation_id in secrets the permissions come from GET /app/installations/{id}.
+    const s = mockFetch([
+      { method: "GET", path: "/app/installations/777", body: { id: 777, permissions: { checks: "write" } } },
+      { method: "POST", path: "/app/installations/777/access_tokens", status: 201, body: { token: TOKEN, expires_at: expiresIn(3_600_000) } },
+    ]);
+    await createGithubAdapter({ fetch: s.fetch, now: () => NOW }).mint!(credentialCtx({ ...secrets, installation_id: "777" }), mergeAction);
+    expect(s.calls[1]!.body).toMatchObject({ permissions: { checks: "write" } });
+
+    // Read-only checks access, or none, is not enough: the token is requested without checks.
+    const ro = mockFetch(tokenRoutes({}, { id: 99, permissions: { checks: "read" } }));
+    const plain = (await createGithubAdapter({ fetch: ro.fetch, now: () => NOW }).mint!(credentialCtx(secrets), mergeAction)) as GithubCredential;
+    expect(ro.calls[1]!.body).toEqual({ repositories: ["api"], permissions: { contents: "write", pull_requests: "write" } });
+    expect(plain.permissions).toEqual({ contents: "write", pull_requests: "write" });
+
+    // Dispatch never asks for checks.
+    const d = mockFetch(tokenRoutes({ body: { token: TOKEN, expires_at: expiresIn(3_600_000) } }, { id: 99, permissions: { checks: "write" } }));
+    await createGithubAdapter({ fetch: d.fetch, now: () => NOW }).mint!(credentialCtx(secrets), dispatchAction);
+    expect(d.calls[1]!.body).toEqual({ repositories: ["api"], permissions: MINT_PERMISSIONS.dispatch_workflow });
   });
 
   it("revoke() calls DELETE /installation/token with the minted token", async () => {

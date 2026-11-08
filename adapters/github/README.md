@@ -85,6 +85,7 @@ a GitHub token (`github_pat_`, `ghp_`, `ghs_`, `gho_`; anything else is ignored 
    | Contents | Read and write | merge (writes the merge commit); dispatch needs only read for the ref check |
    | Pull requests | Read and write | merge; read tool needs only read |
    | Actions | Read and write | dispatch |
+   | Checks | Read and write | optional: the "Signeto" check run on approved merges (see below) |
    | Metadata | Read-only | implied by GitHub for every App |
 
    Leave every other permission at *No access*. Organisation and account permissions stay empty.
@@ -102,7 +103,7 @@ Each `mint` call builds a fresh App JWT, then `POST /app/installations/{id}/acce
 
 | Tool | `repositories` | `permissions` |
 |---|---|---|
-| `merge_pull_request` | `[<repo name>]` | `{ contents: "write", pull_requests: "write" }` |
+| `merge_pull_request` | `[<repo name>]` | `{ contents: "write", pull_requests: "write" }`, plus `checks: "write"` when the installation has accepted it |
 | `dispatch_workflow` | `[<repo name>]` | `{ actions: "write", contents: "read" }` |
 | `read_pull_request` | `[<repo name>]` | `{ pull_requests: "read" }` |
 
@@ -113,6 +114,23 @@ written to the ledger looks like:
 ```
 github installation token: repo=acme/api contents:write pull_requests:write installation=99 expires=2026-11-06T13:00:00.000Z
 ```
+
+## "Signeto" check run
+
+When the installation has accepted **Checks: write**, `mint` adds `checks: "write"` to the merge token (it reads the
+installation's permissions first; without the permission the merge works exactly as before). `execute` then posts a
+completed, successful check run named `Signeto` on the approved head commit, just before the merge:
+
+- title `Approved by <approver> on <device>`; the summary lists approver, device, `signed_at`, the approved commit,
+  the action id and the receipt SHA-256, and how to find the receipt in the ledger;
+- `external_id` is the action id; the check run id is added to the evidence as `check_run_id`;
+- best effort: a refused or failed check run is logged and recorded as `check_run_id: null`, and the approved merge
+  still goes ahead (the approval is already in the ledger). The adapter learns who approved from
+  `ExecuteContext.approval`, which the gateway fills from the verified receipt; tier 1 actions have none and get no check.
+
+Apps created with `signeto setup github` ask for the permission. For an older App: *App settings → Permissions →
+Repository permissions → Checks: Read and write → Save*, then accept the new permission on the installation
+(*Organization settings → GitHub Apps → Configure → Review request*).
 
 `revoke()` calls `DELETE /installation/token` after `execute`, success or failure (best effort; a failed revoke is
 logged and the token expires within the hour anyway).

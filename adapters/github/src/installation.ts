@@ -48,6 +48,43 @@ export async function findInstallation(f: FetchFn, headers: Record<string, strin
   return id;
 }
 
+export interface InstallationInfo {
+  id: number;
+  /** What the installation has accepted (`{checks: "write", ...}`); empty when GitHub did not say. */
+  permissions: Readonly<Record<string, string>>;
+}
+
+/**
+ * Like `findInstallation`, plus the permissions the installation has accepted, so `mint` can ask for an optional
+ * permission (checks:write) only where the owner granted it. With `installation_id` in secrets this is one
+ * `GET /app/installations/{id}`; a failure there leaves `permissions` empty (the mint itself still decides).
+ */
+export async function lookupInstallation(f: FetchFn, headers: Record<string, string>, fromSecrets: string | undefined, owner: string, name: string, signal: AbortSignal): Promise<InstallationInfo> {
+  let body: unknown;
+  let id: number;
+  if (fromSecrets !== undefined && fromSecrets !== "") {
+    id = await findInstallation(f, headers, fromSecrets, owner, name, signal);
+    try {
+      const res = await mintRequest(f, `/app/installations/${id}`, { method: "GET", headers, signal });
+      body = res.ok ? await parseJson(res, "/app/installations/*").catch(() => undefined) : undefined;
+    } catch {
+      body = undefined;
+    }
+  } else {
+    const res = await mintRequest(f, `/repos/${owner}/${name}/installation`, { method: "GET", headers, signal });
+    if (res.status === 404) throw new AdapterError("credential_failed", `GitHub App is not installed on ${owner}/${name}`);
+    if (!res.ok) throw new AdapterError("credential_failed", `GitHub ${res.status} looking up the installation`, res.status >= 500, { status: res.status });
+    body = await parseJson(res, "/repos/*/installation").catch(() => undefined);
+    const found = getNumber(body, "id");
+    if (found === undefined) throw new AdapterError("credential_failed", "GitHub installation lookup returned no id");
+    id = found;
+  }
+  const permissions: Record<string, string> = {};
+  const p = asRecord(asRecord(body)?.permissions);
+  if (p) for (const [k, v] of Object.entries(p)) if (typeof v === "string") permissions[k] = v;
+  return { id, permissions };
+}
+
 export interface InstallationTokenRequest {
   headers: Record<string, string>;
   installationId: number;

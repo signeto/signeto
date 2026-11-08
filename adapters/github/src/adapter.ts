@@ -1,7 +1,7 @@
 // The github adapter: resolve → mint (GitHub App installation token) → execute. docs/adapters.md §3, §6; SPEC.md §6.1.
 import type { JsonValue } from "@signeto/protocol";
 import { AdapterError } from "@signeto/adapter-sdk";
-import type { Adapter, Credential, CredentialContext, ExecuteContext, FrozenAction, Logger, ResolveContext, ResolvedArgs, ToolResult } from "@signeto/adapter-sdk";
+import type { Adapter, ApprovalInfo, Credential, CredentialContext, ExecuteContext, FrozenAction, Logger, ResolveContext, ResolvedArgs, ToolResult } from "@signeto/adapter-sdk";
 import {
   GITHUB_API_BASE,
   GithubApiError,
@@ -18,7 +18,7 @@ import {
   type FetchFn,
   type GithubReadOnlyClient,
 } from "./client.js";
-import { IMPLICIT_PERMISSIONS, appHeaders, findInstallation, mintInstallationToken, revokeToken, type PermissionSet } from "./installation.js";
+import { IMPLICIT_PERMISSIONS, appHeaders, findInstallation, lookupInstallation, mintInstallationToken, revokeToken, type PermissionSet } from "./installation.js";
 import { MERGE_METHODS, OPTIONAL_SECRET_INSTALLATION_ID, REPO_PATTERN, SHA_PATTERN, manifest, type MergeMethod } from "./manifest.js";
 
 export type GithubToolName = "merge_pull_request" | "dispatch_workflow" | "read_pull_request";
@@ -34,6 +34,20 @@ export const MINT_PERMISSIONS: Readonly<Record<GithubToolName, PermissionSet>> =
   dispatch_workflow: { actions: "write", contents: "read" },
   read_pull_request: { pull_requests: "read" },
 };
+
+/**
+ * Added to the merge token when the installation has accepted it, so the merge can post a "Signeto" check run
+ * on the approved head commit. Optional: Apps created before the permission existed merge without the check.
+ */
+export const CHECK_RUN_PERMISSION: PermissionSet = Object.freeze({ checks: "write" });
+
+/** The check run's name: what a ruleset's required status check or a reviewer looks for. */
+export const CHECK_RUN_NAME = "Signeto";
+
+/** A minted credential plus the permissions it was granted, so `execute` knows whether it may post a check run. */
+export interface GithubCredential extends Credential {
+  permissions: PermissionSet;
+}
 
 export interface GithubAdapterOptions {
   /** Used by `mint` and `revoke` (CredentialContext carries no fetch). `execute` always uses the gateway's egress-restricted `ctx.fetch`. */
@@ -72,8 +86,8 @@ export function createGithubAdapter(opts: GithubAdapterOptions = {}): Adapter {
 
     async mint(ctx: CredentialContext, action: FrozenAction): Promise<Credential> {
       const tool = shortTool(action.tool);
-      const permissions = MINT_PERMISSIONS[tool as GithubToolName];
-      if (!permissions) throw new AdapterError("credential_failed", `unknown tool ${action.tool}`);
+      const basePermissions = MINT_PERMISSIONS[tool as GithubToolName];
+      if (!basePermissions) throw new AdapterError("credential_failed", `unknown tool ${action.tool}`);
       const repo = requireRepo(action.args.repo, "credential_failed");
       const [owner, name] = repo.split("/") as [string, string];
 
@@ -82,7 +96,14 @@ export function createGithubAdapter(opts: GithubAdapterOptions = {}): Adapter {
       if (!appId || !privateKey) throw new AdapterError("credential_failed", "secrets app_id and private_key are required");
       const headers = appHeaders(appId, privateKey, now());
       const signal = signalFor(ctx.deadline);
-      const installationId = await findInstallation(mintFetch, headers, ctx.secrets[OPTIONAL_SECRET_INSTALLATION_ID], owner, name, signal);
+      const installationSecret = ctx.secrets[OPTIONAL_SECRET_INSTALLATION_ID];
+      // Only the merge has an optional permission to ask about; other tools keep the single lookup.
+      const installation =
+        tool === "merge_pull_request"
+          ? await lookupInstallation(mintFetch, headers, installationSecret, owner, name, signal)
+          : { id: await findInstallation(mintFetch, headers, installationSecret, owner, name, signal), permissions: {} as Record<string, string> };
+      const installationId = installation.id;
+      const permissions: PermissionSet = installation.permissions["checks"] === "write" ? { ...basePermissions, ...CHECK_RUN_PERMISSION } : basePermissions;
       const { token, expiresAt } = await mintInstallationToken(mintFetch, { headers, installationId, repo, permissions, implicit: IMPLICIT_PERMISSIONS, signal, nowMs: now() });
 
       const permText = Object.entries(permissions)
@@ -90,12 +111,14 @@ export function createGithubAdapter(opts: GithubAdapterOptions = {}): Adapter {
         .sort()
         .join(" ");
       const logger = ctx.logger;
-      return {
+      const credential: GithubCredential = {
         material: token,
+        permissions,
         expiresAt,
         scope: `github installation token: repo=${repo} ${permText} installation=${installationId} expires=${expiresAt.toISOString()}`,
         revoke: () => revokeToken(mintFetch, token, logger),
       };
+      return credential;
     },
 
     async execute(ctx: ExecuteContext, action: FrozenAction, credential: Credential): Promise<ToolResult> {
@@ -106,7 +129,7 @@ export function createGithubAdapter(opts: GithubAdapterOptions = {}): Adapter {
       const call = (path: string, init: RequestInit) => executeRequest(ctx.fetch, path, { ...init, headers, signal });
       switch (shortTool(action.tool)) {
         case "merge_pull_request":
-          return executeMerge(call, action);
+          return executeMerge(call, action, ctx, (credential as Partial<GithubCredential>).permissions?.["checks"] === "write");
         case "dispatch_workflow":
           return executeDispatch(call, action, ctx.logger, now);
         case "read_pull_request":
@@ -235,11 +258,13 @@ async function executeRequest(f: FetchFn, path: string, init: RequestInit): Prom
   }
 }
 
-async function executeMerge(call: Call, action: FrozenAction): Promise<ToolResult> {
+async function executeMerge(call: Call, action: FrozenAction, ctx: ExecuteContext, canPostCheck: boolean): Promise<ToolResult> {
   const { repo, pr, head_sha, method, base } = action.args;
   if (typeof repo !== "string" || typeof pr !== "number" || typeof head_sha !== "string" || typeof method !== "string") {
     throw new AdapterError("upstream_rejected", "frozen action is missing merge arguments");
   }
+  // Before the merge, so the PR shows the approval as it is merged. Best effort: the approval is already in the ledger.
+  const checkRunId = canPostCheck && ctx.approval ? await postCheckRun(call, repo, head_sha, ctx.approval, ctx.logger) : undefined;
   // `sha` makes GitHub itself refuse the merge if the branch head moved after the approver signed.
   const res = await call(`/repos/${repo}/pulls/${pr}/merge`, { method: "PUT", body: JSON.stringify({ sha: head_sha, merge_method: method }) });
   if (res.status === 409) throw new AdapterError("precondition_failed", `head sha of PR #${pr} moved since approval`, false, { repo, pr, head_sha });
@@ -250,8 +275,74 @@ async function executeMerge(call: Call, action: FrozenAction): Promise<ToolResul
   if (asRecord(body)?.merged !== true || !mergeSha) throw new AdapterError("upstream_rejected", `GitHub did not confirm the merge of PR #${pr}`, false, { repo, pr });
   return {
     content: { merged: true, sha: mergeSha, message: getString(body, "message") ?? "" },
-    evidence: { merge_sha: mergeSha, repo, pr, head_sha, base: typeof base === "string" ? base : null, method },
+    evidence: {
+      merge_sha: mergeSha,
+      repo,
+      pr,
+      head_sha,
+      base: typeof base === "string" ? base : null,
+      method,
+      ...(checkRunId !== undefined ? { check_run_id: checkRunId } : {}),
+    },
   };
+}
+
+/** Escape text for GitHub markdown (approver and device names are chosen by people, not by us). */
+export function escapeMarkdown(s: string): string {
+  return s.replace(/[\\`*_{}[\]()#+\-.!|<>~&]/g, (c) => `\\${c}`).replace(/[\r\n]+/g, " ");
+}
+
+/** Title and summary of the "Signeto" check run for one approval. */
+export function checkRunOutput(approval: ApprovalInfo, headSha: string): { title: string; summary: string } {
+  const device = approval.device_name ? `${approval.device_name}` : approval.device_id;
+  const title = `Approved by ${approval.approver_id} on ${device}`.slice(0, 255);
+  const rows: [string, string][] = [
+    ["Approver", escapeMarkdown(approval.approver_id)],
+    ["Device", approval.device_name ? `${escapeMarkdown(approval.device_name)} (\`${approval.device_id}\`)` : `\`${approval.device_id}\``],
+    ["Signed at", escapeMarkdown(approval.signed_at)],
+    ["Approved commit", `\`${headSha}\``],
+    ...(approval.approvals > 1 ? ([["Approvals", String(approval.approvals)]] as [string, string][]) : []),
+    ["Action", `\`${approval.action_id}\``],
+    ["Receipt SHA-256", `\`${approval.receipt_sha256}\``],
+  ];
+  const summary = [
+    "This merge was approved on a paired device through [Signeto](https://signeto.dev). The approver signed this exact commit; GitHub refuses the merge if the branch moved.",
+    "",
+    "| | |",
+    "|---|---|",
+    ...rows.map(([k, v]) => `| ${k} | ${v} |`),
+    "",
+    `The signed receipt is in the gateway's hash-chained ledger: \`signeto ledger --action ${approval.action_id}\`.`,
+  ].join("\n");
+  return { title, summary };
+}
+
+/** `POST /repos/{repo}/check-runs`; returns the check run id, or null (logged) when GitHub refused or was unreachable. */
+async function postCheckRun(call: Call, repo: string, headSha: string, approval: ApprovalInfo, logger: Logger): Promise<number | null> {
+  try {
+    const res = await call(`/repos/${repo}/check-runs`, {
+      method: "POST",
+      body: JSON.stringify({
+        name: CHECK_RUN_NAME,
+        head_sha: headSha,
+        status: "completed",
+        conclusion: "success",
+        external_id: approval.action_id,
+        started_at: approval.signed_at,
+        completed_at: approval.signed_at,
+        output: checkRunOutput(approval, headSha),
+      }),
+    });
+    if (res.status !== 201) {
+      logger.warn("github: check run not created", { repo, status: res.status });
+      return null;
+    }
+    return getNumber(await parseJson(res, "check-runs").catch(() => undefined), "id") ?? null;
+  } catch (e) {
+    if (e instanceof AdapterError && e.code === "timeout") throw e;
+    logger.warn("github: check run not created", { repo, err: errorMessage(e) });
+    return null;
+  }
 }
 
 async function executeDispatch(call: Call, action: FrozenAction, logger: Logger, now: () => number): Promise<ToolResult> {

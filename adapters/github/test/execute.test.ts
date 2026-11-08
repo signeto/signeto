@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AdapterError } from "@signeto/adapter-sdk";
-import type { Credential } from "@signeto/adapter-sdk";
-import { createGithubAdapter, githubAdapter } from "../src/index.js";
+import type { ApprovalInfo, Credential } from "@signeto/adapter-sdk";
+import { CHECK_RUN_NAME, checkRunOutput, createGithubAdapter, escapeMarkdown, githubAdapter, type GithubCredential } from "../src/index.js";
 import { HEAD_SHA, MERGE_SHA, REF_SHA, executeCtx, frozen, mockFetch, pullRequest, recordingLogger, type Route } from "./helpers.js";
 
 const TOKEN = "ghs_mintedInstallationToken123";
@@ -30,6 +30,66 @@ describe("execute merge_pull_request", () => {
     expect(r.content).toEqual({ merged: true, sha: MERGE_SHA, message: "Pull Request successfully merged" });
     expect(r.evidence).toEqual({ merge_sha: MERGE_SHA, repo: "acme/api", pr: 42, head_sha: HEAD_SHA, base: "main", method: "squash" });
     expect(JSON.stringify(r)).not.toContain(TOKEN);
+  });
+
+  describe("Signeto check run", () => {
+    const approval: ApprovalInfo = {
+      action_id: "act_01M6X0RJX3ARAWA7Q0CE4EPD9W",
+      approver_id: "jason",
+      device_id: "dev_AXRbxuCypBsG",
+      device_name: "iPhone | <b>",
+      signed_at: "2026-11-08T07:26:11.877Z",
+      receipt_sha256: "3554f62e87bfc3a389b5484df3eac117de194f49201ec1c4b95c40ab41755b9a",
+      approvals: 1,
+    };
+    const withChecks: GithubCredential = { ...credential, permissions: { contents: "write", pull_requests: "write", checks: "write" } };
+    const checkOk: Route = { method: "POST", path: "/repos/acme/api/check-runs", status: 201, body: { id: 4242 } };
+
+    it("posts a completed success check on the approved head sha before merging, and records its id", async () => {
+      const m = mockFetch([checkOk, mergeOk]);
+      const r = await githubAdapter.execute({ ...executeCtx(m.fetch), approval }, mergeAction, withChecks);
+      expect(m.calls.map((c) => [c.method, c.path])).toEqual([
+        ["POST", "/repos/acme/api/check-runs"],
+        ["PUT", "/repos/acme/api/pulls/42/merge"],
+      ]);
+      expect(m.calls[0]!.headers.authorization).toBe(`Bearer ${TOKEN}`);
+      const body = m.calls[0]!.body as { name: string; head_sha: string; status: string; conclusion: string; external_id: string; output: { title: string; summary: string } };
+      expect(body).toMatchObject({ name: CHECK_RUN_NAME, head_sha: HEAD_SHA, status: "completed", conclusion: "success", external_id: approval.action_id, completed_at: approval.signed_at });
+      expect(body.output.title).toBe("Approved by jason on iPhone | <b>");
+      expect(body.output.summary).toContain("| Device | iPhone \\| \\<b\\> (`dev_AXRbxuCypBsG`) |");
+      expect(body.output.summary).toContain(`| Approved commit | \`${HEAD_SHA}\` |`);
+      expect(body.output.summary).toContain(`signeto ledger --action ${approval.action_id}`);
+      expect(body.output.summary).not.toContain("Approvals");
+      expect(r.evidence).toMatchObject({ merge_sha: MERGE_SHA, check_run_id: 4242 });
+    });
+
+    it("a refused or unreachable check run is a warning; the approved merge still happens", async () => {
+      for (const route of [{ ...checkOk, status: 403, body: { message: "Resource not accessible by integration" } }, { ...checkOk, throws: new TypeError("fetch failed") }]) {
+        const { logger, warnings } = recordingLogger();
+        const m = mockFetch([route, mergeOk]);
+        const r = await githubAdapter.execute({ ...executeCtx(m.fetch), logger, approval }, mergeAction, withChecks);
+        expect(r.evidence).toMatchObject({ merge_sha: MERGE_SHA, check_run_id: null });
+        expect(warnings.map((w) => w.msg)).toContain("github: check run not created");
+      }
+    });
+
+    it("no check run without checks:write on the token, or without an approval (tier 1)", async () => {
+      const a = mockFetch([checkOk, mergeOk]);
+      const r = await githubAdapter.execute({ ...executeCtx(a.fetch), approval }, mergeAction, credential);
+      expect(a.calls.map((c) => c.method)).toEqual(["PUT"]);
+      expect(r.evidence).not.toHaveProperty("check_run_id");
+      const b = mockFetch([checkOk, mergeOk]);
+      await githubAdapter.execute(executeCtx(b.fetch), mergeAction, withChecks);
+      expect(b.calls.map((c) => c.method)).toEqual(["PUT"]);
+    });
+
+    it("summary lists the approval count for a quorum and escapes markdown in names", () => {
+      const { summary, title } = checkRunOutput({ ...approval, approver_id: "*ops*", device_name: undefined, approvals: 2 } as ApprovalInfo, HEAD_SHA);
+      expect(title).toBe("Approved by *ops* on dev_AXRbxuCypBsG");
+      expect(summary).toContain("| Approver | \\*ops\\* |");
+      expect(summary).toContain("| Approvals | 2 |");
+      expect(escapeMarkdown("a\nb [x](y)")).toBe("a b \\[x\\]\\(y\\)");
+    });
   });
 
   it("uses the frozen args, never anything else", async () => {
