@@ -68,5 +68,17 @@
         ]
       }
     ]
+  },
+  {
+    "adapter": "signeto",
+    "templates": [
+      {
+        "template_id": "signeto.test",
+        "template_version": 1,
+        "text": "Test request from {gateway}, code {code}",
+        "sha256": "9bdbc8861b6c124e2bd38a60028218a23035987dcc99bd94e17e0f27a13752a3",
+        "note": "Nothing runs when you approve this. It checks that this phone receives, shows and signs requests."
+      }
+    ]
   }
 ]

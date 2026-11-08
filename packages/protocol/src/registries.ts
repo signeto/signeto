@@ -39,4 +39,18 @@ export const alpacaRegistry: TemplateRegistry = {
   ],
 };
 
-export const builtinRegistries: readonly TemplateRegistry[] = [githubRegistry, postgresRegistry, alpacaRegistry];
+/**
+ * `signeto test` (CLI): a harmless request that exercises push, the card, the device signature and receipt
+ * verification end to end. Nothing executes upstream. `code` is shown in the terminal too, so the approver can
+ * check that the card on the phone is the request they just started.
+ */
+export const signetoRegistry: TemplateRegistry = {
+  adapter: "signeto",
+  templates: [
+    t("signeto.test", 1, "Test request from {gateway}, code {code}", undefined, {
+      note: "Nothing runs when you approve this. It checks that this phone receives, shows and signs requests.",
+    }),
+  ],
+};
+
+export const builtinRegistries: readonly TemplateRegistry[] = [githubRegistry, postgresRegistry, alpacaRegistry, signetoRegistry];
