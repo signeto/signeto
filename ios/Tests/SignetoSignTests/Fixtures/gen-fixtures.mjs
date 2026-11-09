@@ -126,7 +126,14 @@ const code_hash = P.sha256hex(P.utf8.encode(code));
 const qr = { v: 1, gateway_public_key: pub(gwKey), gateway_name: "home-01", relay: "https://api.signeto.dev", code, expires_at: "2026-11-07T12:10:00.000Z" };
 const manual = P.base64url.encode(P.utf8.encode(P.canonicalize(qr)));
 const proofInput = (device_id, device_public_key) => P.canonicalize({ device_id, device_public_key, gateway_id });
-const proof = (device_id, device_public_key) => P.base64url.encode(new Uint8Array(createHmac("sha256", Buffer.from(code, "utf8")).update(Buffer.from(proofInput(device_id, device_public_key), "utf8")).digest()));
+const hmacCode = (input) => P.base64url.encode(new Uint8Array(createHmac("sha256", Buffer.from(code, "utf8")).update(Buffer.from(input, "utf8")).digest()));
+const proof = (device_id, device_public_key) => hmacCode(proofInput(device_id, device_public_key));
+// §5.3 proof v2 (device.proof_v2): also covers name, platform and SHA-256(JCS{data, format}) of the attestation.
+const attestationSha256 = (a) => (a ? P.sha256hex(P.utf8.encode(P.canonicalize({ data: a.data, format: a.format }))) : null);
+const proofV2Input = (device_id, device_public_key, name, platform, attestation) =>
+  P.canonicalize({ attestation_sha256: attestationSha256(attestation), device_id, device_public_key, gateway_id, name, platform, proof_version: 2 });
+const proofV2 = (...a) => hmacCode(proofV2Input(...a));
+const attestationSample = { format: "apple-appattest", data: "o2NmbXRvYXBwbGUtYXBwYXR0ZXN0" };
 // §5.3 point 7: the gateway's local approver name for the device, inside the signed input. Deliberately not the
 // relay account's approver id ("jaseinsa" below plays a relay substituting it).
 const approver_id = "jason";
@@ -162,6 +169,16 @@ write("pairing.json", {
   proof_signing_input: proofInput(devEsId, pub(devEs)),
   proof: proof(devEsId, pub(devEs)),
   substituted_key_proof: proof(otherDevId, pub(devEd)),
+  proof_v2: {
+    description: "proof v2 for the claim the Swift test builds (name iPhone, platform ios, no attestation), one with an attestation, and the same proof under a relay-rewritten name",
+    signing_input: proofV2Input(devEsId, pub(devEs), "iPhone", "ios", null),
+    proof: proofV2(devEsId, pub(devEs), "iPhone", "ios", null),
+    attestation: attestationSample,
+    attestation_sha256: attestationSha256(attestationSample),
+    signing_input_attested: proofV2Input(devEsId, pub(devEs), "iPhone", "ios", attestationSample),
+    proof_attested: proofV2(devEsId, pub(devEs), "iPhone", "ios", attestationSample),
+    renamed_proof: proofV2(devEsId, pub(devEs), "trusted-yubikey", "ios", null),
+  },
   confirmation_signing_input_no_pins: confInput(devEsId, paired_at, []),
   confirmation_signing_input_pins: confInput(devEsId, paired_at, pins),
   pins,

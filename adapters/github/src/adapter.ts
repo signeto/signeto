@@ -261,11 +261,19 @@ async function executeRequest(f: FetchFn, path: string, init: RequestInit): Prom
 
 async function executeMerge(call: Call, action: FrozenAction, ctx: ExecuteContext, canPostCheck: boolean): Promise<ToolResult> {
   const { repo, pr, head_sha, method, base } = action.args;
-  if (typeof repo !== "string" || typeof pr !== "number" || typeof head_sha !== "string" || typeof method !== "string") {
+  if (typeof repo !== "string" || typeof pr !== "number" || typeof head_sha !== "string" || typeof method !== "string" || typeof base !== "string") {
     throw new AdapterError("upstream_rejected", "frozen action is missing merge arguments");
   }
+  const signed: SignedMerge = { repo, pr, base, head_sha };
+  // GitHub's merge endpoint pins only the head (`sha`), not the base branch or repository. Re-read the PR and refuse
+  // unless it still targets the signed base in the signed repository (threat-model 4.7): a PR retargeted from `dev`
+  // to `main` after approval must not merge into `main`. Done before the check run, so a refused merge leaves no
+  // "approved" check on the head commit.
+  await confirmPullRequest(call, signed);
   // Before the merge, so the PR shows the approval as it is merged. Best effort: the approval is already in the ledger.
   const checkRunId = canPostCheck && ctx.approval ? await postCheckRun(call, repo, head_sha, ctx.approval, ctx.logger) : undefined;
+  // The check run took a round trip: read the PR again so the last read is immediately before the PUT.
+  if (checkRunId !== undefined) await confirmPullRequest(call, signed);
   // `sha` makes GitHub itself refuse the merge if the branch head moved after the approver signed.
   const res = await call(`/repos/${repo}/pulls/${pr}/merge`, { method: "PUT", body: JSON.stringify({ sha: head_sha, merge_method: method }) });
   if (res.status === 409) throw new AdapterError("precondition_failed", `head sha of PR #${pr} moved since approval`, false, { repo, pr, head_sha });
@@ -297,6 +305,31 @@ async function executeMerge(call: Call, action: FrozenAction, ctx: ExecuteContex
       ...(mergeCheckRunId !== undefined ? { merge_check_run_id: mergeCheckRunId } : {}),
     },
   };
+}
+
+interface SignedMerge {
+  repo: string;
+  pr: number;
+  base: string;
+  head_sha: string;
+}
+
+/**
+ * `GET /repos/{repo}/pulls/{pr}` and throw `precondition_failed` unless `base.ref`, `base.repo.full_name` and
+ * `head.sha` are the signed values. What remains is the gap between this read and the PUT (one request): GitHub's
+ * merge endpoint accepts no base precondition, so a retarget inside that gap is not detectable.
+ */
+async function confirmPullRequest(call: Call, s: SignedMerge): Promise<void> {
+  const res = await call(`/repos/${s.repo}/pulls/${s.pr}`, { method: "GET" });
+  if (!res.ok) throw new AdapterError("upstream_rejected", `GitHub ${res.status} re-reading PR #${s.pr} before merging`, res.status >= 500, { repo: s.repo, pr: s.pr, status: res.status });
+  const body = asRecord(await parseJson(res, "pulls").catch(() => undefined));
+  const currentBase = getString(asRecord(body?.base), "ref") ?? null;
+  const currentRepo = getString(asRecord(asRecord(body?.base)?.repo), "full_name")?.toLowerCase() ?? null;
+  const currentHead = getString(asRecord(body?.head), "sha") ?? null;
+  const detail = { repo: s.repo, pr: s.pr, base: s.base, head_sha: s.head_sha, current_base: currentBase, current_repo: currentRepo, current_head_sha: currentHead };
+  if (currentRepo !== s.repo) throw new AdapterError("precondition_failed", `PR #${s.pr} no longer belongs to ${s.repo}`, false, detail);
+  if (currentBase !== s.base) throw new AdapterError("precondition_failed", `PR #${s.pr} now targets ${currentBase ?? "an unknown base"}, not the approved ${s.base}`, false, detail);
+  if (currentHead !== s.head_sha) throw new AdapterError("precondition_failed", `head sha of PR #${s.pr} moved since approval`, false, detail);
 }
 
 /** Time allowed for the check run on the merge commit, and the margin it leaves before the action deadline. */
@@ -378,11 +411,13 @@ async function executeDispatch(call: Call, action: FrozenAction, logger: Logger,
   if (typeof repo !== "string" || typeof workflow !== "string" || typeof ref !== "string" || typeof ref_sha !== "string") {
     throw new AdapterError("upstream_rejected", "frozen action is missing dispatch arguments");
   }
-  // workflow_dispatch has no sha parameter, so confirm the ref still points at the signed commit before mutating anything.
-  const head = await call(`/repos/${repo}/commits/${encodeURIComponent(ref)}`, { method: "GET" });
-  if (!head.ok) throw new AdapterError("upstream_rejected", `GitHub ${head.status} checking ${ref} on ${repo}`, head.status >= 500, { repo, ref, status: head.status });
-  const currentSha = getString(await parseJson(head, "commits").catch(() => undefined), "sha");
-  if (currentSha !== ref_sha) throw new AdapterError("precondition_failed", `${ref} on ${repo} moved since approval`, false, { repo, ref, ref_sha, current_sha: currentSha ?? null });
+  // workflow_dispatch takes a branch or tag name, never a sha, so GitHub cannot enforce the signed commit. Narrow the
+  // race as far as the API allows: (1) the ref check is the last request before the dispatch; (2) the ref is read
+  // again right after it, and if it moved in between, every run of this workflow dispatched on that ref since then
+  // that is not on the signed commit is cancelled and the action fails. What remains (README "Races"): the seconds
+  // before a cancel lands, and a ref moved away and back between the two reads.
+  const before = await readRef(call, repo, ref);
+  if (before !== ref_sha) throw new AdapterError("precondition_failed", `${ref} on ${repo} moved since approval`, false, { repo, ref, ref_sha, current_sha: before ?? null });
 
   const dispatchedAt = now();
   const res = await call(`/repos/${repo}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`, {
@@ -390,6 +425,15 @@ async function executeDispatch(call: Call, action: FrozenAction, logger: Logger,
     body: JSON.stringify({ ref, inputs: asRecord(inputs) ?? {} }),
   });
   if (res.status !== 204) throw new AdapterError("upstream_rejected", `GitHub ${res.status} dispatching ${workflow}`, res.status >= 500, { repo, workflow, ref, status: res.status });
+
+  let after: string | undefined;
+  try {
+    after = await readRef(call, repo, ref);
+  } catch (e) {
+    // Unknown, not moved: the pre-dispatch check stands.
+    logger.warn("github: ref re-read after dispatch failed", { repo, ref, err: errorMessage(e) });
+  }
+  if (after !== undefined && after !== ref_sha) return refMovedDuringDispatch(call, { repo, workflow, ref, ref_sha, current_sha: after }, dispatchedAt, logger);
 
   // Best-effort evidence: one GET for the run this dispatch created. Failure here never turns the dispatch into a failure.
   let run: { id: number; url: string | null } | undefined;
@@ -401,7 +445,7 @@ async function executeDispatch(call: Call, action: FrozenAction, logger: Logger,
       const first = Array.isArray(list) ? list[0] : undefined;
       const id = getNumber(first, "id");
       const created = getString(first, "created_at");
-      if (id !== undefined && created && Date.parse(created) >= dispatchedAt - 30_000) run = { id, url: getString(first, "html_url") ?? null };
+      if (id !== undefined && created && Date.parse(created) >= dispatchedAt - RUN_ATTRIBUTION_MS) run = { id, url: getString(first, "html_url") ?? null };
     }
   } catch (e) {
     logger.warn("github: run lookup after dispatch failed", { err: errorMessage(e) });
@@ -410,6 +454,73 @@ async function executeDispatch(call: Call, action: FrozenAction, logger: Logger,
     content: { dispatched: true, ...(run ? { run_id: run.id, run_url: run.url } : {}) },
     evidence: { dispatched: true, status: 204, repo, workflow, ref, ref_sha, run_id: run?.id ?? null, run_url: run?.url ?? null },
   };
+}
+
+/** How far before the dispatch (clock skew with GitHub) a run's `created_at` may be and still be attributed to it. */
+const RUN_ATTRIBUTION_MS = 30_000;
+
+/** `GET /repos/{repo}/commits/{ref}`: the sha the ref points at now (undefined if GitHub returned none). */
+async function readRef(call: Call, repo: string, ref: string): Promise<string | undefined> {
+  const head = await call(`/repos/${repo}/commits/${encodeURIComponent(ref)}`, { method: "GET" });
+  if (!head.ok) throw new AdapterError("upstream_rejected", `GitHub ${head.status} checking ${ref} on ${repo}`, head.status >= 500, { repo, ref, status: head.status });
+  return getString(await parseJson(head, "commits").catch(() => undefined), "sha");
+}
+
+/**
+ * The ref moved between the check before the dispatch and the read after it, so GitHub may have run the workflow on
+ * an unapproved commit. Cancel every workflow_dispatch run of this workflow on `ref` created since the dispatch whose
+ * head is not the signed sha (one may be someone else's concurrent dispatch on the new commit; cancelling it is the
+ * safe side). Succeeds only when a run on the signed sha was found and no other; otherwise `precondition_failed`.
+ */
+async function refMovedDuringDispatch(
+  call: Call,
+  d: { repo: string; workflow: string; ref: string; ref_sha: string; current_sha: string },
+  dispatchedAt: number,
+  logger: Logger,
+): Promise<ToolResult> {
+  const { repo, workflow, ref, ref_sha } = d;
+  const onSigned: Array<{ id: number; url: string | null }> = [];
+  const cancelled: number[] = [];
+  const notCancelled: number[] = [];
+  let listed = false;
+  try {
+    const q = `event=workflow_dispatch&branch=${encodeURIComponent(ref)}&per_page=20`;
+    const runs = await call(`/repos/${repo}/actions/workflows/${encodeURIComponent(workflow)}/runs?${q}`, { method: "GET" });
+    const list = runs.ok ? asRecord(await parseJson(runs, "runs"))?.workflow_runs : undefined;
+    listed = Array.isArray(list);
+    for (const r of Array.isArray(list) ? (list as unknown[]) : []) {
+      const id = getNumber(r, "id");
+      const created = getString(r, "created_at");
+      if (id === undefined || !created || Date.parse(created) < dispatchedAt - RUN_ATTRIBUTION_MS) continue;
+      if (getString(r, "head_sha") === ref_sha) {
+        onSigned.push({ id, url: getString(r, "html_url") ?? null });
+        continue;
+      }
+      const c = await call(`/repos/${repo}/actions/runs/${id}/cancel`, { method: "POST" }).catch(() => undefined);
+      (c?.status === 202 ? cancelled : notCancelled).push(id);
+    }
+  } catch (e) {
+    logger.warn("github: run lookup after a moved ref failed", { repo, ref, err: errorMessage(e) });
+  }
+  const run = onSigned[0];
+  if (listed && run && cancelled.length === 0 && notCancelled.length === 0) {
+    logger.warn("github: ref moved right after dispatch; the run is on the approved commit", { repo, ref, run_id: run.id });
+    return {
+      content: { dispatched: true, run_id: run.id, run_url: run.url },
+      evidence: { dispatched: true, status: 204, repo, workflow, ref, ref_sha, run_id: run.id, run_url: run.url, ref_moved_to: d.current_sha },
+    };
+  }
+  const detail = { ...d, cancelled_run_ids: cancelled, uncancelled_run_ids: notCancelled, runs_listed: listed };
+  logger.warn("github: ref moved during dispatch", detail);
+  throw new AdapterError(
+    "precondition_failed",
+    `${ref} on ${repo} moved while ${workflow} was dispatched; the run may not be on the approved commit` +
+      (cancelled.length ? ` (cancelled run ${cancelled.join(", ")})` : "") +
+      (notCancelled.length ? ` (could not cancel run ${notCancelled.join(", ")}: cancel it in Actions)` : "") +
+      (listed ? "" : " (runs could not be listed: check Actions)"),
+    false,
+    detail,
+  );
 }
 
 async function executeRead(call: Call, action: FrozenAction): Promise<ToolResult> {

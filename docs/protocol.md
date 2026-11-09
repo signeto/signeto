@@ -59,7 +59,7 @@ The canonical action is the only thing an approver ever signs and the only thing
 | `template_id` | string | MUST | Display template identifier (§3). By convention equal to `tool`. |
 | `template_version` | integer | MUST | Positive integer. Template registry version used to render this action. |
 | `args_resolved` | object | MUST | Arguments after gateway resolution: IDs looked up, amounts normalized, paths absolute. Values MUST be JSON primitives, arrays, or objects. No floats where an exact decimal is meaningful; amounts MUST be strings or integer minor units as the adapter manifest declares. |
-| `requester` | object | MUST | `{agent, session_id, host, gateway_id}`, all strings, all REQUIRED. `agent` is the client name as reported by MCP initialization or the hook environment. `gateway_id` is defined in §5.1. |
+| `requester` | object | MUST | `{agent, session_id, host, gateway_id}`, all strings, all REQUIRED. `agent` is the client name as reported by MCP initialization or the hook environment: chosen by the agent, so a gateway MUST NOT sign an `agent` that is empty, longer than 128 UTF-16 code units or contains a code point in the §3.6 escape set; it replaces each such code point with its §3.6 escape, trims, cuts to 128 code units and uses `unknown-agent` when nothing is left (`printableAgentName` in `@signeto/protocol`; `buildCanonicalAction` refuses anything else). Receivers do not enforce this, so bytes signed before the rule still parse; surfaces escape `agent` like every other string. `gateway_id` is defined in §5.1. |
 | `nonce` | string | MUST | 16 random bytes from a CSPRNG, base64url without padding (22 characters). Single use per gateway. |
 | `idempotency_key` | string | MUST | Lowercase hex SHA-256, see §2.4. |
 | `issued_at` | string | MUST | RFC 3339 UTC timestamp, §2.5. |
@@ -269,8 +269,8 @@ A JCS object starts with `{"`, which is never valid template text (§3.2), so th
 - A placeholder MAY name a formatter: `{path:name}`, `name` matching `[a-z]+`. Only two exist, each allowed in one place: `short` in `note`, and `path` in a link URL (§3.5). `text` allows none. Any other formatter, or one used elsewhere, makes the template malformed (`malformed_template`).
 - `{path:short}` renders the first 7 Unicode code points of a string value (all of it if shorter). A value that is not a string does not resolve (`unresolved_placeholder`). It exists so that a note can name a commit the way people say it; the sentence always shows whole values.
 - No conditionals, loops, filters, or other formatting directives. Formatting is the adapter's job at resolution time (for example, `args_resolved.notional_usd = "512.00"`).
-- Value rendering: strings verbatim; numbers, booleans, `null`, arrays, and objects as their JCS JSON text.
-- The rendered line is the template text with placeholders replaced. Renderers MUST NOT trim, wrap, truncate, or reorder. Line wrapping for display is a presentation concern and MUST be applied after rendering, on a copy.
+- Value rendering: strings as they are; numbers, booleans, `null`, arrays, and objects as their JCS JSON text.
+- The rendered line is the template text with placeholders replaced, then the §3.6 display escapes applied to the whole line (and to the note). Renderers MUST NOT trim, wrap, truncate, or reorder. Line wrapping for display is a presentation concern and MUST be applied after rendering, on a copy.
 - `note` is an optional second line, shown under the sentence. It is rendered like `text`, plus `:short`, and fails like it: a malformed note or a note placeholder that does not resolve makes the request unverified (§3.4). A note is the adapter's statement about the action and MUST be true of how the adapter executes it. `github.merge_pull_request` v2 says "If the PR changes, this approval will not merge it" because the adapter merges with `sha: head_sha` and GitHub refuses the merge when the head has moved.
 - Only placeholders in `text` count as mentioning an argument for the unreferenced-key rule (§3.4). An argument that appears only in the note or a link is still unreferenced, so the sentence alone tells the user everything.
 
@@ -285,14 +285,16 @@ A JCS object starts with `{"`, which is never valid template text (§3.2), so th
 
 ### 3.4 Unknown or failing templates
 
-If the template is not in the device's registry, the version is unknown, the template does not hash to its `sha256` (§3.1), its text or note is malformed, a placeholder path in the text or note does not resolve, or `args_resolved` contains keys that no `text` placeholder references, the device MUST:
+If the template is not in the device's registry, the version is unknown, the template does not hash to its `sha256` (§3.1), its text or note is malformed, a placeholder path in the text or note does not resolve, or `args_resolved` contains an argument that no `text` placeholder references, the device MUST:
 
 - Show the raw canonical bytes as the primary content.
 - Mark the request "unverified template" with a visible warning.
 - Still allow approve and deny. The signature covers the bytes, not the rendering, so an unverified template does not weaken the receipt; it only weakens the human's understanding.
 - Show no note and no review links: they come only from a verified template.
 
-The "unreferenced key" rule exists so that an adapter cannot hide a material argument behind a template that does not mention it. Adapters whose templates intentionally omit arguments MUST list those keys in the template's `elide` array; the device then shows an "N hidden fields" disclosure instead of the warning.
+The "unreferenced key" rule exists so that an adapter cannot hide a material argument behind a template that does not mention it. It applies to every leaf of `args_resolved`, not only to top-level keys: a leaf is a scalar, or an empty object or array, at a dotted path (`order.limit_price`, `files.1`). A `text` placeholder covers its own path and everything beneath it (`{order}` renders the whole object as JCS and covers `order.limit_price`; `{order.qty}` covers only `order.qty`). Members are walked in ECMAScript key order and array elements by index; the first uncovered leaf is reported as `unreferenced_key` with its dotted path as the detail. Adapters whose templates intentionally omit arguments MUST list those top-level keys in the template's `elide` array (an elided key hides everything beneath it); the device then shows an "N hidden fields" disclosure instead of the warning. `elide` is for descriptive text, never for an argument that changes what the action does (SIG-92 N9: `alpaca.place_order` v2 and `github.dispatch_workflow` v3 replaced templates that elided `limit_price`, `time_in_force` and `inputs`). A device built before the nested rule applies only the top-level check; templates bundled since then pass both.
+
+A changed template is a new `template_version` (§3.1), and the old version stays in the bundled registry for gateways that still send it. A device that does not know a version renders the request "unverified template" with the raw bytes (above), still approvable: that is what an approver built before a bump (for example iOS build 7 with `alpaca.place_order` v2 or `github.dispatch_workflow` v3) shows until it is updated. A gateway pins at pairing only templates that are not bundled (§5.4), so re-pairing does not help a device whose bundled registry predates a bundled template.
 
 Invalid review links are not in this list: they never make a card unverified (§3.5).
 
@@ -335,6 +337,28 @@ Then concatenate the literals and the encoded values. If the result is longer th
 - No URL is supplied at request time. The host and the shape of each URL are in the hashed template; the values come from the verified canonical bytes. A relay or gateway cannot add, change or drop a link of a bundled or pinned template without the hash failing.
 - The literal-host rule and the encoding mean a signed value cannot change the scheme, host, userinfo or port, start a query or fragment, or add a dot segment. A value with `/`, `?`, `#`, `@`, `%2F`, `..`, spaces or non-ASCII stays data inside its segment.
 - Residual: an allowlisted host serves whatever lives at the path the values select. A link to a pull request in a repository the agent controls shows the agent's content. It shows the same thing the signed bytes name, which is what the user is approving.
+
+### 3.6 Display escaping
+
+Every string an approver surface shows that comes from canonical bytes, a relay, a gateway or a pairing (the template line and note, argument keys and values, `requester` members, gateway, device and approver names, identifiers and error text from a relay, and the raw or pretty-printed canonical bytes) MUST be shown with this escape. It is display only: bytes that are hashed, signed, compared or copied are never escaped.
+
+The escaped set is:
+
+| Code points | What they are |
+|---|---|
+| U+0000–U+001F | C0 controls, including TAB, LF and CR |
+| U+007F | DEL |
+| U+0080–U+009F | C1 controls (U+009B is a one-byte CSI) |
+| U+061C | ARABIC LETTER MARK |
+| U+200B–U+200F | zero width space, non-joiner, joiner; LEFT-TO-RIGHT and RIGHT-TO-LEFT MARK |
+| U+2028–U+202E | LINE and PARAGRAPH SEPARATOR; bidi embeddings, pop and overrides (LRE, RLE, PDF, LRO, RLO) |
+| U+2060–U+2069 | WORD JOINER, invisible operators, bidi isolates (LRI, RLI, FSI, PDI) |
+| U+FEFF | ZERO WIDTH NO-BREAK SPACE (BOM) |
+| U+D800–U+DFFF | lone surrogates (only a UTF-16 string can hold one) |
+
+Each code point in the set is replaced by `\n` (U+000A), `\r` (U+000D), `\t` (U+0009), or otherwise `\u{` + the code point in uppercase hex, at least two digits + `}`: `\u{1B}`, `\u{85}`, `\u{202E}`, `\u{FEFF}`. Nothing else changes; in particular a backslash stays a backslash, so the escape is not injective (a value containing the six characters `\u{1B}` looks like one containing ESC) and the raw bytes view remains the reference. Line breaks inside a value therefore show as `\n` on one line; a surface MAY wrap long lines for display (§3.2).
+
+The output contains no character that moves a terminal cursor, starts a new line, reorders text or is invisible, so one value cannot overwrite, hide or visually reorder the sentence or another value. `renderTemplate` applies it to the line and the note, so their output stays byte-identical across surfaces (§3.3 rule 3). `@signeto/protocol` exports `displayEscape` and `displayValue` (§3.2 rendering, then this escape); SignetoSign has `Display.escape` and `Display.value`; `vectors/display-escape/` fixes the output. Other display hazards (look-alike characters, mixed scripts) are out of scope: the raw bytes view and the review links (§3.5) are the check for those.
 
 ---
 
@@ -510,6 +534,7 @@ Pairing establishes mutual key pinning between one gateway and one approver devi
 - **Gateway key.** Generated at `signeto init`. Ed25519 RECOMMENDED; ES256 permitted. Stored under the same protection as credentials (SPEC §9). Used to authenticate to the relay (§7.1), to sign pairing confirmations, to sign every approval request (`gateway_signature`, §7.5), and to sign chain heads (§7.10). Never used to sign receipts.
 - **Device key.** Generated in secure hardware where available (Secure Enclave, WebAuthn authenticator, StrongBox). ES256 for hardware keys; Ed25519 permitted for software keys, which MUST be labelled `software: true` at enrollment and shown as such in policy lint output and ledger entries.
 - **Public key encoding.** JWK (RFC 7517). ES256: `{"kty":"EC","crv":"P-256","x":...,"y":...}`. Ed25519: `{"kty":"OKP","crv":"Ed25519","x":...}`.
+- **Small-order Ed25519 keys are refused.** An Ed25519 public key that is a point of small order (the identity, say) makes a signature with R = identity and S = 0 valid for every message under the usual cofactorless verification. Every party MUST refuse such a key wherever it takes one: the gateway at pairing (`key_invalid`), the relay at device enrollment, gateway registration and pairing claims (`422 key_invalid`), and a device at QR parse (`qr_malformed`); and verification under such a key MUST fail. The test is libsodium's: the 32-byte encoding, with the sign bit (bit 255) ignored, is one of the seven y coordinates of the 8-torsion points including the non-canonical `p` and `p + 1` (`isSmallOrderEd25519` / `isWeakPublicJwk` in `@signeto/protocol`, `Ed25519Keys.isSmallOrder` in SignetoSign, `vectors/weak-keys/`). Keys of mixed order (a prime-order point plus a torsion component) are not detected by this list; they do not make a signature verify for every message.
 - **Identifiers.** `gateway_id = "gw_" + base64url(RFC 7638 JWK thumbprint, SHA-256)`; `device_id = "dev_" + base64url(thumbprint)`. 43 characters after the prefix. Identifiers are therefore derived from keys and cannot be chosen by the relay.
 - **Fingerprint for humans.** The first 16 hex characters of the thumbprint, grouped in fours: `3fa9 1c02 b77e d410`. Both sides display the other's fingerprint at the end of pairing.
 
@@ -544,10 +569,12 @@ sequenceDiagram
     G->>R: POST /v1/pairings {pairing_id, code_hash, expires_at}  [gateway-signed]
     G-->>D: QR: gateway_public_key, relay, code, expires_at  (out of band)
     D->>D: verify QR expires_at; compute gateway_id from key
-    D->>D: proof = HMAC-SHA256(key=code, msg=JCS{gateway_id, device_id, device_public_key})
-    D->>R: POST /v1/pairings/{pairing_id}/claim {device_public_key, attestation, proof}  [device-signed]
-    R->>G: event pairing.claimed {pairing_id, device_public_key, attestation, proof}
-    G->>G: recompute proof with own code; verify; verify attestation; pin device key
+    D->>D: proof = HMAC-SHA256(key=code, msg=JCS{gateway_id, device_id, device_public_key})  (v1)
+    D->>D: proof_v2 = HMAC-SHA256(key=code, msg=JCS{v1 members, name, platform, attestation_sha256, proof_version: 2})
+    D->>R: POST /v1/pairings/{pairing_id}/claim {device: {public_key, name, platform, attestation, proof_v2}, proof}  [device-signed]
+    R->>G: event pairing.claimed {pairing_id, device, proof}
+    G->>G: recompute proofs with own code; verify; verify attestation
+    G->>G: show device fingerprint and metadata; v1-only claim: operator confirms; pin device key
     G->>G: confirmation = Sign_gw(JCS{approver_id, device_id, gateway_id, paired_at, pairing_id, templates_pinned})
     G->>R: POST /v1/pairings/{pairing_id}/confirm {confirmation, paired_at, approver_id, templates_pinned}
     R->>D: push {pairing_id}; D fetches GET /v1/pairings/{pairing_id}
@@ -558,13 +585,18 @@ sequenceDiagram
 Normative points:
 
 1. The device MUST take the gateway public key from the QR, never from the relay. The relay's copy of the key is informational.
-2. The device MUST compute `proof` over its own `device_id` and the QR's `gateway_id`. The gateway MUST recompute the proof from the device key it received and its own code. A relay that substitutes a device key cannot produce a matching proof because it holds only `SHA-256(code)`.
+2. The device MUST compute `proof` over its own `device_id` and the QR's `gateway_id`. The gateway MUST recompute the proof from the device key it received and its own code. A relay that substitutes a device key cannot produce a matching proof because it holds only `SHA-256(code)`. Proof v1 covers only the key; point 8 adds proof v2 for the device's metadata.
 3. The gateway MUST verify the attestation where the platform provides one (App Attest, WebAuthn attestation, Android Key Attestation) and MUST record `software: true` when none is provided or the policy permits software keys.
    **App Attest** (`format: "apple-appattest"`, `data` = base64url of the attestation object). The device attests a fresh App Attest key with `clientDataHash` = the 32-byte RFC 7638 thumbprint of its device key, so the statement binds that device key. A verifier MUST check, per Apple's attestation rules: the `x5c` chain ends at the pinned Apple App Attestation Root CA; the credential certificate's extension `1.2.840.113635.100.8.2` holds SHA-256(`authData` ‖ `clientDataHash`); SHA-256 of the credential public key (uncompressed point) equals the `authData` credential id; `rpIdHash` = SHA-256(`"<TEAM ID>.<bundle id>"`) of an accepted app; sign count 0; `aaguid` is `appattestdevelop` (development) or `appattest` + seven zero bytes (production). TestFlight, App Store and ad hoc builds always attest in production, whatever the app's `appattest-environment` entitlement says; only development-signed builds attest in development, and such a build can run any code the team signs. A verifier MAY therefore decline development statements. The reference gateway counts only production statements for the Signeto app (`3PL7Z4G933.dev.signeto.approver`) as attestation: a development statement that passes every other check is genuine but does not vouch for the released app, so the device is paired as a software key (`attested: false`, `software: true`) rather than refused, which keeps a phone enrolled by a development build able to pair after it updates to a release build. `SIGNETO_APPATTEST_ALLOW_DEVELOPMENT=1` in the gateway's environment counts development statements too, for local development only. The relay checks certificate validity at enrollment time. The gateway checks it as of the credential certificate's issuance, because the device sends the statement it made at enrollment. A statement that fails any check is refused (`attestation_invalid`), never downgraded to a software key; a declined development statement is not a failed check. Formats a verifier cannot check are recorded `software: true`. Reference implementation: `@signeto/protocol/appattest`.
 4. The device MUST verify `confirmation` with the QR's key before pinning. A confirmation that fails verification MUST abort pairing on the device side, and the device SHOULD tell the user the relay or network may be hostile.
 5. The gateway MUST reject a claim after `expires_at` or a second claim for the same `pairing_id`.
 6. The pairing record on both sides stores: the peer's public key, the peer's identifier, `paired_at`, the approver the gateway pinned the device under (`approver_id`), `attestation` (gateway side), and `software` flag.
 7. Approver names are local to each gateway: they are the keys of its `signeto.yml` `approvers:` and need not equal the relay account's approver id (§7.4). The gateway names the approver it pinned the device under in the confirmation's `approver_id`, which is part of the signed input (§5.4). The device MUST take `approver_id` only from a confirmation that verifies, MUST store it with the gateway's record, and MUST put it in the `approver_id` of every receipt it signs for that gateway (§4.1), whatever name the relay knows it by. A confirmation without `approver_id`, or whose `approver_id` is not a string of 1 to 64 characters without control characters, is invalid (`pairing_confirmation_invalid`). A device holding a pin with no stored `approver_id` MUST NOT sign receipts for that gateway and SHOULD ask the user to pair it again.
+8. **Proof v2 (device metadata).** `proof` (v1) does not cover `device.name`, `device.platform` or `device.attestation`, which the gateway records, shows and uses (the name goes into `signeto.yml` `approvers.<name>.devices`). A device SHOULD also send `device.proof_v2` = base64url(HMAC-SHA256(key = code, msg = the UTF-8 JCS of `{attestation_sha256, device_id, device_public_key, gateway_id, name, platform, proof_version: 2}`)), with `name` and `platform` exactly as in `device` and `attestation_sha256` the lowercase hex SHA-256 of the JCS of `{data, format}` of `device.attestation`; any of the three is `null` when the claim has none. `proof_version` is a member, so a v2 input never equals a v1 input. v1 stays in `proof`, so a gateway that predates v2 still verifies the claim and ignores `proof_v2`.
+   - **v2 (current devices: iOS build 8 and later, `signeto device pair`, the web approver).** A gateway that knows v2 MUST verify both proofs when `proof_v2` is present and refuse the claim (`proof_invalid`) when either fails: a relay that renames the device, changes its platform, or strips, adds or swaps its attestation breaks v2. The metadata is then as trusted as the key.
+   - **v1 (legacy: iOS build 7 and earlier).** A claim without `proof_v2` is still accepted, but its metadata is unverified: a relay could have changed all three (and could strip `proof_v2` from a current claim to get here). The gateway MUST NOT pin such a claim silently. The reference CLI (`signeto pair --relay`) shows the device fingerprint, name, platform, attestation status and that the proof is v1, and pins only after the operator answers `y` at a terminal; without a terminal (`--json`, stdin not a TTY) it refuses (`pairing_declined`, the pairing is rejected at the relay, nothing is pinned) unless `--accept-unverified-metadata` is given. At a terminal it asks for v2 claims too, so the operator can compare fingerprints before anything is pinned.
+   - Whatever the version, `platform: "web"` does not by itself allow the relay's origin for WebAuthn receipts (§14 of `policy.md`): allowing an origin is an explicit policy change.
+   - The pairing code is the secret every proof rests on. A gateway MUST NOT print it where it may be captured: the reference CLI in `--json` mode writes it only to a new file named by `--qr-file` (mode 0600), never to stdout or stderr.
 
 ### 5.4 Template pinning at pairing
 
@@ -767,12 +799,12 @@ Errors: `409 pairing_exists`, `422 pairing_expired` (expiry in the past or more 
 Request:
 ```json
 {
-  "device": { "public_key": {...}, "platform": "ios", "name": "iPhone 17", "attestation": { "format": "apple-appattest", "data": "..." }, "software": false },
+  "device": { "public_key": {...}, "platform": "ios", "name": "iPhone 17", "attestation": { "format": "apple-appattest", "data": "..." }, "software": false, "proof_v2": "<base64url HMAC-SHA256>" },
   "proof": "<base64url HMAC-SHA256>"
 }
 ```
 Response `200`: `{ "status": "claimed" }`
-Errors: `404 pairing_not_found` (also when the pairing belongs to a gateway of another account: a device claims only pairings opened by its own account's gateways), `410 pairing_expired`, `409 pairing_already_claimed`, `403 forbidden` (`device.public_key` is not the authenticated device's enrolled key). The relay does not verify `proof`; it cannot. It forwards `device` exactly as sent (the proof covers the JWK as the device serialised it) in the `pairing.claimed` event.
+Errors: `404 pairing_not_found` (also when the pairing belongs to a gateway of another account: a device claims only pairings opened by its own account's gateways), `410 pairing_expired`, `409 pairing_already_claimed`, `403 forbidden` (`device.public_key` is not the authenticated device's enrolled key). The relay does not verify `proof` or `device.proof_v2` (§5.3 point 8, OPTIONAL, 43 base64url characters); it cannot. It forwards `device` exactly as sent (the proofs cover the JWK and, for v2, the metadata as the device serialised them) in the `pairing.claimed` event.
 
 `GET /v1/pairings/{pairing_id}` — auth `Signeto-Gateway` or the claiming device
 Response `200`: `{ "pairing_id": "...", "status": "open" | "claimed" | "confirmed" | "rejected" | "expired", "device_id"?: "dev_...", "device"?: {...}, "proof"?: "...", "confirmation"?: "...", "paired_at"?: "...", "approver_id"?: "...", "templates_pinned"?: [...] }`. `confirmation`, `paired_at`, `approver_id` and `templates_pinned` are the confirm request's values, returned verbatim. `expired` is reported for an `open` or `claimed` pairing past `expires_at`. Anyone other than the owning gateway and the claiming device gets `404 pairing_not_found`.

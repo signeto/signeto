@@ -33,6 +33,25 @@
         ]
       },
       {
+        "template_id": "github.dispatch_workflow",
+        "template_version": 3,
+        "text": "Run {workflow} on {ref} ({ref_sha}) in {repo} with inputs {inputs}",
+        "sha256": "8b232b72716ed4e964b1c2880e11f210bea5ba5d6d4c75092cffe4462b1f67dc",
+        "links": [
+          {
+            "label": "Workflow file at approved commit",
+            "url": "https://github.com/{repo:path}/blob/{ref_sha}/.github/workflows/{workflow}"
+          },
+          {
+            "label": "Actions",
+            "url": "https://github.com/{repo:path}/actions"
+          }
+        ],
+        "link_hosts": [
+          "github.com"
+        ]
+      },
+      {
         "template_id": "github.create_deployment",
         "template_version": 1,
         "text": "Deploy {ref} to {environment} on {repo}",
@@ -66,6 +85,12 @@
           "limit_price",
           "time_in_force"
         ]
+      },
+      {
+        "template_id": "alpaca.place_order",
+        "template_version": 2,
+        "text": "Place order: {side} {qty} {symbol} {type}, limit price {limit_price}, time in force {time_in_force}, on {account} (notional {notional_usd} USD)",
+        "sha256": "f2a7d36da123b59aa4a07f1e2d6d2e43b1eea3e0f5e631b81959af4897075654"
       }
     ]
   },

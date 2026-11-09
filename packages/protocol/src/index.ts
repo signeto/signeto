@@ -5,8 +5,10 @@ export { TIMESTAMP_RE, CLOCK_SKEW_MS, DEFAULT_EXPIRY_MS, MAX_EXPIRY_MS, formatTi
 export * from "./ids.js";
 export * from "./action.js";
 export { signRaw, verifyRaw, signWithJwk, verifyWithJwk, publicKeyFromJwk, privateKeyFromJwk } from "./signing.js";
+export { isSmallOrderEd25519, isWeakPublicJwk } from "./weakkeys.js";
 export * from "./receipt.js";
 export * from "./request.js";
 export * from "./template.js";
+export * from "./display.js";
 export * from "./registries.js";
 export * from "./relay-auth.js";

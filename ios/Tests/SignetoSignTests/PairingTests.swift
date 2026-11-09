@@ -44,6 +44,9 @@ final class PairingTests: XCTestCase {
         XCTAssertEqual(Pairing.parseQR(enc { $0["expires_at"] = "2026-11-07T12:10:00Z" }, nowMs: now), .failure(.malformed))
         XCTAssertEqual(Pairing.parseQR(enc { o in var k = o["gateway_public_key"]!.objectValue!; k["d"] = "x"; o["gateway_public_key"] = .object(k) }, nowMs: now), .failure(.malformed))
         XCTAssertEqual(Pairing.parseQR("signeto://pair?x=1", nowMs: now), .failure(.malformed))
+        // §5.1 (SIG-92 N1): a small-order Ed25519 gateway key (here the identity point) is refused.
+        let identity = Base64URL.encode(Data([1] + [UInt8](repeating: 0, count: 31)))
+        XCTAssertEqual(Pairing.parseQR(enc { $0["gateway_public_key"] = ["kty": "OKP", "crv": "Ed25519", "x": .string(identity)] }, nowMs: now), .failure(.malformed))
         XCTAssertEqual(Pairing.parseQR("not base64!", nowMs: now), .failure(.malformed))
     }
 
@@ -65,6 +68,31 @@ final class PairingTests: XCTestCase {
         XCTAssertNotEqual(f["substituted_key_proof"]!.s, f["proof"]!.s)
         let exp = Timestamp.parse(q.expiresAt)!
         XCTAssertEqual(Pairing.claim(qr: q, devicePublicKey: device, platform: "ios", name: "iPhone", attestation: nil, software: false, nowMs: exp + 1).map(\.pairingId), .failure(.expired))
+    }
+
+    /// §5.3 proof v2 (SIG-104): `device.proof_v2` next to the v1 proof, covering name, platform and attestation.
+    func testProofV2() throws {
+        let q = try qr()
+        let device = f["device_public_key"]!.jwk()!
+        let v = f["proof_v2"]!
+        XCTAssertEqual(Pairing.proofV2SigningInput(gatewayId: q.gatewayId, deviceId: device.deviceId, devicePublicKey: device, name: "iPhone", platform: "ios", attestation: nil), v["signing_input"]!.s)
+        guard case .success(let claim) = Pairing.claim(qr: q, devicePublicKey: device, platform: "ios", name: "iPhone", attestation: nil, software: false, nowMs: now) else { return XCTFail() }
+        XCTAssertEqual(claim.body["device"]?["proof_v2"]?.s, v["proof"]!.s)
+        XCTAssertEqual(claim.body["proof"]?.s, f["proof"]!.s, "v1 stays, so a gateway from before v2 still pairs")
+        // A relay that renames the device cannot keep the proof valid.
+        XCTAssertNotEqual(v["renamed_proof"]!.s, v["proof"]!.s)
+
+        let att = Attestation(format: v["attestation"]!["format"]!.s, data: v["attestation"]!["data"]!.s)
+        XCTAssertEqual(Pairing.attestationSHA256(att), v["attestation_sha256"]!.s)
+        XCTAssertNil(Pairing.attestationSHA256(nil))
+        XCTAssertEqual(Pairing.proofV2SigningInput(gatewayId: q.gatewayId, deviceId: device.deviceId, devicePublicKey: device, name: "iPhone", platform: "ios", attestation: att), v["signing_input_attested"]!.s)
+        guard case .success(let attested) = Pairing.claim(qr: q, devicePublicKey: device, platform: "ios", name: "iPhone", attestation: att, software: false, nowMs: now) else { return XCTFail() }
+        XCTAssertEqual(attested.body["device"]?["proof_v2"]?.s, v["proof_attested"]!.s)
+
+        // What build 7 sent: v1 only.
+        guard case .success(let legacy) = Pairing.claim(qr: q, devicePublicKey: device, platform: "ios", name: "iPhone", attestation: nil, software: false, nowMs: now, proofV2: false) else { return XCTFail() }
+        XCTAssertNil(legacy.body["device"]?["proof_v2"])
+        XCTAssertEqual(legacy.body["proof"]?.s, f["proof"]!.s)
     }
 
     func testConfirmations() throws {

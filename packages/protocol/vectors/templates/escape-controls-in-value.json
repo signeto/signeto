@@ -1,0 +1,24 @@
+{
+  "description": "§3.6: ESC, CR, LF, TAB, NEL, DEL, RLO and ZWSP in values render as escapes; a literal backslash stays",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"branch\":\"dev\\u001b[2K\\rmain\",\"who\":\"a\u202eb\\nc\u200bd\\tz\u0085\u007f\\\\n\"},\"expires_at\":\"1970-01-01T00:03:00.008Z\",\"idempotency_key\":\"d5963da3e0a23933b608e001db3485570332aa01b2e8be36f6ed92938a628eba\",\"issued_at\":\"1970-01-01T00:00:00.008Z\",\"mode\":\"enforce\",\"nonce\":\"NNNNNNNNNNNNNNNNNNNNNN\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.escape\",\"template_version\":1,\"tier\":2,\"tool\":\"test.escape\"}",
+    "registries": [
+      {
+        "adapter": "test",
+        "templates": [
+          {
+            "template_id": "test.escape",
+            "template_version": 1,
+            "text": "Merge {branch} as {who}",
+            "sha256": "bac90cda7e856195ad0aa3820c376a453c288b5c55adb999413f18daadf07a7f"
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "ok",
+    "text": "Merge dev\\u{1B}[2K\\rmain as a\\u{202E}b\\nc\\u{200B}d\\tz\\u{85}\\u{7F}\\n",
+    "hidden": []
+  }
+}

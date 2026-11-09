@@ -2,6 +2,7 @@
 import { canonicalize, type JsonValue } from "./jcs.js";
 import { sha256hex, utf8 } from "./encoding.js";
 import { parseCanonicalAction } from "./action.js";
+import { displayEscape } from "./display.js";
 
 /** A review link (§3.5): a literal label and a URL template over `args_resolved`. */
 export interface TemplateLink {
@@ -190,9 +191,14 @@ function lookup(args: Record<string, unknown>, path: string[]): { found: true; v
   return { found: true, value: cur };
 }
 
-/** §3.2 value rendering: strings verbatim, everything else as its JCS text. */
+/** §3.2 value rendering: strings verbatim, everything else as its JCS text. Not yet display-escaped (§3.6). */
 export function renderValue(v: unknown): string {
   return typeof v === "string" ? v : canonicalize(v);
+}
+
+/** A value as an approver surface shows it outside the template line (argument rows): `renderValue`, then §3.6. */
+export function displayValue(v: unknown): string {
+  return displayEscape(renderValue(v));
 }
 
 // ---- §3.5 links -------------------------------------------------------------------------------------
@@ -383,6 +389,45 @@ function substitute(tokens: Token[], args: Record<string, unknown>): { ok: true;
 }
 
 /**
+ * §3.4 unreferenced-key rule, nested: every leaf of `args_resolved` (a scalar, or an empty object or array) must be
+ * under a `text` placeholder path (a placeholder covers everything beneath it: `{order}` covers `order.qty`), unless
+ * its top-level key is in `elide`. Object members are walked in ECMAScript key order, array elements by index.
+ * Returns the first uncovered leaf as a dotted path, and the elided top-level keys no placeholder names exactly.
+ */
+export function unreferenced(args: Record<string, unknown>, refs: readonly (readonly string[])[], elide: ReadonlySet<string>): { path?: string; hidden: string[] } {
+  const covered = (path: readonly string[]) => refs.some((r) => r.length <= path.length && r.every((seg, i) => seg === path[i]));
+  const walk = (v: unknown, path: string[]): string | undefined => {
+    if (covered(path)) return undefined;
+    if (Array.isArray(v) && v.length > 0) {
+      for (let i = 0; i < v.length; i++) {
+        const r = walk(v[i], [...path, String(i)]);
+        if (r !== undefined) return r;
+      }
+      return undefined;
+    }
+    if (v !== null && typeof v === "object" && !Array.isArray(v) && Object.keys(v).length > 0) {
+      for (const k of Object.keys(v)) {
+        const r = walk((v as Record<string, unknown>)[k], [...path, k]);
+        if (r !== undefined) return r;
+      }
+      return undefined;
+    }
+    return path.join(".");
+  };
+  const hidden: string[] = [];
+  for (const k of Object.keys(args)) {
+    if (covered([k])) continue;
+    if (elide.has(k)) {
+      hidden.push(k);
+      continue;
+    }
+    const r = walk(args[k], [k]);
+    if (r !== undefined) return { path: r, hidden };
+  }
+  return { hidden };
+}
+
+/**
  * Render the template line for canonical bytes. Never accepts a pre-rendered string.
  * Byte-identical output across gateway, CLI, phone and web for the same bytes and registry.
  */
@@ -404,22 +449,17 @@ export function renderTemplate(canonicalBytes: string, registries: readonly Temp
   if (!note.ok) return { status: "unverified", reason: "unresolved_placeholder", detail: note.path, canonical_bytes: canonicalBytes };
 
   // Only `text` placeholders count: the sentence must mention every argument (§3.4), not the note or a link.
-  const referenced = new Set<string>();
-  for (const tok of tokens) if (tok.kind === "ph") referenced.add(tok.path[0] as string);
-  const elide = new Set(t.elide ?? []);
-  const hidden: string[] = [];
-  for (const k of Object.keys(a.args_resolved)) {
-    if (referenced.has(k)) continue;
-    if (elide.has(k)) hidden.push(k);
-    else return { status: "unverified", reason: "unreferenced_key", detail: k, canonical_bytes: canonicalBytes };
-  }
+  const refs = tokens.filter((tok): tok is Extract<Token, { kind: "ph" }> => tok.kind === "ph").map((tok) => tok.path);
+  const u = unreferenced(a.args_resolved, refs, new Set(t.elide ?? []));
+  if (u.path !== undefined) return { status: "unverified", reason: "unreferenced_key", detail: u.path, canonical_bytes: canonicalBytes };
+  const hidden = u.hidden;
   const links = renderLinks(t, a.args_resolved);
   return {
     status: "ok",
-    text: text.text,
+    text: displayEscape(text.text),
     template: t,
     hidden,
-    ...(hasNote ? { note: note.text } : {}),
+    ...(hasNote ? { note: displayEscape(note.text) } : {}),
     links: links.links,
     ...(links.error ? { links_error: links.error } : {}),
   };

@@ -1,0 +1,9 @@
+{
+  "description": "ZWSP, ZWNJ, ZWJ, LINE/PARAGRAPH SEPARATOR, WORD JOINER, invisible operators, BOM",
+  "inputs": {
+    "value": "ma\u200bin\u200c\u200d\u2028\u2029\u2060\u2061\u2064\u2065\ufeff!"
+  },
+  "expected": {
+    "escaped": "ma\\u{200B}in\\u{200C}\\u{200D}\\u{2028}\\u{2029}\\u{2060}\\u{2061}\\u{2064}\\u{2065}\\u{FEFF}!"
+  }
+}

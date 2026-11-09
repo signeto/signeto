@@ -1,7 +1,7 @@
 {
   "description": "Dotted paths, array index, number/boolean rendered as JCS text",
   "inputs": {
-    "canonical_bytes": "{\"args_resolved\":{\"files\":[\"a.txt\",\"b.txt\"],\"flag\":true,\"n\":1.5,\"order\":{\"qty\":10,\"side\":\"buy\",\"symbol\":\"AAPL\"}},\"expires_at\":\"1970-01-01T00:03:00.002Z\",\"idempotency_key\":\"85cbb195b934a37106cf14493df24a7442656bcb4f4a627e40d6ae8667e5066d\",\"issued_at\":\"1970-01-01T00:00:00.002Z\",\"mode\":\"enforce\",\"nonce\":\"FFFFFFFFFFFFFFFFFFFFFF\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.nested\",\"template_version\":1,\"tier\":2,\"tool\":\"test.nested\"}",
+    "canonical_bytes": "{\"args_resolved\":{\"files\":[\"a.txt\"],\"flag\":true,\"n\":1.5,\"order\":{\"qty\":10,\"side\":\"buy\",\"symbol\":\"AAPL\"}},\"expires_at\":\"1970-01-01T00:03:00.002Z\",\"idempotency_key\":\"0f7ff004807ba4f2ffc59b04b77d78fe145cfb2e8fa24352406c38978f67e9b0\",\"issued_at\":\"1970-01-01T00:00:00.002Z\",\"mode\":\"enforce\",\"nonce\":\"FFFFFFFFFFFFFFFFFFFFFF\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.nested\",\"template_version\":1,\"tier\":2,\"tool\":\"test.nested\"}",
     "registries": [
       {
         "adapter": "test",

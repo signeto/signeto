@@ -1,0 +1,9 @@
+{
+  "description": "Printable ASCII, Latin-1 letters, NBSP, emoji and combining marks are unchanged",
+  "inputs": {
+    "value": "claude-code naïve\u00a0x 😀 é ‰ \u200a\u206a"
+  },
+  "expected": {
+    "escaped": "claude-code naïve\u00a0x 😀 é ‰ \u200a\u206a"
+  }
+}

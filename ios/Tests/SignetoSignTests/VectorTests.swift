@@ -79,6 +79,42 @@ final class TemplateVectorTests: XCTestCase {
         }
     }
 
+    /// §5.1 small-order Ed25519 keys: the same cases `isWeakPublicJwk` in TypeScript refuses.
+    func testWeakKeys() throws {
+        for (name, v) in try vectors("weak-keys") {
+            for c in v["cases"]!.arrayValue! {
+                let jwk = PublicJWK.ed25519(x: c["x"]!.s)
+                XCTAssertEqual(jwk.isWeak, c["weak"] == .bool(true), "\(name): \(c["description"]!.s)")
+                if c["weak"] == .bool(true) {
+                    // Nothing verifies under it, not even R = identity, S = 0 over any message.
+                    var sig = Data(count: 64)
+                    sig[0] = 1
+                    XCTAssertFalse(jwk.verify(signature: sig, over: Data("approve anything".utf8)), c["description"]!.s)
+                }
+            }
+        }
+    }
+
+    /// §3.6 display escape: the same expected output as `displayEscape` in TypeScript.
+    func testDisplayEscape() throws {
+        for (name, v) in try vectors("display-escape") {
+            let escaped = Display.escape(v["inputs"]!["value"]!.s)
+            XCTAssertTrue(exactlyEqual(escaped, v["expected"]!["escaped"]!.s), "\(name): \(escaped)")
+            XCTAssertTrue(Display.isSafe(escaped), name)
+        }
+    }
+
+    /// §3.6 escaped set, scalar by scalar (the vectors cover examples; this covers the boundaries).
+    func testDisplayEscapeSetBoundaries() {
+        let escaped: [ClosedRange<UInt32>] = [0x00...0x1F, 0x7F...0x9F, 0x61C...0x61C, 0x200B...0x200F, 0x2028...0x202E, 0x2060...0x2069, 0xFEFF...0xFEFF]
+        for v in UInt32(0)...0x3_0000 {
+            guard let sc = Unicode.Scalar(v) else { continue }
+            let expect = escaped.contains { $0.contains(v) }
+            XCTAssertEqual(Display.isEscaped(v), expect, String(v, radix: 16))
+            XCTAssertEqual(Display.escape(String(Character(sc))) != String(Character(sc)), expect, String(v, radix: 16))
+        }
+    }
+
     /// §3.1 template hash input: text alone, or JCS of the extended members.
     func testTemplateSHA256() throws {
         for (name, v) in try vectors("template-sha256") {

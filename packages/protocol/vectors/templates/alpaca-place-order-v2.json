@@ -1,0 +1,120 @@
+{
+  "description": "alpaca.place_order v2 shows limit_price and time_in_force in the sentence (v1 elided them)",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"account\":\"paper\",\"limit_price\":\"189.50\",\"notional_usd\":\"1895.00\",\"qty\":10,\"side\":\"buy\",\"symbol\":\"AAPL\",\"time_in_force\":\"day\",\"type\":\"limit\"},\"expires_at\":\"1970-01-01T00:03:00.013Z\",\"idempotency_key\":\"8e298faeaf7b1fcf30e13f79dfba5c77636c09fd3fb8100020616ba963583294\",\"issued_at\":\"1970-01-01T00:00:00.013Z\",\"mode\":\"enforce\",\"nonce\":\"TTTTTTTTTTTTTTTTTTTTTT\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"alpaca.place_order\",\"template_version\":2,\"tier\":2,\"tool\":\"alpaca.place_order\"}",
+    "registries": [
+      {
+        "adapter": "github",
+        "templates": [
+          {
+            "template_id": "github.merge_pull_request",
+            "template_version": 1,
+            "text": "Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}",
+            "sha256": "0280710fb0ac477803f2002b1c52027717ed45bc7e8da1ec79b87ec7754d75de"
+          },
+          {
+            "template_id": "github.merge_pull_request",
+            "template_version": 2,
+            "text": "Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}",
+            "sha256": "d004d3b2763f6a8994e632c37b644cad9ad4b5bbabaea49e6c8c1aa135ba8486",
+            "note": "Approving commit {head_sha:short}. If the PR changes, this approval will not merge it.",
+            "links": [
+              {
+                "label": "View pull request",
+                "url": "https://github.com/{repo:path}/pull/{pr}"
+              },
+              {
+                "label": "Files changed",
+                "url": "https://github.com/{repo:path}/pull/{pr}/files"
+              },
+              {
+                "label": "Code at approved commit",
+                "url": "https://github.com/{repo:path}/tree/{head_sha}"
+              }
+            ],
+            "link_hosts": [
+              "github.com"
+            ]
+          },
+          {
+            "template_id": "github.dispatch_workflow",
+            "template_version": 3,
+            "text": "Run {workflow} on {ref} ({ref_sha}) in {repo} with inputs {inputs}",
+            "sha256": "8b232b72716ed4e964b1c2880e11f210bea5ba5d6d4c75092cffe4462b1f67dc",
+            "links": [
+              {
+                "label": "Workflow file at approved commit",
+                "url": "https://github.com/{repo:path}/blob/{ref_sha}/.github/workflows/{workflow}"
+              },
+              {
+                "label": "Actions",
+                "url": "https://github.com/{repo:path}/actions"
+              }
+            ],
+            "link_hosts": [
+              "github.com"
+            ]
+          },
+          {
+            "template_id": "github.create_deployment",
+            "template_version": 1,
+            "text": "Deploy {ref} to {environment} on {repo}",
+            "sha256": "a028b1a2c4a7afef58043b6d0f01a4230b1ecc39c0b8c410675a3d28d4f9ede1",
+            "elide": [
+              "description"
+            ]
+          }
+        ]
+      },
+      {
+        "adapter": "postgres",
+        "templates": [
+          {
+            "template_id": "postgres.execute",
+            "template_version": 1,
+            "text": "{statement_kind} on {database}@{host}: {statement}",
+            "sha256": "4c2078abc027b5d4b398c910825ca198c0333b899aeef2c69baf964c1bd3d8d6"
+          }
+        ]
+      },
+      {
+        "adapter": "alpaca",
+        "templates": [
+          {
+            "template_id": "alpaca.place_order",
+            "template_version": 1,
+            "text": "Place order: {side} {qty} {symbol} {type} on {account} (notional {notional_usd} USD)",
+            "sha256": "a51cb02216bbb48f39b64e6c3a1ba38e748612792bbb1b17f203138d519e0123",
+            "elide": [
+              "limit_price",
+              "time_in_force"
+            ]
+          },
+          {
+            "template_id": "alpaca.place_order",
+            "template_version": 2,
+            "text": "Place order: {side} {qty} {symbol} {type}, limit price {limit_price}, time in force {time_in_force}, on {account} (notional {notional_usd} USD)",
+            "sha256": "f2a7d36da123b59aa4a07f1e2d6d2e43b1eea3e0f5e631b81959af4897075654"
+          }
+        ]
+      },
+      {
+        "adapter": "signeto",
+        "templates": [
+          {
+            "template_id": "signeto.test",
+            "template_version": 1,
+            "text": "Test request from {gateway}, code {code}",
+            "sha256": "9bdbc8861b6c124e2bd38a60028218a23035987dcc99bd94e17e0f27a13752a3",
+            "note": "Nothing runs when you approve this. It checks that this phone receives, shows and signs requests."
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "ok",
+    "text": "Place order: buy 10 AAPL limit, limit price 189.50, time in force day, on paper (notional 1895.00 USD)",
+    "hidden": []
+  }
+}

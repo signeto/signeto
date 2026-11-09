@@ -535,6 +535,36 @@ public enum Templates {
 
     struct PathError: Error { let path: String }
 
+    /// §3.4 unreferenced-key rule, nested (mirrors `unreferenced` in `@signeto/protocol`): every leaf of
+    /// `args_resolved` (a scalar, or an empty object or array) must be under a `text` placeholder path, unless its
+    /// top-level key is elided. Objects in ECMAScript key order, arrays by index. Returns the first uncovered leaf as
+    /// a dotted path, and the elided top-level keys no placeholder names exactly.
+    static func unreferenced(_ args: JSONObject, refs: [[String]], elide: Set<ExactKey>) -> (path: String?, hidden: [String]) {
+        func covered(_ path: [String]) -> Bool {
+            refs.contains { r in r.count <= path.count && zip(r, path).allSatisfy { exactlyEqual($0, $1) } }
+        }
+        func walk(_ v: JSONValue, _ path: [String]) -> String? {
+            if covered(path) { return nil }
+            switch v {
+            case .array(let items) where !items.isEmpty:
+                for (i, item) in items.enumerated() { if let r = walk(item, path + [String(i)]) { return r } }
+                return nil
+            case .object(let o) where !o.isEmpty:
+                for k in o.ecmaScriptKeyOrder { if let r = walk(o[k]!, path + [k]) { return r } }
+                return nil
+            default:
+                return path.joined(separator: ".")
+            }
+        }
+        var hidden: [String] = []
+        for k in args.ecmaScriptKeyOrder {
+            if covered([k]) { continue }
+            if elide.contains(ExactKey(k)) { hidden.append(k); continue }
+            if let r = walk(args[k]!, [k]) { return (r, hidden) }
+        }
+        return (nil, hidden)
+    }
+
     /// Render the template line for canonical bytes.
     public static func render(canonicalBytes: String, registries: [TemplateRegistry]) -> RenderResult {
         let parsed: EncodedAction
@@ -564,15 +594,13 @@ public enum Templates {
         case .success(let s): note = s
         }
         // Only `text` placeholders count: the sentence must mention every argument (§3.4), not the note or a link.
-        var referenced = Set<ExactKey>()
-        for case .placeholder(let path, _) in tokens { referenced.insert(ExactKey(path[0])) }
-        let elide = Set((t.elide ?? []).map(ExactKey.init))
-        var hidden: [String] = []
-        for k in a.argsResolved.ecmaScriptKeyOrder {
-            if referenced.contains(ExactKey(k)) { continue }
-            if elide.contains(ExactKey(k)) { hidden.append(k) } else { return .unverified(reason: .unreferencedKey, detail: k, canonicalBytes: bytes) }
-        }
+        var refs: [[String]] = []
+        for case .placeholder(let path, _) in tokens { refs.append(path) }
+        let u = unreferenced(a.argsResolved, refs: refs, elide: Set((t.elide ?? []).map(ExactKey.init)))
+        if let path = u.path { return .unverified(reason: .unreferencedKey, detail: path, canonicalBytes: bytes) }
+        let hidden = u.hidden
         let links = renderLinks(t, args: a.argsResolved)
-        return .ok(RenderedTemplate(text: text, template: t, hidden: hidden, note: hasNote ? note : nil, links: links.links, linksError: links.error))
+        // §3.6: the line and the note show control, bidi and invisible characters as escapes.
+        return .ok(RenderedTemplate(text: Display.escape(text), template: t, hidden: hidden, note: hasNote ? Display.escape(note) : nil, links: links.links, linksError: links.error))
     }
 }

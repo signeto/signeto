@@ -1,0 +1,9 @@
+{
+  "description": "LF, CR and TAB use the short escapes",
+  "inputs": {
+    "value": "line1\nline2\r\n\tx"
+  },
+  "expected": {
+    "escaped": "line1\\nline2\\r\\n\\tx"
+  }
+}

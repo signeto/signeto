@@ -9,7 +9,7 @@ at most an hour, and revoked as soon as `execute` returns. The gateway never hol
 | Tool | Effect | Agent input | Resolved (signed) args | Headline |
 |---|---|---|---|---|
 | `github.merge_pull_request` | write | `{repo, pr, method?}` | `{repo, pr, base, head_sha, method}` | `Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}` |
-| `github.dispatch_workflow` | write | `{repo, workflow, ref, inputs?}` | `{repo, workflow, ref, ref_sha, inputs}` (`inputs` elided) | `Run {workflow} on {ref} ({ref_sha}) in {repo}` |
+| `github.dispatch_workflow` | write | `{repo, workflow, ref, inputs?}` | `{repo, workflow, ref, ref_sha, inputs}` | `Run {workflow} on {ref} ({ref_sha}) in {repo} with inputs {inputs}` |
 | `github.read_pull_request` | read | `{repo, pr}` | `{repo, pr}` | `Read PR #{pr} on {repo}` |
 
 What `resolve` pins:
@@ -18,20 +18,48 @@ What `resolve` pins:
   or living in a different repository than the agent named), and signs the **head SHA** and base branch. `method`
   defaults to `squash`. `execute` sends `sha: head_sha` to GitHub's merge endpoint, so GitHub itself refuses with
   `409` if the branch moved after the approver signed; the adapter reports that (and `405`, no longer mergeable) as
-  `precondition_failed`.
+  `precondition_failed`. The merge endpoint takes no base, so immediately before the merge `execute` re-reads the PR
+  and throws `precondition_failed`, merging nothing and posting no check run, unless `base.ref`, `base.repo.full_name`
+  and `head.sha` are still the signed `base`, `repo` and `head_sha` (a PR retargeted from `dev` to `main` after
+  approval is refused). When the check run is posted the PR is read again after it, so the last read is the request
+  right before the merge.
 - **dispatch**: confirms the workflow exists and is active, normalises a numeric workflow id to its file name
   (`deploy.yml`), and signs the **commit SHA** the ref points at. `workflow_dispatch` takes no SHA, so `execute`
-  re-reads the ref with the minted token and throws `precondition_failed` without dispatching if it moved.
+  re-reads the ref with the minted token and throws `precondition_failed` without dispatching if it moved, then reads
+  it again right after dispatching (see Races).
 - **read**: confirms the PR exists; signs only `{repo, pr}`.
+
+### Races
+
+GitHub cannot enforce every signed value, so two small windows remain:
+
+- **merge base**: between the PR re-read and the merge request (one round trip), a retarget is not detectable. GitHub's
+  merge endpoint accepts `sha` but no base precondition.
+- **dispatch ref**: `workflow_dispatch` resolves the branch or tag when GitHub processes the request. `execute` checks
+  the ref is at `ref_sha` as the last request before the dispatch and re-reads it as the first request after. If it
+  moved in between, it lists this workflow's `workflow_dispatch` runs on that ref created since the dispatch, cancels
+  every one whose `head_sha` is not `ref_sha` (a concurrent dispatch by someone else on the new commit is cancelled
+  too: the safe side), and throws `precondition_failed` naming the cancelled runs. It succeeds only if the one run
+  found is on `ref_sha`. What remains: the run can execute steps for the seconds before the cancel lands; GitHub may
+  not have created the run yet when it is listed (then the action fails and the error says to check Actions; nothing
+  is cancelled); a ref moved away and back between the two reads is not seen. A workflow that must never run an
+  unapproved commit should also check `github.sha` itself (for example against a protected tag).
 
 Repository names are lower-cased and merge methods normalised, so two spellings of the same action produce the same
 canonical bytes (idempotency, SPEC §5).
 
 ### Card note and review links (templates v2)
 
-All three templates are version 2: they add review links the approver's device builds from the signed args, only to
-`github.com` (protocol.md §3.5), and the merge template adds a note. Version 1 of `github.merge_pull_request` stays in
-the bundled registry for older gateways.
+The merge and read templates are version 2, `github.dispatch_workflow` is version 3: version 2 added review links the
+approver's device builds from the signed args, only to `github.com` (protocol.md §3.5), and a note on the merge
+template. Version 1 of `github.merge_pull_request` stays in the bundled registry for older gateways. Dispatch v3
+(SIG-92 N9) puts the workflow `inputs` in the sentence, as their JCS text (`{}` when there are none); v2 elided them,
+so an approver saw them only in the argument rows. Dispatch v3 is bundled in `@signeto/protocol` (v2 never was), so
+approvers built against this version (CLI, web approver, iOS build 8+) render it without a pin and nobody has to
+re-pair. A gateway does not pin bundled templates at pairing, so an approver built before it (iOS build 7, an older
+CLI) cannot verify v3 even after re-pairing: it shows dispatch requests from an upgraded gateway as "unverified
+template", with the raw bytes and still approvable, until it is updated. The read template is still pinned at
+pairing (§5.4).
 
 | Tool | Note | Links |
 |---|---|---|

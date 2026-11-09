@@ -82,9 +82,18 @@ public enum PublicJWK: Equatable, Hashable, Sendable {
                   let sig = try? P256.Signing.ECDSASignature(rawRepresentation: signature) else { return false }
             return pk.isValidSignature(sig, for: data)
         case .ed25519(let x):
-            guard let xb = Base64URL.decode(x), xb.count == 32, let pk = try? Curve25519.Signing.PublicKey(rawRepresentation: xb) else { return false }
+            // §5.1 (SIG-92 N1): nothing verifies under a small-order key.
+            guard let xb = Base64URL.decode(x), xb.count == 32, !Ed25519Keys.isSmallOrder(xb), let pk = try? Curve25519.Signing.PublicKey(rawRepresentation: xb) else { return false }
             return pk.isValidSignature(signature, for: data)
         }
+    }
+
+    /// §5.1: an Ed25519 key that is a small-order point (or not 32 bytes), refused wherever a key is pinned or
+    /// parsed. EC P-256 keys are never weak in this sense.
+    public var isWeak: Bool {
+        guard case .ed25519(let x) = self else { return false }
+        guard let xb = Base64URL.decode(x) else { return true }
+        return Ed25519Keys.isSmallOrder(xb)
     }
 
     /// Verify a base64url signature over the UTF-8 bytes of `input`.
@@ -127,4 +136,32 @@ public enum Identifiers {
     }
     /// `^[A-Za-z0-9_-]{22}$`
     public static func isNonce(_ s: String) -> Bool { Chars.base64URL(s, count: 22) }
+}
+
+/// protocol.md §5.1 (SIG-92 N1): small-order Ed25519 public keys. Such a key (the identity, say) makes the signature
+/// R = identity, S = 0 valid for every message. The list is libsodium's: the 8-torsion points by y coordinate,
+/// including the non-canonical y = p and p + 1, compared with the sign bit ignored. Mirrors `isSmallOrderEd25519` in
+/// `@signeto/protocol`; `vectors/weak-keys/` fixes both.
+public enum Ed25519Keys {
+    static let smallOrder: [[UInt8]] = [
+        "0000000000000000000000000000000000000000000000000000000000000000",
+        "0100000000000000000000000000000000000000000000000000000000000000",
+        "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05",
+        "c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a",
+        "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+        "edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+        "eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+    ].map { h in stride(from: 0, to: 64, by: 2).map { i in UInt8(h[h.index(h.startIndex, offsetBy: i)..<h.index(h.startIndex, offsetBy: i + 2)], radix: 16)! } }
+
+    /// True when `raw` (the 32-byte encoding) is a small-order point. Any other length: true.
+    public static func isSmallOrder(_ raw: Data) -> Bool {
+        let b = [UInt8](raw)
+        guard b.count == 32 else { return true }
+        return smallOrder.contains { blocked in
+            var diff: UInt8 = 0
+            for i in 0..<31 { diff |= b[i] ^ blocked[i] }
+            diff |= (b[31] & 0x7F) ^ blocked[31]
+            return diff == 0
+        }
+    }
 }

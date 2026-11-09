@@ -52,7 +52,7 @@ const fixtures: Fixture[] = [
     links: prLinks("acme/api", 42),
   },
   {
-    name: "dispatch by file name with inputs (inputs elided from the headline)",
+    name: "dispatch by file name with inputs (inputs in the sentence, template v3)",
     tool: "dispatch_workflow",
     agentArgs: { repo: "acme/api", workflow: "deploy.yml", ref: "main", inputs: { environment: "production", dry_run: "false" } },
     upstreamState: [
@@ -60,8 +60,7 @@ const fixtures: Fixture[] = [
       { method: "GET", path: "/repos/acme/api/commits/main", body: { sha: REF_SHA } },
     ],
     resolved: { repo: "acme/api", workflow: "deploy.yml", ref: "main", ref_sha: REF_SHA, inputs: { dry_run: "false", environment: "production" } },
-    rendered: `Run deploy.yml on main (${REF_SHA}) in acme/api`,
-    hidden: ["inputs"],
+    rendered: `Run deploy.yml on main (${REF_SHA}) in acme/api with inputs {"dry_run":"false","environment":"production"}`,
     links: dispatchLinks("acme/api", "deploy.yml"),
   },
   {
@@ -73,8 +72,7 @@ const fixtures: Fixture[] = [
       { method: "GET", path: "/repos/acme/api/commits/v1.2.0", body: { sha: REF_SHA } },
     ],
     resolved: { repo: "acme/api", workflow: "deploy.yml", ref: "v1.2.0", ref_sha: REF_SHA, inputs: {} },
-    rendered: `Run deploy.yml on v1.2.0 (${REF_SHA}) in acme/api`,
-    hidden: ["inputs"],
+    rendered: `Run deploy.yml on v1.2.0 (${REF_SHA}) in acme/api with inputs {}`,
     links: dispatchLinks("acme/api", "deploy.yml"),
   },
   {

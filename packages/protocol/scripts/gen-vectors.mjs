@@ -7,10 +7,12 @@ import { fileURLToPath } from "node:url";
 import * as P from "../dist/index.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "vectors");
+// Invisible and bidi characters are written as JSON \u escapes so the vector files show what they contain.
+const INVISIBLE = /[\u007f-\u00a0\u061c\u200a-\u200f\u2028-\u202e\u2060-\u206a\ufeff]/g;
 const write = (rel, obj) => {
   const p = join(root, rel);
   mkdirSync(dirname(p), { recursive: true });
-  writeFileSync(p, JSON.stringify(obj, null, 2) + "\n");
+  writeFileSync(p, JSON.stringify(obj, null, 2).replace(INVISIBLE, (c) => "\\u" + c.charCodeAt(0).toString(16).padStart(4, "0")) + "\n");
 };
 const loadOrGenKey = (name, type) => {
   const p = join(root, "keys", name + ".json");
@@ -91,7 +93,20 @@ const testReg = { adapter: "test", templates: [
 const mk = (tool, template_id, args, now, nonce, tv_ = 1) => P.buildCanonicalAction({ tool, template_id, template_version: tv_, args_resolved: args, requester, origin_hash: "0".repeat(64), tier: 2, mode: "enforce" }, { now, nonce }).canonical_bytes;
 tv("merge-pr-ok", "Builtin github template renders", mergePr.canonical_bytes, regs, { status: "ok", text: "Merge PR #42 into main on acme/api (squash) at abc1234abc1234abc1234abc1234abc1234abc12", hidden: [] });
 tv("escaped-braces", "{{ and }} render as literal braces", mk("test.braces", "test.braces", { name: "x" }, 1, "EEEEEEEEEEEEEEEEEEEEEE"), [testReg], { status: "ok", text: "Literal {braces} around x and {x}", hidden: [] });
-tv("nested-array-number-bool", "Dotted paths, array index, number/boolean rendered as JCS text", mk("test.nested", "test.nested", { order: { side: "buy", qty: 10, symbol: "AAPL" }, files: ["a.txt", "b.txt"], flag: true, n: 1.5 }, 2, "FFFFFFFFFFFFFFFFFFFFFF"), [testReg], { status: "ok", text: "buy 10 AAPL; first file a.txt; flag true; n 1.5", hidden: [] });
+tv("nested-array-number-bool", "Dotted paths, array index, number/boolean rendered as JCS text", mk("test.nested", "test.nested", { order: { side: "buy", qty: 10, symbol: "AAPL" }, files: ["a.txt"], flag: true, n: 1.5 }, 2, "FFFFFFFFFFFFFFFFFFFFFF"), [testReg], { status: "ok", text: "buy 10 AAPL; first file a.txt; flag true; n 1.5", hidden: [] });
+// §3.4 nested (SIG-92 N9): every leaf under a placeholder, not only every top-level key.
+tv("nested-unreferenced-key", "A nested member no placeholder covers (order.limit_price) → unverified, detail is its dotted path", mk("test.nested", "test.nested", { order: { side: "buy", qty: 10, symbol: "AAPL", limit_price: "999.00" }, files: ["a.txt"], flag: true, n: 1.5 }, 9, "PPPPPPPPPPPPPPPPPPPPPP"), [testReg], { status: "unverified", reason: "unreferenced_key", detail: "order.limit_price" });
+tv("array-unreferenced-element", "An array element no placeholder covers (files.1) → unverified", mk("test.nested", "test.nested", { order: { side: "buy", qty: 10, symbol: "AAPL" }, files: ["a.txt", "b.txt"], flag: true, n: 1.5 }, 10, "QQQQQQQQQQQQQQQQQQQQQQ"), [testReg], { status: "unverified", reason: "unreferenced_key", detail: "files.1" });
+{
+  const wholeText = "Order {order}; files {files}";
+  const wholeReg = { adapter: "test", templates: [{ template_id: "test.whole", template_version: 1, text: wholeText, sha256: P.templateSha256(wholeText) }] };
+  tv("whole-object-placeholder", "A placeholder naming an object or array covers everything beneath it (rendered as JCS)", mk("test.whole", "test.whole", { order: { side: "buy", limit_price: "999.00", tif: { kind: "gtc" } }, files: ["a.txt", "b.txt"] }, 11, "RRRRRRRRRRRRRRRRRRRRRR"), [wholeReg],
+    { status: "ok", text: 'Order {"limit_price":"999.00","side":"buy","tif":{"kind":"gtc"}}; files ["a.txt","b.txt"]', hidden: [] });
+  tv("empty-object-is-a-leaf", "An empty object no placeholder covers is itself unreferenced", mk("test.whole", "test.whole", { order: {}, files: [], extra: {} }, 12, "SSSSSSSSSSSSSSSSSSSSSS"), [wholeReg], { status: "unverified", reason: "unreferenced_key", detail: "extra" });
+}
+tv("alpaca-place-order-v2", "alpaca.place_order v2 shows limit_price and time_in_force in the sentence (v1 elided them)",
+  mk("alpaca.place_order", "alpaca.place_order", { side: "buy", qty: 10, symbol: "AAPL", type: "limit", limit_price: "189.50", time_in_force: "day", account: "paper", notional_usd: "1895.00" }, 13, "TTTTTTTTTTTTTTTTTTTTTT", 2), regs,
+  { status: "ok", text: "Place order: buy 10 AAPL limit, limit price 189.50, time in force day, on paper (notional 1895.00 USD)", hidden: [] });
 tv("elide-hidden", "Elided keys are reported as hidden, not unverified", mk("test.elide", "test.elide", { ref: "v1.2.0", environment: "production", description: "hotfix" }, 3, "GGGGGGGGGGGGGGGGGGGGGG"), [testReg], { status: "ok", text: "Deploy v1.2.0 to production", hidden: ["description"] });
 tv("unreferenced-key", "args_resolved key no placeholder mentions → unverified", mk("test.elide", "test.elide", { ref: "v1.2.0", environment: "production", force: true }, 4, "HHHHHHHHHHHHHHHHHHHHHH"), [testReg], { status: "unverified", reason: "unreferenced_key", detail: "force" });
 tv("unresolved-placeholder", "Placeholder path missing from args_resolved → unverified", mk("test.nested", "test.nested", { order: { side: "buy" }, files: [], flag: true, n: 1 }, 5, "JJJJJJJJJJJJJJJJJJJJJJ"), [testReg], { status: "unverified", reason: "unresolved_placeholder", detail: "order.qty" });
@@ -105,6 +120,27 @@ tv("unresolved-placeholder", "Placeholder path missing from args_resolved → un
     [{ adapter: "pinned", templates: [{ template_id: "test.pinned_deploy", template_version: 1, text, sha256: P.templateSha256({ text, elide: ["force"] }), elide: ["force"] }] }], { status: "ok", text: "Deploy v1.2.0 to production", hidden: ["force"] });
 }
 tv("unknown-template-version", "template_version 3 not in registry → unverified", mk("github.merge_pull_request", "github.merge_pull_request", { repo: "acme/api", pr: 1, head_sha: "x", base: "main", method: "merge" }, 6, "KKKKKKKKKKKKKKKKKKKKKK", 3), regs, { status: "unverified", reason: "unknown_template" });
+
+{
+  // §3.6: the rendered line shows control, bidi and invisible characters of a value as escapes.
+  const text = "Merge {branch} as {who}";
+  const escReg = { adapter: "test", templates: [{ template_id: "test.escape", template_version: 1, text, sha256: P.templateSha256(text) }] };
+  const bytes = mk("test.escape", "test.escape", { branch: "dev\u001b[2K\rmain", who: "a\u202eb\nc\u200bd\tz\u0085\u007f\\n" }, 8, "NNNNNNNNNNNNNNNNNNNNNN");
+  tv("escape-controls-in-value", "§3.6: ESC, CR, LF, TAB, NEL, DEL, RLO and ZWSP in values render as escapes; a literal backslash stays", bytes, [escReg],
+    { status: "ok", text: "Merge dev\\u{1B}[2K\\rmain as a\\u{202E}b\\nc\\u{200B}d\\tz\\u{85}\\u{7F}\\n", hidden: [] });
+}
+
+// ---------- display-escape/ (§3.6). Expected values are written out by hand, not computed with displayEscape.
+const dv = (name, description, value, escaped) => write("display-escape/" + name + ".json", { description, inputs: { value }, expected: { escaped } });
+dv("plain", "Printable ASCII, Latin-1 letters, NBSP, emoji and combining marks are unchanged", "claude-code naïve\u00a0x 😀 e\u0301 ‰ \u200a\u206a", "claude-code naïve\u00a0x 😀 e\u0301 ‰ \u200a\u206a");
+dv("backslash-unchanged", "A backslash is not escaped: the rule is not injective, the raw bytes view is authoritative", "C:\\dir\\n \\u{1B}", "C:\\dir\\n \\u{1B}");
+dv("ansi-cursor", "The SIG-92 M6 agent name: ESC sequences, CR", "cc\u001b[3A\r\u001b[2K│ Merge PR #12\u001b[3B\r", "cc\\u{1B}[3A\\r\\u{1B}[2K│ Merge PR #12\\u{1B}[3B\\r");
+dv("newline-tab", "LF, CR and TAB use the short escapes", "line1\nline2\r\n\tx", "line1\\nline2\\r\\n\\tx");
+dv("c0-del-c1", "Every other C0, DEL and C1 as \\u{XX}, uppercase, at least two digits", "\u0000\u0001\u0008\u000b\u000c\u001f\u007f\u0080\u0085\u009b\u009f\u00a0", "\\u{00}\\u{01}\\u{08}\\u{0B}\\u{0C}\\u{1F}\\u{7F}\\u{80}\\u{85}\\u{9B}\\u{9F}\u00a0");
+dv("bidi", "ALM, LRM, RLM, LRE..RLO, LRI..PDI", "a\u061cb\u200ec\u200fd\u202ae\u202bf\u202cg\u202dh\u202ei\u2066j\u2067k\u2068l\u2069m", "a\\u{61C}b\\u{200E}c\\u{200F}d\\u{202A}e\\u{202B}f\\u{202C}g\\u{202D}h\\u{202E}i\\u{2066}j\\u{2067}k\\u{2068}l\\u{2069}m");
+dv("invisible-and-separators", "ZWSP, ZWNJ, ZWJ, LINE/PARAGRAPH SEPARATOR, WORD JOINER, invisible operators, BOM", "ma\u200bin\u200c\u200d\u2028\u2029\u2060\u2061\u2064\u2065\ufeff!", "ma\\u{200B}in\\u{200C}\\u{200D}\\u{2028}\\u{2029}\\u{2060}\\u{2061}\\u{2064}\\u{2065}\\u{FEFF}!");
+dv("rlo-filename", "The classic extension spoof", "invoice\u202egpj.exe", "invoice\\u{202E}gpj.exe");
+dv("empty", "Empty string", "", "");
 
 // ---------- links/ (§3.5 review links, §3.2 note and :short) and template-sha256/ (§3.1)
 // Expected values are written out by hand; vectors.test.ts and the Swift VectorTests check both renderers against them.
@@ -158,8 +194,8 @@ inject("inject-empty-segment", "{v:path} with an empty segment drops that link",
 inject("inject-empty-value", "An empty value drops every link that uses it", "", "", null, null, null);
 inject("inject-absolute-url", "A full URL in a value stays data inside the path", "https://evil.com/x", "https://evil.com/x", "https%3A%2F%2Fevil.com%2Fx", null, "https%3A%2F%2Fevil.com%2Fx");
 inject("inject-unicode-space", "Unicode and spaces are UTF-8 percent-encoded", "naïve 😀 x", "naïve 😀 x", "na%C3%AFve%20%F0%9F%98%80%20x", "na%C3%AFve%20%F0%9F%98%80%20x", "na%C3%AFve%20%F0%9F%98%80%20x");
-inject("inject-backslash-controls", "Backslash, tab and newline are encoded (URL parsers would treat or strip them)", "a\\b\tc\nd", "a\\b\tc\nd", "a%5Cb%09c%0Ad", "a%5Cb%09c%0Ad", "a%5Cb%09c%0Ad");
-inject("inject-bidi-override", "A bidi override in a value is encoded", "‮evil", "‮evil", "%E2%80%AEevil", "%E2%80%AEevil", "%E2%80%AEevil");
+inject("inject-backslash-controls", "Backslash, tab and newline are encoded (URL parsers would treat or strip them); the line shows tab and newline escaped (§3.6)", "a\\b\tc\nd", "a\\b\\tc\\nd", "a%5Cb%09c%0Ad", "a%5Cb%09c%0Ad", "a%5Cb%09c%0Ad");
+inject("inject-bidi-override", "A bidi override in a value is encoded, and escaped on the line (§3.6)", "\u202eevil", "\\u{202E}evil", "%E2%80%AEevil", "%E2%80%AEevil", "%E2%80%AEevil");
 inject("inject-combining-after-slash", "{v:path} splits on the code point '/', even when a combining mark follows it", "a/́b", "a/́b", "a%2F%CC%81b", "a/%CC%81b", "a%2F%CC%81b");
 inject("value-float", "A non-integer number drops every link that uses it", 1.5, "1.5", null, null, null);
 inject("value-unsafe-integer", "An integer beyond 2^53 - 1 drops every link that uses it", 9007199254740992, "9007199254740992", null, null, null);
@@ -330,4 +366,26 @@ ra("device-id-under-gateway-scheme", "Signeto-Gateway scheme carrying a dev_ id 
 
 // ---------- ids/
 write("ids/thumbprints.json", { description: "RFC 7638 thumbprints → gw_/dev_ ids and human fingerprints", inputs: { gateway: pub(gwKey), device_es256: pub(devEs), device_ed25519: pub(devEd) }, expected: { gateway_id, device_es256_id: devEsId, device_ed25519_id: devEdId, gateway_fingerprint: P.fingerprint(gwKey), device_es256_fingerprint: P.fingerprint(devEs) } });
+// ---------- weak-keys/ (§5.1): small-order Ed25519 public keys are refused. Expected values written out by hand.
+{
+  const hx = (h) => P.base64url.encode(Uint8Array.from(h.match(/../g), (b) => parseInt(b, 16)));
+  const signBit = (h) => h.slice(0, 62) + (parseInt(h.slice(62), 16) | 0x80).toString(16).padStart(2, "0");
+  const small = [
+    ["0 (order 4)", "0000000000000000000000000000000000000000000000000000000000000000"],
+    ["1, the identity (order 1)", "0100000000000000000000000000000000000000000000000000000000000000"],
+    ["order 8", "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05"],
+    ["order 8", "c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a"],
+    ["p - 1 (order 2)", "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"],
+    ["p, non-canonical 0 (order 4)", "edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"],
+    ["p + 1, non-canonical 1 (order 1)", "eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"],
+  ];
+  const cases = [
+    ...small.map(([d, h]) => ({ description: d, x: hx(h), weak: true })),
+    ...small.map(([d, h]) => ({ description: d + ", sign bit set", x: hx(signBit(h)), weak: true })),
+    { description: "the gateway test key", x: gwKey.x, weak: false },
+    { description: "the Ed25519 device test key", x: devEd.x, weak: false },
+    { description: "y = 2: not a small-order encoding (whether it decodes to a point is a separate check)", x: hx("0200000000000000000000000000000000000000000000000000000000000000"), weak: false },
+  ];
+  write("weak-keys/ed25519-small-order.json", { description: "Ed25519 public keys (JWK x) that are small-order points: refused at pairing, enrollment and QR parse, and nothing verifies under them (§5.1)", cases });
+}
 console.log("vectors written under", root);

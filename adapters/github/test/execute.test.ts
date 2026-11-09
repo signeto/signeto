@@ -18,15 +18,17 @@ async function expectCode(p: Promise<unknown>, code: AdapterError["code"]) {
 }
 
 const mergeOk: Route = { method: "PUT", path: "/repos/acme/api/pulls/42/merge", body: { sha: MERGE_SHA, merged: true, message: "Pull Request successfully merged" } };
+/** The PR as execute re-reads it right before merging: still on the signed base, repo and head. */
+const prOk: Route = { method: "GET", path: "/repos/acme/api/pulls/42", body: pullRequest() };
 
 describe("execute merge_pull_request", () => {
-  it("PUTs the frozen head sha and merge method with the minted token, and returns the merge sha as evidence", async () => {
-    const m = mockFetch([mergeOk]);
+  it("re-reads the PR, then PUTs the frozen head sha and merge method with the minted token, and returns the merge sha as evidence", async () => {
+    const m = mockFetch([prOk, mergeOk]);
     const r = await githubAdapter.execute(executeCtx(m.fetch), mergeAction, credential);
-    expect(m.calls).toHaveLength(1);
-    expect(m.calls[0]).toMatchObject({ method: "PUT", path: "/repos/acme/api/pulls/42/merge", body: { sha: HEAD_SHA, merge_method: "squash" } });
-    expect(m.calls[0]!.headers.authorization).toBe(`Bearer ${TOKEN}`);
-    expect(m.calls[0]!.headers["x-github-api-version"]).toBe("2022-11-28");
+    expect(m.calls.map((c) => `${c.method} ${c.path}`)).toEqual(["GET /repos/acme/api/pulls/42", "PUT /repos/acme/api/pulls/42/merge"]);
+    expect(m.calls[1]).toMatchObject({ method: "PUT", path: "/repos/acme/api/pulls/42/merge", body: { sha: HEAD_SHA, merge_method: "squash" } });
+    expect(m.calls.every((c) => c.headers.authorization === `Bearer ${TOKEN}`)).toBe(true);
+    expect(m.calls[1]!.headers["x-github-api-version"]).toBe("2022-11-28");
     expect(r.content).toEqual({ merged: true, sha: MERGE_SHA, message: "Pull Request successfully merged" });
     expect(r.evidence).toEqual({ merge_sha: MERGE_SHA, repo: "acme/api", pr: 42, head_sha: HEAD_SHA, base: "main", method: "squash" });
     expect(JSON.stringify(r)).not.toContain(TOKEN);
@@ -46,15 +48,18 @@ describe("execute merge_pull_request", () => {
     const checkOk: Route = { method: "POST", path: "/repos/acme/api/check-runs", status: 201, body: { id: 4242 } };
 
     it("posts a completed success check on the approved head sha before merging, and records its id", async () => {
-      const m = mockFetch([checkOk, mergeOk]);
+      const m = mockFetch([prOk, checkOk, mergeOk]);
       const r = await githubAdapter.execute({ ...executeCtx(m.fetch), approval }, mergeAction, withChecks);
+      // PR re-read before the check run (a refused merge leaves no "approved" check) and again right before the PUT.
       expect(m.calls.map((c) => [c.method, c.path])).toEqual([
+        ["GET", "/repos/acme/api/pulls/42"],
         ["POST", "/repos/acme/api/check-runs"],
+        ["GET", "/repos/acme/api/pulls/42"],
         ["PUT", "/repos/acme/api/pulls/42/merge"],
         ["POST", "/repos/acme/api/check-runs"],
       ]);
-      expect(m.calls[0]!.headers.authorization).toBe(`Bearer ${TOKEN}`);
-      const body = m.calls[0]!.body as { name: string; head_sha: string; status: string; conclusion: string; external_id: string; output: { title: string; summary: string } };
+      expect(m.calls[1]!.headers.authorization).toBe(`Bearer ${TOKEN}`);
+      const body = m.calls[1]!.body as { name: string; head_sha: string; status: string; conclusion: string; external_id: string; output: { title: string; summary: string } };
       expect(body).toMatchObject({ name: CHECK_RUN_NAME, head_sha: HEAD_SHA, status: "completed", conclusion: "success", external_id: approval.action_id, completed_at: approval.signed_at });
       expect(body.output.title).toBe("Approved by jason on iPhone | <b>");
       expect(body.output.summary).toContain("| Device | iPhone \\| \\<b\\> (`dev_AXRbxuCypBsG`) |");
@@ -63,7 +68,7 @@ describe("execute merge_pull_request", () => {
       expect(body.output.summary).not.toContain("Approvals");
       expect(r.evidence).toMatchObject({ merge_sha: MERGE_SHA, check_run_id: 4242, merge_check_run_id: 4242 });
       // The same approval on the commit that landed on the base branch; the summary names the approved head.
-      const after = m.calls[2]!.body as { head_sha: string; external_id: string; output: { title: string; summary: string } };
+      const after = m.calls[4]!.body as { head_sha: string; external_id: string; output: { title: string; summary: string } };
       expect(after).toMatchObject({ head_sha: MERGE_SHA, external_id: approval.action_id });
       expect(after.output.title).toBe(body.output.title);
       expect(after.output.summary).toContain("This commit is the merge of PR #42");
@@ -73,7 +78,7 @@ describe("execute merge_pull_request", () => {
     it("the check run on the merge commit never fails the merge, and is skipped close to the deadline", async () => {
       // First check-runs POST succeeds, the one after the merge fails (server error, or its own budget runs out).
       for (const second of [{ ...checkOk, status: 500 }, { ...checkOk, throws: new DOMException("aborted", "AbortError") }]) {
-        const first = mockFetch([checkOk, mergeOk]);
+        const first = mockFetch([prOk, checkOk, mergeOk]);
         const after = mockFetch([second]);
         let posts = 0;
         const f: typeof fetch = (input, init) => {
@@ -85,16 +90,16 @@ describe("execute merge_pull_request", () => {
         expect(posts).toBe(2);
         expect(r.evidence).toMatchObject({ merge_sha: MERGE_SHA, check_run_id: 4242, merge_check_run_id: null });
       }
-      const late = mockFetch([checkOk, mergeOk]);
+      const late = mockFetch([prOk, checkOk, mergeOk]);
       const r = await githubAdapter.execute({ ...executeCtx(late.fetch), deadline: new Date(Date.now() + 1_500), approval }, mergeAction, withChecks);
-      expect(late.calls.map((c) => c.method)).toEqual(["POST", "PUT"]);
+      expect(late.calls.map((c) => c.method)).toEqual(["GET", "POST", "GET", "PUT"]);
       expect(r.evidence).toMatchObject({ merge_check_run_id: null });
     });
 
     it("a refused or unreachable check run is a warning; the approved merge still happens", async () => {
       for (const route of [{ ...checkOk, status: 403, body: { message: "Resource not accessible by integration" } }, { ...checkOk, throws: new TypeError("fetch failed") }]) {
         const { logger, warnings } = recordingLogger();
-        const m = mockFetch([route, mergeOk]);
+        const m = mockFetch([prOk, route, mergeOk]);
         const r = await githubAdapter.execute({ ...executeCtx(m.fetch), logger, approval }, mergeAction, withChecks);
         expect(r.evidence).toMatchObject({ merge_sha: MERGE_SHA, check_run_id: null });
         expect(warnings.map((w) => w.msg)).toContain("github: check run not created");
@@ -102,13 +107,13 @@ describe("execute merge_pull_request", () => {
     });
 
     it("no check run without checks:write on the token, or without an approval (tier 1)", async () => {
-      const a = mockFetch([checkOk, mergeOk]);
+      const a = mockFetch([prOk, checkOk, mergeOk]);
       const r = await githubAdapter.execute({ ...executeCtx(a.fetch), approval }, mergeAction, credential);
-      expect(a.calls.map((c) => c.method)).toEqual(["PUT"]);
+      expect(a.calls.map((c) => c.method)).toEqual(["GET", "PUT"]);
       expect(r.evidence).not.toHaveProperty("check_run_id");
-      const b = mockFetch([checkOk, mergeOk]);
+      const b = mockFetch([prOk, checkOk, mergeOk]);
       await githubAdapter.execute(executeCtx(b.fetch), mergeAction, withChecks);
-      expect(b.calls.map((c) => c.method)).toEqual(["PUT"]);
+      expect(b.calls.map((c) => c.method)).toEqual(["GET", "PUT"]);
     });
 
     it("summary lists the approval count for a quorum and escapes markdown in names", () => {
@@ -121,15 +126,18 @@ describe("execute merge_pull_request", () => {
   });
 
   it("uses the frozen args, never anything else", async () => {
-    const m = mockFetch([{ method: "PUT", path: "/repos/other/repo/pulls/7/merge", body: { sha: MERGE_SHA, merged: true } }]);
+    const m = mockFetch([
+      { method: "GET", path: "/repos/other/repo/pulls/7", body: pullRequest({ number: 7, head: { ref: "x", sha: REF_SHA }, base: { ref: "main", repo: { full_name: "Other/Repo" } } }) },
+      { method: "PUT", path: "/repos/other/repo/pulls/7/merge", body: { sha: MERGE_SHA, merged: true } },
+    ]);
     const other = frozen("github.merge_pull_request", { repo: "other/repo", pr: 7, base: "main", head_sha: REF_SHA, method: "rebase" });
     await githubAdapter.execute(executeCtx(m.fetch), other, credential);
-    expect(m.calls[0]!.body).toEqual({ sha: REF_SHA, merge_method: "rebase" });
+    expect(m.calls[1]!.body).toEqual({ sha: REF_SHA, merge_method: "rebase" });
   });
 
   it("maps 405 (not mergeable) and 409 (sha moved) to precondition_failed", async () => {
     for (const status of [405, 409]) {
-      const m = mockFetch([{ method: "PUT", path: "/repos/acme/api/pulls/42/merge", status, body: { message: "Head branch was modified" } }]);
+      const m = mockFetch([prOk, { method: "PUT", path: "/repos/acme/api/pulls/42/merge", status, body: { message: "Head branch was modified" } }]);
       const e = await expectCode(githubAdapter.execute(executeCtx(m.fetch), mergeAction, credential), "precondition_failed");
       expect(e.retryable).toBe(false);
       expect(e.detail).toEqual({ repo: "acme/api", pr: 42, head_sha: HEAD_SHA });
@@ -146,12 +154,12 @@ describe("execute merge_pull_request", () => {
       [{ method: "PUT", path: "/repos/acme/api/pulls/42/merge", throws: new TypeError("fetch failed") }, "upstream_unreachable"],
     ];
     for (const [route, code] of cases) {
-      const m = mockFetch([route]);
+      const m = mockFetch([prOk, route]);
       const e = await expectCode(githubAdapter.execute(executeCtx(m.fetch), mergeAction, credential), code);
       expect(e.message).not.toContain(TOKEN);
       expect(JSON.stringify(e.detail ?? {})).not.toContain(TOKEN);
     }
-    const srv = mockFetch([{ method: "PUT", path: "/repos/acme/api/pulls/42/merge", status: 502, body: {} }]);
+    const srv = mockFetch([prOk, { method: "PUT", path: "/repos/acme/api/pulls/42/merge", status: 502, body: {} }]);
     const e = await expectCode(githubAdapter.execute(executeCtx(srv.fetch), mergeAction, credential), "upstream_rejected");
     expect(e.retryable).toBe(true);
   });
@@ -179,12 +187,13 @@ describe("execute dispatch_workflow", () => {
     body: { workflow_runs: [{ id: 5551, html_url: "https://github.com/acme/api/actions/runs/5551", created_at: new Date(NOW + 500).toISOString() }] },
   };
 
-  it("checks the ref still points at the signed sha, then POSTs the frozen ref and inputs, then looks the run up", async () => {
+  it("checks the ref still points at the signed sha, then POSTs the frozen ref and inputs, re-reads the ref, then looks the run up", async () => {
     const m = mockFetch([head(REF_SHA), dispatch, runs]);
     const r = await createGithubAdapter({ now: () => NOW }).execute(executeCtx(m.fetch), dispatchAction, credential);
     expect(m.calls.map((c) => [c.method, c.path])).toEqual([
       ["GET", "/repos/acme/api/commits/main"],
       ["POST", "/repos/acme/api/actions/workflows/deploy.yml/dispatches"],
+      ["GET", "/repos/acme/api/commits/main"],
       ["GET", runs.path],
     ]);
     expect(m.calls[1]!.body).toEqual({ ref: "main", inputs: { env: "prod" } });
@@ -213,6 +222,73 @@ describe("execute dispatch_workflow", () => {
     const b = mockFetch([head(REF_SHA), dispatch, stale]);
     const r2 = await createGithubAdapter({ now: () => NOW }).execute(executeCtx(b.fetch), dispatchAction, credential);
     expect(r2.content).toEqual({ dispatched: true });
+  });
+
+  describe("ref moved between the check and the dispatch (N9 race)", () => {
+    const MOVED = "1111111111111111111111111111111111111111";
+    /** First commits GET answers the signed sha, every later one the moved sha. */
+    function racing(routes: Route[]) {
+      const m = mockFetch(routes);
+      let heads = 0;
+      const f: typeof fetch = (input, init) => {
+        if (String(input).endsWith("/commits/main")) {
+          heads++;
+          return mockFetch([head(heads === 1 ? REF_SHA : MOVED)]).fetch(input, init).then((res) => {
+            m.calls.push({ method: "GET", url: String(input), path: "/repos/acme/api/commits/main", headers: {}, body: undefined });
+            return res;
+          });
+        }
+        return m.fetch(input, init);
+      };
+      return { fetch: f, calls: m.calls };
+    }
+    const branchRuns = (list: unknown[]): Route => ({
+      method: "GET",
+      path: "/repos/acme/api/actions/workflows/deploy.yml/runs?event=workflow_dispatch&branch=main&per_page=20",
+      body: { workflow_runs: list },
+    });
+    const cancel = (id: number, status = 202): Route => ({ method: "POST", path: `/repos/acme/api/actions/runs/${id}/cancel`, status });
+    const at = (ms: number) => new Date(NOW + ms).toISOString();
+
+    it("cancels a run dispatched on the unapproved commit and fails precondition_failed", async () => {
+      const m = racing([dispatch, branchRuns([{ id: 7001, head_sha: MOVED, created_at: at(400) }, { id: 6000, head_sha: MOVED, created_at: at(-600_000) }]), cancel(7001)]);
+      const e = await expectCode(createGithubAdapter({ now: () => NOW }).execute(executeCtx(m.fetch), dispatchAction, credential), "precondition_failed");
+      expect(m.calls.filter((c) => c.method === "POST").map((c) => c.path)).toEqual(["/repos/acme/api/actions/workflows/deploy.yml/dispatches", "/repos/acme/api/actions/runs/7001/cancel"]);
+      expect(e.message).toContain("cancelled run 7001");
+      expect(e.detail).toMatchObject({ ref_sha: REF_SHA, current_sha: MOVED, cancelled_run_ids: [7001], uncancelled_run_ids: [], runs_listed: true });
+    });
+
+    it("fails and says so when the run cannot be cancelled or the runs cannot be listed", async () => {
+      const a = racing([dispatch, branchRuns([{ id: 7001, head_sha: MOVED, created_at: at(400) }]), cancel(7001, 409)]);
+      const e1 = await expectCode(createGithubAdapter({ now: () => NOW }).execute(executeCtx(a.fetch), dispatchAction, credential), "precondition_failed");
+      expect(e1.detail).toMatchObject({ cancelled_run_ids: [], uncancelled_run_ids: [7001] });
+      const b = racing([dispatch]);
+      const e2 = await expectCode(createGithubAdapter({ now: () => NOW }).execute(executeCtx(b.fetch), dispatchAction, credential), "precondition_failed");
+      expect(e2.detail).toMatchObject({ runs_listed: false });
+      // Listed, but GitHub has not created the run yet: not confirmed, so not a success.
+      const c = racing([dispatch, branchRuns([])]);
+      await expectCode(createGithubAdapter({ now: () => NOW }).execute(executeCtx(c.fetch), dispatchAction, credential), "precondition_failed");
+    });
+
+    it("succeeds when the only run since the dispatch is on the signed commit (the ref moved after GitHub read it)", async () => {
+      const { logger, warnings } = recordingLogger();
+      const m = racing([dispatch, branchRuns([{ id: 7002, head_sha: REF_SHA, html_url: "https://github.com/acme/api/actions/runs/7002", created_at: at(300) }])]);
+      const r = await createGithubAdapter({ now: () => NOW }).execute({ ...executeCtx(m.fetch), logger }, dispatchAction, credential);
+      expect(r.evidence).toMatchObject({ dispatched: true, run_id: 7002, ref_sha: REF_SHA, ref_moved_to: MOVED });
+      expect(m.calls.filter((c) => c.path.endsWith("/cancel"))).toHaveLength(0);
+      expect(warnings).toHaveLength(1);
+    });
+
+    it("a failed re-read after the dispatch is a warning; the check before it stands", async () => {
+      const { logger, warnings } = recordingLogger();
+      let heads = 0;
+      const m = mockFetch([dispatch, runs]);
+      const f: typeof fetch = (input, init) =>
+        String(input).endsWith("/commits/main") ? (++heads === 1 ? mockFetch([head(REF_SHA)]).fetch(input, init) : Promise.reject(new TypeError("fetch failed"))) : m.fetch(input, init);
+      const r = await createGithubAdapter({ now: () => NOW }).execute({ ...executeCtx(f), logger }, dispatchAction, credential);
+      expect(r.content).toMatchObject({ dispatched: true, run_id: 5551 });
+      expect(warnings.map((w) => w.msg)).toEqual(["github: ref re-read after dispatch failed"]);
+    });
   });
 
   it("fails closed when the dispatch is rejected or the ref check fails", async () => {

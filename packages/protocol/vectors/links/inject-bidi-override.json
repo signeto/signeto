@@ -1,7 +1,7 @@
 {
-  "description": "A bidi override in a value is encoded",
+  "description": "A bidi override in a value is encoded, and escaped on the line (§3.6)",
   "inputs": {
-    "canonical_bytes": "{\"args_resolved\":{\"v\":\"‮evil\"},\"expires_at\":\"1970-01-01T00:03:01.016Z\",\"idempotency_key\":\"cec7008b2e752115905cd06f22fcedd17fb4bf8ab53e079df03cfe667a1d958c\",\"issued_at\":\"1970-01-01T00:00:01.016Z\",\"mode\":\"enforce\",\"nonce\":\"QQQQQQQQQQQQQQQQQQQQQQ\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.inject\",\"template_version\":1,\"tier\":2,\"tool\":\"test.inject\"}",
+    "canonical_bytes": "{\"args_resolved\":{\"v\":\"\u202eevil\"},\"expires_at\":\"1970-01-01T00:03:01.016Z\",\"idempotency_key\":\"cec7008b2e752115905cd06f22fcedd17fb4bf8ab53e079df03cfe667a1d958c\",\"issued_at\":\"1970-01-01T00:00:01.016Z\",\"mode\":\"enforce\",\"nonce\":\"QQQQQQQQQQQQQQQQQQQQQQ\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.inject\",\"template_version\":1,\"tier\":2,\"tool\":\"test.inject\"}",
     "registries": [
       {
         "adapter": "test",
@@ -35,7 +35,7 @@
   },
   "expected": {
     "status": "ok",
-    "text": "‮evil",
+    "text": "\\u{202E}evil",
     "hidden": [],
     "links": [
       {
