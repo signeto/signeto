@@ -929,7 +929,7 @@ Response `200`:
 - `receipts` lists every receipt accepted for the approval, as stored (with `relay_id`), whichever device sent it. The relay does not verify them.
 - Each item carries `canonical_bytes`, `gateway_signature` and `template_source` verbatim, so the device can re-render and re-verify offline. It MUST verify `gateway_signature` against the pinned gateway key (§7.5) before showing anything from an item, and MUST NOT show the content of one that fails. A device can verify a receipt only against a device key it knows (its own); it MUST NOT present another device's receipt as verified.
 - `steps` (atomic batches) is left out to bound the page size; the detail `GET` has it. Each stored request is at most the relay's body limit (256 KiB), and typical items are 1 to 3 KiB.
-- Retention: a relay MAY delete decided approvals after its retention period, after which they no longer appear here or in the detail `GET`. The reference relay currently keeps them indefinitely (SPEC §10 plans 30 days on Free, one year on Pro).
+- Retention: a relay MAY delete decided approvals after its retention period, after which they no longer appear here or in the detail `GET`. The reference relay deletes decided approvals 30 days after they were created on Free and 365 days on Pro (`plans.*.historyDays`, `packages/relay/src/retention.ts`).
 
 Errors: `401 unauthorized` / `device_revoked`, `422 request_malformed` (bad `limit` or `before`, unknown or repeated parameter).
 

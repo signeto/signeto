@@ -3,6 +3,7 @@ import { generateKeyPairSync } from "node:crypto";
 import {
   buildCanonicalAction,
   canonicalize,
+  JcsError,
   deviceIdFromJwk,
   formatTimestamp,
   gatewayIdFromJwk,
@@ -96,5 +97,14 @@ describe("end to end: build, sign, verify", () => {
         { now },
       ),
     ).toThrow(RangeError);
+  });
+});
+
+describe("lone surrogates (RFC 8785, SIG-109)", () => {
+  it("rejects a lone high or low surrogate in a value or a key, accepts a proper pair", () => {
+    expect(() => canonicalize({ a: "x\uD800" })).toThrow(JcsError);
+    expect(() => canonicalize({ a: "\uDC00y" })).toThrow(JcsError);
+    expect(() => canonicalize({ ["k\uD83D"]: 1 })).toThrow(JcsError);
+    expect(canonicalize({ a: "😀" })).toBe('{"a":"😀"}');
   });
 });

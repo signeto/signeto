@@ -5,6 +5,9 @@ export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 
 /** Serialize a JSON-compatible value to its JCS string. Throws on non-JSON input. */
+/** A high surrogate not followed by a low one, or a low surrogate not preceded by a high one. */
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+
 export function canonicalize(value: unknown): string {
   if (value === null) return "null";
   switch (typeof value) {
@@ -15,6 +18,8 @@ export function canonicalize(value: unknown): string {
       // ES Number::toString, which JSON.stringify delegates to for finite numbers.
       return JSON.stringify(value);
     case "string":
+      // RFC 8785 §3.2.2.2 / I-JSON: a lone surrogate is not valid input (Swift rejects it too; SIG-109).
+      if (LONE_SURROGATE.test(value)) throw new JcsError("lone surrogate in string");
       // JSON.stringify applies exactly the escaping RFC 8785 §3.2.2.2 requires
       // (short escapes for \b \f \n \r \t, lowercase \u00xx for other controls, no other escapes).
       return JSON.stringify(value);
@@ -32,7 +37,7 @@ export function canonicalize(value: unknown): string {
     .filter((k) => obj[k] !== undefined)
     .sort();
   const parts: string[] = [];
-  for (const k of keys) parts.push(JSON.stringify(k) + ":" + canonicalize(obj[k]));
+  for (const k of keys) parts.push(canonicalize(k) + ":" + canonicalize(obj[k]));
   return "{" + parts.join(",") + "}";
 }
 
