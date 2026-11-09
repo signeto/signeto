@@ -44,6 +44,9 @@ final class PairingTests: XCTestCase {
         XCTAssertEqual(Pairing.parseQR(enc { $0["expires_at"] = "2026-11-07T12:10:00Z" }, nowMs: now), .failure(.malformed))
         XCTAssertEqual(Pairing.parseQR(enc { o in var k = o["gateway_public_key"]!.objectValue!; k["d"] = "x"; o["gateway_public_key"] = .object(k) }, nowMs: now), .failure(.malformed))
         XCTAssertEqual(Pairing.parseQR("signeto://pair?x=1", nowMs: now), .failure(.malformed))
+        // §5.1 (SIG-92 N1): a small-order Ed25519 gateway key (here the identity point) is refused.
+        let identity = Base64URL.encode(Data([1] + [UInt8](repeating: 0, count: 31)))
+        XCTAssertEqual(Pairing.parseQR(enc { $0["gateway_public_key"] = ["kty": "OKP", "crv": "Ed25519", "x": .string(identity)] }, nowMs: now), .failure(.malformed))
         XCTAssertEqual(Pairing.parseQR("not base64!", nowMs: now), .failure(.malformed))
     }
 

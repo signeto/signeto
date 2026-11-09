@@ -117,7 +117,8 @@ public enum Pairing {
         }
         guard let raw = Base64URL.decode(data), let text = validUTF8(Array(raw)), let json = try? JSONParser.parse(text), let o = json.objectValue else { return .failure(.malformed) }
         guard o["v"] == .number(1) else { return .failure(.versionUnsupported) }
-        guard let keyJSON = o["gateway_public_key"], let key = PublicJWK(json: keyJSON) else { return .failure(.malformed) }
+        // §5.1 (SIG-92 N1): a small-order gateway key would make every confirmation and request "verify".
+        guard let keyJSON = o["gateway_public_key"], let key = PublicJWK(json: keyJSON), !key.isWeak else { return .failure(.malformed) }
         guard let name = o["gateway_name"]?.stringValue, !name.isEmpty else { return .failure(.malformed) }
         guard let relay = o["relay"]?.stringValue else { return .failure(.malformed) }
         guard let code = o["code"]?.stringValue, Chars.base64URL(code, count: 22) else { return .failure(.malformed) }

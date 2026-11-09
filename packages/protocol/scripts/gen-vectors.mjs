@@ -353,4 +353,26 @@ ra("device-id-under-gateway-scheme", "Signeto-Gateway scheme carrying a dev_ id 
 
 // ---------- ids/
 write("ids/thumbprints.json", { description: "RFC 7638 thumbprints → gw_/dev_ ids and human fingerprints", inputs: { gateway: pub(gwKey), device_es256: pub(devEs), device_ed25519: pub(devEd) }, expected: { gateway_id, device_es256_id: devEsId, device_ed25519_id: devEdId, gateway_fingerprint: P.fingerprint(gwKey), device_es256_fingerprint: P.fingerprint(devEs) } });
+// ---------- weak-keys/ (§5.1): small-order Ed25519 public keys are refused. Expected values written out by hand.
+{
+  const hx = (h) => P.base64url.encode(Uint8Array.from(h.match(/../g), (b) => parseInt(b, 16)));
+  const signBit = (h) => h.slice(0, 62) + (parseInt(h.slice(62), 16) | 0x80).toString(16).padStart(2, "0");
+  const small = [
+    ["0 (order 4)", "0000000000000000000000000000000000000000000000000000000000000000"],
+    ["1, the identity (order 1)", "0100000000000000000000000000000000000000000000000000000000000000"],
+    ["order 8", "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05"],
+    ["order 8", "c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a"],
+    ["p - 1 (order 2)", "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"],
+    ["p, non-canonical 0 (order 4)", "edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"],
+    ["p + 1, non-canonical 1 (order 1)", "eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"],
+  ];
+  const cases = [
+    ...small.map(([d, h]) => ({ description: d, x: hx(h), weak: true })),
+    ...small.map(([d, h]) => ({ description: d + ", sign bit set", x: hx(signBit(h)), weak: true })),
+    { description: "the gateway test key", x: gwKey.x, weak: false },
+    { description: "the Ed25519 device test key", x: devEd.x, weak: false },
+    { description: "y = 2: not a small-order encoding (whether it decodes to a point is a separate check)", x: hx("0200000000000000000000000000000000000000000000000000000000000000"), weak: false },
+  ];
+  write("weak-keys/ed25519-small-order.json", { description: "Ed25519 public keys (JWK x) that are small-order points: refused at pairing, enrollment and QR parse, and nothing verifies under them (§5.1)", cases });
+}
 console.log("vectors written under", root);

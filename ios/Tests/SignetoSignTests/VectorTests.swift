@@ -79,6 +79,22 @@ final class TemplateVectorTests: XCTestCase {
         }
     }
 
+    /// §5.1 small-order Ed25519 keys: the same cases `isWeakPublicJwk` in TypeScript refuses.
+    func testWeakKeys() throws {
+        for (name, v) in try vectors("weak-keys") {
+            for c in v["cases"]!.arrayValue! {
+                let jwk = PublicJWK.ed25519(x: c["x"]!.s)
+                XCTAssertEqual(jwk.isWeak, c["weak"] == .bool(true), "\(name): \(c["description"]!.s)")
+                if c["weak"] == .bool(true) {
+                    // Nothing verifies under it, not even R = identity, S = 0 over any message.
+                    var sig = Data(count: 64)
+                    sig[0] = 1
+                    XCTAssertFalse(jwk.verify(signature: sig, over: Data("approve anything".utf8)), c["description"]!.s)
+                }
+            }
+        }
+    }
+
     /// §3.6 display escape: the same expected output as `displayEscape` in TypeScript.
     func testDisplayEscape() throws {
         for (name, v) in try vectors("display-escape") {

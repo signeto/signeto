@@ -67,6 +67,17 @@ describe("display-escape/", () => {
   }
 });
 
+describe("weak-keys/", () => {
+  for (const { name, v } of load("weak-keys")) {
+    it(name, () => {
+      for (const c of v.cases) {
+        expect(P.isWeakPublicJwk({ kty: "OKP", crv: "Ed25519", x: c.x }), c.description).toBe(c.weak);
+        expect(P.isSmallOrderEd25519(P.base64url.decode(c.x)), c.description).toBe(c.weak);
+      }
+    });
+  }
+});
+
 describe("template-sha256/", () => {
   for (const { name, v } of load("template-sha256")) {
     it(name, () => {
