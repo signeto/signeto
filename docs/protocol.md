@@ -440,6 +440,8 @@ The verifier MUST, in addition to the generic steps in §4.5, and in this order:
 
 Steps 1 to 4 run before step 5 so that an assertion from the wrong origin or for the wrong challenge never reaches the cryptographic check.
 
+A verifier re-checking a stored WebAuthn receipt later (the ledger verifier, `docs/ledger.md` §5; `verifyWebAuthnAssertion` in `@signeto/protocol`) runs the same steps over the signing input it rebuilds. If it does not hold the allow-list in effect when the receipt was accepted, it skips step 3 and requires the RP ID hash to be SHA-256 of the asserted origin's host or of one of its parent domains, and says that the origin was not checked.
+
 ### 4.5 Verification algorithm
 
 A gateway MUST perform every step below, in order, and MUST stop at the first failure. Any failure means the action is not executed. The listed code is the rejection reason recorded in the ledger and returned to the relay.
@@ -480,13 +482,16 @@ Standalone verifiers (`signeto verify receipt.json`, P1) perform steps 1, 2, 9, 
 | `clock_skew` | 10 | `signed_at` outside the tolerance window. |
 | `invalid_signature` | 12 | Cryptographic verification failed. |
 | `nonce_reused` | 13 | Replay. |
-| `nonce_store_behind` | startup | Nonce store `seq` is behind the chain head; gateway refuses to start until `signeto ledger repair` runs (§4.7). |
+| `nonce_store_behind` | startup | Nonce store `seq` is behind the chain head (a local one, or one the relay holds); gateway refuses to start until `signeto ledger repair` runs (§4.7). |
+| `chain_head_mismatch` | startup | The relay holds a head this gateway signed whose `entry_hash` the local ledger does not have at that `seq` (rewritten); gateway refuses to start until `signeto ledger repair` runs (§4.7). |
 
 ### 4.7 Nonce store durability
 
 The nonce store is a table in the gateway's ledger database (`docs/ledger.md` §4). Each row records the nonce, the `action_id`, and the ledger `seq` of the entry written in the transaction that consumed it. The chain head (§7.10) carries the ledger's monotonic `seq`.
 
 On start the gateway MUST compare the highest `seq` referenced by the nonce store with the highest chain head `seq` it has signed, as recorded in the `chain_head` table and in the local heads file (`docs/ledger.md` §6). If the nonce store is behind, the database was restored from a backup taken before heads the gateway already published, and nonces consumed after that point would be usable again. The gateway MUST refuse to start with `nonce_store_behind` until the operator runs `signeto ledger repair`. Repair appends a `fail_closed` entry naming the condition and then marks every action issued before the chain head `seq` that has no terminal entry as `expired`, each with its own ledger entry. Those actions can never be approved; a retry creates a new action with a new nonce (§6.3). A restore therefore cannot make an already-used nonce usable again.
+
+The local heads can be cut along with the database by anyone with write access to the gateway's files. A gateway with a relay configured therefore also compares its ledger with the heads the relay holds for it (§7.10), at every start, in the background: start-up and approvals never wait for the relay (§6.5), and an unreachable relay is retried with backoff. A head signed by this gateway that the ledger does not contain (its `seq` past the local tip, or a different `entry_hash` at that `seq`) is proof of a restore, truncation or rewrite after it was published. The gateway MUST then fail closed: record the divergence durably so that every later start refuses (`nonce_store_behind`, or `chain_head_mismatch` for a rewrite) until `signeto ledger repair`, ledger it, and refuse every action until it is restarted after the repair. Heads whose signature does not verify with the gateway key are ignored. The repair expires every action still open and names the range of relay heads it accounts for (`docs/ledger.md` §4).
 
 ### 4.8 Quorum
 
@@ -951,6 +956,12 @@ Errors: `409 chain_head_regressed` (`seq` lower than stored, or same `seq` with 
 { "gateway_id": "gw_...", "heads": [ { "cursor": "41", "gateway_id": "gw_...", "seq": 1842, "entry_hash": "<hex>", "policy_hash": "<hex>", "ts": "...", "signature": "...", "received_at": "...", "regressed": false } ], "next": "41" | null }
 ```
 Each head is the complete signed object, verifiable on its own. `limit` defaults to and is capped at 500; `next` is the `after` value for the following page, `null` on the last. Errors: `404 not_found` (unknown gateway or another account's), `403 forbidden` (another gateway, or a device not paired with it).
+
+`GET /v1/gateways/{gateway_id}/chain-head` — same authentication and errors. The highest head the relay holds that is not flagged regressed, and how many are flagged, for the gateway's start-up comparison (§4.7) in one request:
+```json
+{ "gateway_id": "gw_...", "head": { "gateway_id": "gw_...", "seq": 1842, "entry_hash": "<hex>", "policy_hash": "<hex>", "ts": "...", "signature": "...", "received_at": "..." } | null, "regressions": 0 }
+```
+A gateway talking to a relay without this endpoint (`404`) reads the list above instead.
 
 Gateways SHOULD publish after every ledger append and MUST publish at least every 5 minutes while running. `seq` is the ledger's monotonic sequence; it is what the nonce-store startup check compares against (§4.7).
 

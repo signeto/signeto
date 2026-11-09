@@ -1,4 +1,5 @@
 // docs/protocol.md §4: receipts, signing input, standalone verification (steps 1, 2, 9, 10, 11, 12 and §4.4).
+import type { KeyObject } from "node:crypto";
 import { z } from "zod";
 import { canonicalize } from "./jcs.js";
 import { base64url, concat, sha256, sha256hex, timingSafeEqualStr, utf8 } from "./encoding.js";
@@ -159,45 +160,100 @@ export function verifyReceipt(input: VerifyReceiptInput): VerifyResult {
   const pub = publicKeyFromJwk(input.device_public_key);
 
   if (r.webauthn !== undefined) {
-    const wa = verifyWebAuthn(r.webauthn, si, sig, input.webauthn, pub);
-    if (wa !== null) return wa;
+    const wa = verifyWebAuthnAssertion({
+      webauthn: r.webauthn,
+      signing_input: si,
+      signature: sig,
+      public_key: pub,
+      // §4.4 step 3: no policy, or an empty allow-list, rejects every WebAuthn receipt.
+      allowed_origins: input.webauthn?.allowed_origins ?? [],
+      rp_id: input.webauthn?.rp_id ?? "",
+      require_user_verified: input.webauthn?.require_user_verified ?? true,
+    });
+    if (!wa.ok) return wa;
     return { ok: true, receipt: r, signing_input: si };
   }
   if (!verifyRaw(r.alg, utf8.encode(si), sig, pub)) return { ok: false, code: "invalid_signature" };
   return { ok: true, receipt: r, signing_input: si };
 }
 
-function verifyWebAuthn(
-  wa: { authenticator_data: string; client_data_json: string },
-  signingInput: string,
-  sig: Uint8Array,
-  policy: WebAuthnPolicy | undefined,
-  pub: ReturnType<typeof publicKeyFromJwk>,
-): Extract<VerifyResult, { ok: false }> | null {
+export interface WebAuthnAssertionInput {
+  webauthn: { authenticator_data: string; client_data_json: string };
+  /** The §4.2 signing input the verifier rebuilt itself (never one taken from the assertion). */
+  signing_input: string;
+  /** Raw `r || s`. */
+  signature: Uint8Array;
+  public_key: KeyObject | PublicJwk;
+  /**
+   * Allowed approver origins (§4.4 step 3); an empty list rejects every assertion. `undefined` skips the
+   * allow-list, for a verifier that does not know it (the ledger verifier re-checking an entry written
+   * under a policy it does not hold); the RP ID hash is then checked against the asserted origin instead.
+   */
+  allowed_origins?: readonly string[] | undefined;
+  /** The configured RP ID. `undefined`: the RP ID hash must be that of the origin's host or one of its parent domains. */
+  rp_id?: string | undefined;
+  require_user_verified: boolean;
+}
+
+export type WebAuthnAssertionResult =
+  | { ok: true; origin: string; rp_id: string; user_verified: boolean }
+  | { ok: false; code: VerifyCode; detail?: string };
+
+/** RP IDs a page at `origin` may use: its host and each parent domain that still has a dot (never a bare TLD). */
+function rpIdCandidates(origin: string): string[] {
+  let host: string;
+  try {
+    host = new URL(origin).hostname;
+  } catch {
+    return [];
+  }
+  if (host.length === 0) return [];
+  if (/^[0-9.]+$/.test(host) || host.startsWith("[")) return [host]; // IP literals have no parent domains
+  const labels = host.split(".");
+  const out = [host];
+  for (let i = 1; i < labels.length - 1; i++) out.push(labels.slice(i).join("."));
+  return out;
+}
+
+/**
+ * §4.4 steps 1 to 5 for one assertion, in order: type, challenge (from the rebuilt `signing_input`), origin,
+ * RP ID hash and user flags, then the signature over `authenticator_data || SHA-256(client_data_json)`.
+ * `verifyReceipt` runs it with the gateway's policy; the gateway's ledger verifier runs it over stored entries.
+ */
+export function verifyWebAuthnAssertion(input: WebAuthnAssertionInput): WebAuthnAssertionResult {
   let authData: Uint8Array;
   let cdjBytes: Uint8Array;
-  let cdj: { type?: unknown; challenge?: unknown; origin?: unknown };
+  let cdj: { type?: unknown; challenge?: unknown; origin?: unknown } | null;
   try {
-    authData = base64url.decode(wa.authenticator_data);
-    cdjBytes = base64url.decode(wa.client_data_json);
+    authData = base64url.decode(input.webauthn.authenticator_data);
+    cdjBytes = base64url.decode(input.webauthn.client_data_json);
     cdj = JSON.parse(utf8.decode(cdjBytes)) as typeof cdj;
   } catch {
     return { ok: false, code: "receipt_malformed", detail: "webauthn encoding" };
   }
+  if (cdj === null || typeof cdj !== "object") return { ok: false, code: "receipt_malformed", detail: "client_data_json is not an object" };
   // §4.4 order: type → challenge → origin → rpIdHash/flags → signature.
   if (cdj.type !== "webauthn.get") return { ok: false, code: "webauthn_type" };
-  const expectedChallenge = base64url.encode(webauthnChallenge(signingInput));
+  const expectedChallenge = base64url.encode(webauthnChallenge(input.signing_input));
   if (typeof cdj.challenge !== "string" || !timingSafeEqualStr(cdj.challenge, expectedChallenge)) return { ok: false, code: "webauthn_challenge" };
-  if (!policy || policy.allowed_origins.length === 0 || typeof cdj.origin !== "string" || !policy.allowed_origins.includes(cdj.origin))
-    return { ok: false, code: "webauthn_origin" };
+  const origin = cdj.origin;
+  if (typeof origin !== "string") return { ok: false, code: "webauthn_origin" };
+  const allowed = input.allowed_origins;
+  if (allowed !== undefined && (allowed.length === 0 || !allowed.includes(origin))) return { ok: false, code: "webauthn_origin" };
   if (authData.length < 37) return { ok: false, code: "receipt_malformed", detail: "authenticator_data too short" };
   const rpIdHash = Buffer.from(authData.subarray(0, 32)).toString("hex");
-  if (!timingSafeEqualStr(rpIdHash, sha256hex(policy.rp_id))) return { ok: false, code: "webauthn_rp_id" };
+  const candidates = input.rp_id !== undefined ? [input.rp_id] : rpIdCandidates(origin);
+  const rp_id = candidates.find((c) => timingSafeEqualStr(rpIdHash, sha256hex(c)));
+  if (rp_id === undefined) return { ok: false, code: "webauthn_rp_id" };
   const flags = authData[32] as number;
   const up = (flags & 0x01) !== 0;
   const uv = (flags & 0x04) !== 0;
-  if (!up || (policy.require_user_verified && !uv)) return { ok: false, code: "webauthn_user_flags" };
-  const data = concat(authData, sha256(cdjBytes));
-  if (!verifyRaw("ES256", data, sig, pub)) return { ok: false, code: "invalid_signature" };
-  return null;
+  if (!up || (input.require_user_verified && !uv)) return { ok: false, code: "webauthn_user_flags" };
+  const pub = isKeyObject(input.public_key) ? input.public_key : publicKeyFromJwk(input.public_key);
+  if (!verifyRaw("ES256", concat(authData, sha256(cdjBytes)), input.signature, pub)) return { ok: false, code: "invalid_signature" };
+  return { ok: true, origin, rp_id, user_verified: uv };
+}
+
+function isKeyObject(k: KeyObject | PublicJwk): k is KeyObject {
+  return typeof (k as KeyObject).export === "function" && typeof (k as KeyObject).type === "string";
 }
