@@ -59,7 +59,7 @@ The canonical action is the only thing an approver ever signs and the only thing
 | `template_id` | string | MUST | Display template identifier (§3). By convention equal to `tool`. |
 | `template_version` | integer | MUST | Positive integer. Template registry version used to render this action. |
 | `args_resolved` | object | MUST | Arguments after gateway resolution: IDs looked up, amounts normalized, paths absolute. Values MUST be JSON primitives, arrays, or objects. No floats where an exact decimal is meaningful; amounts MUST be strings or integer minor units as the adapter manifest declares. |
-| `requester` | object | MUST | `{agent, session_id, host, gateway_id}`, all strings, all REQUIRED. `agent` is the client name as reported by MCP initialization or the hook environment. `gateway_id` is defined in §5.1. |
+| `requester` | object | MUST | `{agent, session_id, host, gateway_id}`, all strings, all REQUIRED. `agent` is the client name as reported by MCP initialization or the hook environment: chosen by the agent, so a gateway MUST NOT sign an `agent` that is empty, longer than 128 UTF-16 code units or contains a code point in the §3.6 escape set; it replaces each such code point with its §3.6 escape, trims, cuts to 128 code units and uses `unknown-agent` when nothing is left (`printableAgentName` in `@signeto/protocol`; `buildCanonicalAction` refuses anything else). Receivers do not enforce this, so bytes signed before the rule still parse; surfaces escape `agent` like every other string. `gateway_id` is defined in §5.1. |
 | `nonce` | string | MUST | 16 random bytes from a CSPRNG, base64url without padding (22 characters). Single use per gateway. |
 | `idempotency_key` | string | MUST | Lowercase hex SHA-256, see §2.4. |
 | `issued_at` | string | MUST | RFC 3339 UTC timestamp, §2.5. |
@@ -269,8 +269,8 @@ A JCS object starts with `{"`, which is never valid template text (§3.2), so th
 - A placeholder MAY name a formatter: `{path:name}`, `name` matching `[a-z]+`. Only two exist, each allowed in one place: `short` in `note`, and `path` in a link URL (§3.5). `text` allows none. Any other formatter, or one used elsewhere, makes the template malformed (`malformed_template`).
 - `{path:short}` renders the first 7 Unicode code points of a string value (all of it if shorter). A value that is not a string does not resolve (`unresolved_placeholder`). It exists so that a note can name a commit the way people say it; the sentence always shows whole values.
 - No conditionals, loops, filters, or other formatting directives. Formatting is the adapter's job at resolution time (for example, `args_resolved.notional_usd = "512.00"`).
-- Value rendering: strings verbatim; numbers, booleans, `null`, arrays, and objects as their JCS JSON text.
-- The rendered line is the template text with placeholders replaced. Renderers MUST NOT trim, wrap, truncate, or reorder. Line wrapping for display is a presentation concern and MUST be applied after rendering, on a copy.
+- Value rendering: strings as they are; numbers, booleans, `null`, arrays, and objects as their JCS JSON text.
+- The rendered line is the template text with placeholders replaced, then the §3.6 display escapes applied to the whole line (and to the note). Renderers MUST NOT trim, wrap, truncate, or reorder. Line wrapping for display is a presentation concern and MUST be applied after rendering, on a copy.
 - `note` is an optional second line, shown under the sentence. It is rendered like `text`, plus `:short`, and fails like it: a malformed note or a note placeholder that does not resolve makes the request unverified (§3.4). A note is the adapter's statement about the action and MUST be true of how the adapter executes it. `github.merge_pull_request` v2 says "If the PR changes, this approval will not merge it" because the adapter merges with `sha: head_sha` and GitHub refuses the merge when the head has moved.
 - Only placeholders in `text` count as mentioning an argument for the unreferenced-key rule (§3.4). An argument that appears only in the note or a link is still unreferenced, so the sentence alone tells the user everything.
 
@@ -335,6 +335,28 @@ Then concatenate the literals and the encoded values. If the result is longer th
 - No URL is supplied at request time. The host and the shape of each URL are in the hashed template; the values come from the verified canonical bytes. A relay or gateway cannot add, change or drop a link of a bundled or pinned template without the hash failing.
 - The literal-host rule and the encoding mean a signed value cannot change the scheme, host, userinfo or port, start a query or fragment, or add a dot segment. A value with `/`, `?`, `#`, `@`, `%2F`, `..`, spaces or non-ASCII stays data inside its segment.
 - Residual: an allowlisted host serves whatever lives at the path the values select. A link to a pull request in a repository the agent controls shows the agent's content. It shows the same thing the signed bytes name, which is what the user is approving.
+
+### 3.6 Display escaping
+
+Every string an approver surface shows that comes from canonical bytes, a relay, a gateway or a pairing (the template line and note, argument keys and values, `requester` members, gateway, device and approver names, identifiers and error text from a relay, and the raw or pretty-printed canonical bytes) MUST be shown with this escape. It is display only: bytes that are hashed, signed, compared or copied are never escaped.
+
+The escaped set is:
+
+| Code points | What they are |
+|---|---|
+| U+0000–U+001F | C0 controls, including TAB, LF and CR |
+| U+007F | DEL |
+| U+0080–U+009F | C1 controls (U+009B is a one-byte CSI) |
+| U+061C | ARABIC LETTER MARK |
+| U+200B–U+200F | zero width space, non-joiner, joiner; LEFT-TO-RIGHT and RIGHT-TO-LEFT MARK |
+| U+2028–U+202E | LINE and PARAGRAPH SEPARATOR; bidi embeddings, pop and overrides (LRE, RLE, PDF, LRO, RLO) |
+| U+2060–U+2069 | WORD JOINER, invisible operators, bidi isolates (LRI, RLI, FSI, PDI) |
+| U+FEFF | ZERO WIDTH NO-BREAK SPACE (BOM) |
+| U+D800–U+DFFF | lone surrogates (only a UTF-16 string can hold one) |
+
+Each code point in the set is replaced by `\n` (U+000A), `\r` (U+000D), `\t` (U+0009), or otherwise `\u{` + the code point in uppercase hex, at least two digits + `}`: `\u{1B}`, `\u{85}`, `\u{202E}`, `\u{FEFF}`. Nothing else changes; in particular a backslash stays a backslash, so the escape is not injective (a value containing the six characters `\u{1B}` looks like one containing ESC) and the raw bytes view remains the reference. Line breaks inside a value therefore show as `\n` on one line; a surface MAY wrap long lines for display (§3.2).
+
+The output contains no character that moves a terminal cursor, starts a new line, reorders text or is invisible, so one value cannot overwrite, hide or visually reorder the sentence or another value. `renderTemplate` applies it to the line and the note, so their output stays byte-identical across surfaces (§3.3 rule 3). `@signeto/protocol` exports `displayEscape` and `displayValue` (§3.2 rendering, then this escape); SignetoSign has `Display.escape` and `Display.value`; `vectors/display-escape/` fixes the output. Other display hazards (look-alike characters, mixed scripts) are out of scope: the raw bytes view and the review links (§3.5) are the check for those.
 
 ---
 

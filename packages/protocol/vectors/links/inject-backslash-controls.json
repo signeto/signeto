@@ -1,5 +1,5 @@
 {
-  "description": "Backslash, tab and newline are encoded (URL parsers would treat or strip them)",
+  "description": "Backslash, tab and newline are encoded (URL parsers would treat or strip them); the line shows tab and newline escaped (§3.6)",
   "inputs": {
     "canonical_bytes": "{\"args_resolved\":{\"v\":\"a\\\\b\\tc\\nd\"},\"expires_at\":\"1970-01-01T00:03:01.015Z\",\"idempotency_key\":\"890021cccbdbc773cbf26628d23ec230ba2b3ad40979619c4c8234fc7ce7ca89\",\"issued_at\":\"1970-01-01T00:00:01.015Z\",\"mode\":\"enforce\",\"nonce\":\"PPPPPPPPPPPPPPPPPPPPPP\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.inject\",\"template_version\":1,\"tier\":2,\"tool\":\"test.inject\"}",
     "registries": [
@@ -35,7 +35,7 @@
   },
   "expected": {
     "status": "ok",
-    "text": "a\\b\tc\nd",
+    "text": "a\\b\\tc\\nd",
     "hidden": [],
     "links": [
       {

@@ -19,7 +19,7 @@
       "registries": "builtin",
       "expected": {
         "status": "ok",
-        "text": "dml on prod@db-1: UPDATE users SET name = 'Zoë'\nWHERE id = 7;",
+        "text": "dml on prod@db-1: UPDATE users SET name = 'Zoë'\\nWHERE id = 7;",
         "hidden": []
       }
     },

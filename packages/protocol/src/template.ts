@@ -2,6 +2,7 @@
 import { canonicalize, type JsonValue } from "./jcs.js";
 import { sha256hex, utf8 } from "./encoding.js";
 import { parseCanonicalAction } from "./action.js";
+import { displayEscape } from "./display.js";
 
 /** A review link (§3.5): a literal label and a URL template over `args_resolved`. */
 export interface TemplateLink {
@@ -190,9 +191,14 @@ function lookup(args: Record<string, unknown>, path: string[]): { found: true; v
   return { found: true, value: cur };
 }
 
-/** §3.2 value rendering: strings verbatim, everything else as its JCS text. */
+/** §3.2 value rendering: strings verbatim, everything else as its JCS text. Not yet display-escaped (§3.6). */
 export function renderValue(v: unknown): string {
   return typeof v === "string" ? v : canonicalize(v);
+}
+
+/** A value as an approver surface shows it outside the template line (argument rows): `renderValue`, then §3.6. */
+export function displayValue(v: unknown): string {
+  return displayEscape(renderValue(v));
 }
 
 // ---- §3.5 links -------------------------------------------------------------------------------------
@@ -416,10 +422,10 @@ export function renderTemplate(canonicalBytes: string, registries: readonly Temp
   const links = renderLinks(t, a.args_resolved);
   return {
     status: "ok",
-    text: text.text,
+    text: displayEscape(text.text),
     template: t,
     hidden,
-    ...(hasNote ? { note: note.text } : {}),
+    ...(hasNote ? { note: displayEscape(note.text) } : {}),
     links: links.links,
     ...(links.error ? { links_error: links.error } : {}),
   };

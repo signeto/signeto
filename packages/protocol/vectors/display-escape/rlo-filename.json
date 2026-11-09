@@ -1,0 +1,9 @@
+{
+  "description": "The classic extension spoof",
+  "inputs": {
+    "value": "invoice\u202egpj.exe"
+  },
+  "expected": {
+    "escaped": "invoice\\u{202E}gpj.exe"
+  }
+}

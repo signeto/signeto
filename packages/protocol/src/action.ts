@@ -4,6 +4,7 @@ import { canonicalize } from "./jcs.js";
 import { sha256hex } from "./encoding.js";
 import { ACTION_ID_RE, GATEWAY_ID_RE, NONCE_RE, newNonce } from "./ids.js";
 import { DEFAULT_EXPIRY_MS, MAX_EXPIRY_MS, TIMESTAMP_RE, formatTimestamp, parseTimestamp } from "./timestamps.js";
+import { displayEscape, isDisplaySafe } from "./display.js";
 
 export const PROTOCOL_VERSION = "1.0";
 export const PROTOCOL_MAJOR = 1;
@@ -11,9 +12,37 @@ export const PROTOCOL_MAJOR = 1;
 const ts = z.string().regex(TIMESTAMP_RE, "timestamp must be RFC 3339 UTC with 3 fractional digits");
 const hex64 = z.string().regex(/^[0-9a-f]{64}$/);
 
+/** §2.1 `requester.agent`: at most 128 UTF-16 code units. */
+export const REQUESTER_AGENT_MAX = 128;
+
+/**
+ * §2.1: a `requester.agent` a gateway may sign: 1–128 UTF-16 code units with no code point in the display escape set
+ * (§3.6: controls, bidi and invisible characters). Receivers do not enforce this (bytes signed before it existed
+ * still parse); builders do (`buildCanonicalAction`).
+ */
+export function isPrintableAgentName(s: string): boolean {
+  return s.length >= 1 && s.length <= REQUESTER_AGENT_MAX && isDisplaySafe(s);
+}
+
+/**
+ * The agent name a gateway puts in `requester.agent` for a client-chosen name (MCP `clientInfo.name`): every
+ * escaped code point shown as its §3.6 escape, surrounding whitespace trimmed, cut to 128 code units without
+ * splitting a surrogate pair, and `fallback` when nothing printable is left. Always passes `isPrintableAgentName`.
+ */
+export function printableAgentName(raw: string, fallback = "unknown-agent"): string {
+  let s = displayEscape(raw).trim();
+  if (s.length > REQUESTER_AGENT_MAX) {
+    s = s.slice(0, REQUESTER_AGENT_MAX);
+    const last = s.charCodeAt(s.length - 1);
+    if (last >= 0xd800 && last <= 0xdbff) s = s.slice(0, -1);
+    s = s.trimEnd();
+  }
+  return s.length > 0 ? s : fallback;
+}
+
 export const RequesterSchema = z
   .object({
-    agent: z.string().min(1).max(128),
+    agent: z.string().min(1).max(REQUESTER_AGENT_MAX),
     session_id: z.string().min(1).max(256),
     host: z.string().min(1).max(253),
     gateway_id: z.string().regex(GATEWAY_ID_RE),
@@ -140,6 +169,7 @@ export interface BuildActionOptions {
 export function buildCanonicalAction(input: BuildActionInput, opts: BuildActionOptions = {}): EncodedAction {
   const expiry = input.expiry_ms ?? DEFAULT_EXPIRY_MS;
   if (expiry <= 0 || expiry > MAX_EXPIRY_MS) throw new RangeError("expiry_ms must be in (0, 300000]");
+  if (!isPrintableAgentName(input.requester.agent)) throw new TypeError("requester.agent must be 1-128 code units with no control, bidi or invisible character (protocol.md §2.1); see printableAgentName");
   const nowMs = opts.now === undefined ? Date.now() : typeof opts.now === "number" ? opts.now : opts.now.getTime();
   const base = {
     protocol_version: PROTOCOL_VERSION,

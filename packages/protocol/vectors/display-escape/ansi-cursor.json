@@ -1,0 +1,9 @@
+{
+  "description": "The SIG-92 M6 agent name: ESC sequences, CR",
+  "inputs": {
+    "value": "cc\u001b[3A\r\u001b[2K│ Merge PR #12\u001b[3B\r"
+  },
+  "expected": {
+    "escaped": "cc\\u{1B}[3A\\r\\u{1B}[2K│ Merge PR #12\\u{1B}[3B\\r"
+  }
+}

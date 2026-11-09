@@ -1,0 +1,9 @@
+{
+  "description": "ALM, LRM, RLM, LRE..RLO, LRI..PDI",
+  "inputs": {
+    "value": "a\u061cb\u200ec\u200fd\u202ae\u202bf\u202cg\u202dh\u202ei\u2066j\u2067k\u2068l\u2069m"
+  },
+  "expected": {
+    "escaped": "a\\u{61C}b\\u{200E}c\\u{200F}d\\u{202A}e\\u{202B}f\\u{202C}g\\u{202D}h\\u{202E}i\\u{2066}j\\u{2067}k\\u{2068}l\\u{2069}m"
+  }
+}

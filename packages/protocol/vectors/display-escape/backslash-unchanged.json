@@ -1,0 +1,9 @@
+{
+  "description": "A backslash is not escaped: the rule is not injective, the raw bytes view is authoritative",
+  "inputs": {
+    "value": "C:\\dir\\n \\u{1B}"
+  },
+  "expected": {
+    "escaped": "C:\\dir\\n \\u{1B}"
+  }
+}

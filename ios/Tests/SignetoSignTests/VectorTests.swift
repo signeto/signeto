@@ -79,6 +79,26 @@ final class TemplateVectorTests: XCTestCase {
         }
     }
 
+    /// §3.6 display escape: the same expected output as `displayEscape` in TypeScript.
+    func testDisplayEscape() throws {
+        for (name, v) in try vectors("display-escape") {
+            let escaped = Display.escape(v["inputs"]!["value"]!.s)
+            XCTAssertTrue(exactlyEqual(escaped, v["expected"]!["escaped"]!.s), "\(name): \(escaped)")
+            XCTAssertTrue(Display.isSafe(escaped), name)
+        }
+    }
+
+    /// §3.6 escaped set, scalar by scalar (the vectors cover examples; this covers the boundaries).
+    func testDisplayEscapeSetBoundaries() {
+        let escaped: [ClosedRange<UInt32>] = [0x00...0x1F, 0x7F...0x9F, 0x61C...0x61C, 0x200B...0x200F, 0x2028...0x202E, 0x2060...0x2069, 0xFEFF...0xFEFF]
+        for v in UInt32(0)...0x3_0000 {
+            guard let sc = Unicode.Scalar(v) else { continue }
+            let expect = escaped.contains { $0.contains(v) }
+            XCTAssertEqual(Display.isEscaped(v), expect, String(v, radix: 16))
+            XCTAssertEqual(Display.escape(String(Character(sc))) != String(Character(sc)), expect, String(v, radix: 16))
+        }
+    }
+
     /// §3.1 template hash input: text alone, or JCS of the extended members.
     func testTemplateSHA256() throws {
         for (name, v) in try vectors("template-sha256") {

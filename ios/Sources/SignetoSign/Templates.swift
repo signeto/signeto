@@ -573,6 +573,7 @@ public enum Templates {
             if elide.contains(ExactKey(k)) { hidden.append(k) } else { return .unverified(reason: .unreferencedKey, detail: k, canonicalBytes: bytes) }
         }
         let links = renderLinks(t, args: a.argsResolved)
-        return .ok(RenderedTemplate(text: text, template: t, hidden: hidden, note: hasNote ? note : nil, links: links.links, linksError: links.error))
+        // §3.6: the line and the note show control, bidi and invisible characters as escapes.
+        return .ok(RenderedTemplate(text: Display.escape(text), template: t, hidden: hidden, note: hasNote ? Display.escape(note) : nil, links: links.links, linksError: links.error))
     }
 }

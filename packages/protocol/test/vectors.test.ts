@@ -58,6 +58,15 @@ for (const dir of ["templates", "links"]) {
   });
 }
 
+describe("display-escape/", () => {
+  for (const { name, v } of load("display-escape")) {
+    it(name, () => {
+      expect(P.displayEscape(v.inputs.value)).toBe(v.expected.escaped);
+      expect(P.isDisplaySafe(v.expected.escaped)).toBe(true);
+    });
+  }
+});
+
 describe("template-sha256/", () => {
   for (const { name, v } of load("template-sha256")) {
     it(name, () => {

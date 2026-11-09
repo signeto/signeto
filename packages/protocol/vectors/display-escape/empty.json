@@ -1,0 +1,9 @@
+{
+  "description": "Empty string",
+  "inputs": {
+    "value": ""
+  },
+  "expected": {
+    "escaped": ""
+  }
+}
