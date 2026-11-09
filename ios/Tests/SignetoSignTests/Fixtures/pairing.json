@@ -31,6 +31,19 @@
   "proof_signing_input": "{\"device_id\":\"dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q\",\"device_public_key\":{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"Of8uj529uXHN5vuSVnd9npjQoo3omxCJUxXVYt_WXS8\",\"y\":\"ymLO0QWGOus6jSc_kOwiyELsXG3f1Gf9MmJQczzivw4\"},\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\"}",
   "proof": "SmX_jP3M3WRvKfkTsw4Uu1_QVGVO1jjl4d0WQNvyCSs",
   "substituted_key_proof": "AT1rnTrilrjonhg42Sq8vAIiUvGIXP6DszpoIjEKEww",
+  "proof_v2": {
+    "description": "proof v2 for the claim the Swift test builds (name iPhone, platform ios, no attestation), one with an attestation, and the same proof under a relay-rewritten name",
+    "signing_input": "{\"attestation_sha256\":null,\"device_id\":\"dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q\",\"device_public_key\":{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"Of8uj529uXHN5vuSVnd9npjQoo3omxCJUxXVYt_WXS8\",\"y\":\"ymLO0QWGOus6jSc_kOwiyELsXG3f1Gf9MmJQczzivw4\"},\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"name\":\"iPhone\",\"platform\":\"ios\",\"proof_version\":2}",
+    "proof": "XrxX_u31hrGZ-LSGedh6xqHeyzipYmdzgGlai1ouLzk",
+    "attestation": {
+      "format": "apple-appattest",
+      "data": "o2NmbXRvYXBwbGUtYXBwYXR0ZXN0"
+    },
+    "attestation_sha256": "49abf16d3cd453a19ab86c68a251ea7832a8f467dc7bdb5dfd5024cd5851dc80",
+    "signing_input_attested": "{\"attestation_sha256\":\"49abf16d3cd453a19ab86c68a251ea7832a8f467dc7bdb5dfd5024cd5851dc80\",\"device_id\":\"dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q\",\"device_public_key\":{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"Of8uj529uXHN5vuSVnd9npjQoo3omxCJUxXVYt_WXS8\",\"y\":\"ymLO0QWGOus6jSc_kOwiyELsXG3f1Gf9MmJQczzivw4\"},\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"name\":\"iPhone\",\"platform\":\"ios\",\"proof_version\":2}",
+    "proof_attested": "OMix91xGIDrkxkzgOaVXSyua2zW-LQemVK-zOuyRHLE",
+    "renamed_proof": "7suWYuAxOrGruaH-mRam1Kveb8bQxWmByNohupBOOH4"
+  },
   "confirmation_signing_input_no_pins": "{\"approver_id\":\"jason\",\"device_id\":\"dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"paired_at\":\"2026-11-07T12:02:03.456Z\",\"pairing_id\":\"J_wC2Ndo2VzJ6Swqv8WwGm\",\"templates_pinned\":[]}",
   "confirmation_signing_input_pins": "{\"approver_id\":\"jason\",\"device_id\":\"dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"paired_at\":\"2026-11-07T12:02:03.456Z\",\"pairing_id\":\"J_wC2Ndo2VzJ6Swqv8WwGm\",\"templates_pinned\":[{\"sha256\":\"3244f6acf15a596bac27c04704af890d1d5e925c7e66683c7c99cc4933c27b7c\",\"template_id\":\"acme.rotate_key\",\"template_version\":3},{\"sha256\":\"b2ad08b9aa9a7f9d5660687cdcb21bd053a109a8cf30f9a92326b4d80a800f3b\",\"template_id\":\"acme.drop_table\",\"template_version\":1}]}",
   "pins": [

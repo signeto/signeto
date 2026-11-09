@@ -1,6 +1,6 @@
 // docs/protocol.md §5: the pairing handshake, device side.
 //   parse QR (gateway key comes from here and nowhere else, §5.3 point 1)
-//   → claim body with HMAC proof (§5.3 point 2)
+//   → claim body with HMAC proofs v1 and v2 (§5.3 point 2; v2 also covers name, platform and attestation)
 //   → verify the gateway's confirmation with the QR's key, including approver_id and templates_pinned
 //     (§5.3 points 4 and 7, §5.4)
 //   → PinnedGateway record, whose approverId every receipt for that gateway carries.
@@ -141,9 +141,40 @@ public enum Pairing {
         try! JCS.canonicalize(["device_id": .string(deviceId), "device_public_key": devicePublicKey.json, "gateway_id": .string(gatewayId)])
     }
 
-    /// `proof = HMAC-SHA256(key = code, msg = proofSigningInput)`, base64url without padding.
+    /// `proof = HMAC-SHA256(key = code, msg = proofSigningInput)`, base64url without padding. Proof v1.
     public static func proof(code: String, gatewayId: String, deviceId: String, devicePublicKey: PublicJWK) -> String {
-        let mac = HMAC<SHA256>.authenticationCode(for: Data(proofSigningInput(gatewayId: gatewayId, deviceId: deviceId, devicePublicKey: devicePublicKey).utf8), using: SymmetricKey(data: Data(code.utf8)))
+        hmac(code: code, proofSigningInput(gatewayId: gatewayId, deviceId: deviceId, devicePublicKey: devicePublicKey))
+    }
+
+    /// Lowercase hex SHA-256 of the JCS of `{data, format}`; nil when there is no attestation.
+    public static func attestationSHA256(_ a: Attestation?) -> String? {
+        guard let a else { return nil }
+        return Digest.sha256Hex(try! JCS.canonicalize(["data": .string(a.data), "format": .string(a.format)]))
+    }
+
+    /// Proof v2 input (§5.3): JCS of `{attestation_sha256, device_id, device_public_key, gateway_id, name, platform,
+    /// proof_version: 2}`, absent metadata as null. `proof_version` makes it never equal to a v1 input.
+    public static func proofV2SigningInput(gatewayId: String, deviceId: String, devicePublicKey: PublicJWK, name: String?, platform: String?, attestation: Attestation?) -> String {
+        try! JCS.canonicalize([
+            "attestation_sha256": attestationSHA256(attestation).map(JSONValue.string) ?? .null,
+            "device_id": .string(deviceId),
+            "device_public_key": devicePublicKey.json,
+            "gateway_id": .string(gatewayId),
+            "name": name.map(JSONValue.string) ?? .null,
+            "platform": platform.map(JSONValue.string) ?? .null,
+            "proof_version": .number(2),
+        ])
+    }
+
+    /// Proof v2: `HMAC-SHA256(key = code, msg = proofV2SigningInput)`, base64url without padding. Sent as
+    /// `device.proof_v2` next to the v1 `proof`, so a relay cannot rename the device, change its platform or strip
+    /// its attestation without the gateway noticing; a gateway from before v2 ignores it.
+    public static func proofV2(code: String, gatewayId: String, deviceId: String, devicePublicKey: PublicJWK, name: String?, platform: String?, attestation: Attestation?) -> String {
+        hmac(code: code, proofV2SigningInput(gatewayId: gatewayId, deviceId: deviceId, devicePublicKey: devicePublicKey, name: name, platform: platform, attestation: attestation))
+    }
+
+    static func hmac(code: String, _ input: String) -> String {
+        let mac = HMAC<SHA256>.authenticationCode(for: Data(input.utf8), using: SymmetricKey(data: Data(code.utf8)))
         return Base64URL.encode(Data(mac))
     }
 
@@ -157,19 +188,23 @@ public enum Pairing {
         public let body: JSONValue
     }
 
-    /// Build the claim (§7.3) from the QR and the device's own public key. Re-checks expiry.
-    public static func claim(qr: QRPayload, devicePublicKey: PublicJWK, platform: String, name: String, attestation: Attestation?, software: Bool, nowMs: Int64) -> Result<Claim, QRParseError> {
+    /// Build the claim (§7.3) from the QR and the device's own public key. Re-checks expiry. The claim carries
+    /// proof v1 and `device.proof_v2`; `proofV2: false` leaves v2 out (what iOS build 7 sent; tests only).
+    public static func claim(qr: QRPayload, devicePublicKey: PublicJWK, platform: String, name: String, attestation: Attestation?, software: Bool, nowMs: Int64, proofV2 includeV2: Bool = true) -> Result<Claim, QRParseError> {
         guard let exp = Timestamp.parse(qr.expiresAt), nowMs <= exp else { return .failure(.expired) }
         let deviceId = devicePublicKey.deviceId
         let gatewayId = qr.gatewayId
-        let device: JSONValue = [
-            "public_key": devicePublicKey.json,
-            "platform": .string(platform),
-            "name": .string(name),
-            "attestation": attestation?.json ?? .null,
-            "software": .bool(software),
-        ]
-        let body: JSONValue = ["device": device, "proof": .string(proof(code: qr.code, gatewayId: gatewayId, deviceId: deviceId, devicePublicKey: devicePublicKey))]
+        var device = JSONObject([
+            ("public_key", devicePublicKey.json),
+            ("platform", .string(platform)),
+            ("name", .string(name)),
+            ("attestation", attestation?.json ?? .null),
+            ("software", .bool(software)),
+        ])
+        if includeV2 {
+            device["proof_v2"] = .string(proofV2(code: qr.code, gatewayId: gatewayId, deviceId: deviceId, devicePublicKey: devicePublicKey, name: name, platform: platform, attestation: attestation))
+        }
+        let body: JSONValue = ["device": .object(device), "proof": .string(proof(code: qr.code, gatewayId: gatewayId, deviceId: deviceId, devicePublicKey: devicePublicKey))]
         return .success(Claim(pairingId: qr.pairingId, gatewayId: gatewayId, deviceId: deviceId, body: body))
     }
 

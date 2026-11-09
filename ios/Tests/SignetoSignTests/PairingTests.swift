@@ -67,6 +67,31 @@ final class PairingTests: XCTestCase {
         XCTAssertEqual(Pairing.claim(qr: q, devicePublicKey: device, platform: "ios", name: "iPhone", attestation: nil, software: false, nowMs: exp + 1).map(\.pairingId), .failure(.expired))
     }
 
+    /// §5.3 proof v2 (SIG-104): `device.proof_v2` next to the v1 proof, covering name, platform and attestation.
+    func testProofV2() throws {
+        let q = try qr()
+        let device = f["device_public_key"]!.jwk()!
+        let v = f["proof_v2"]!
+        XCTAssertEqual(Pairing.proofV2SigningInput(gatewayId: q.gatewayId, deviceId: device.deviceId, devicePublicKey: device, name: "iPhone", platform: "ios", attestation: nil), v["signing_input"]!.s)
+        guard case .success(let claim) = Pairing.claim(qr: q, devicePublicKey: device, platform: "ios", name: "iPhone", attestation: nil, software: false, nowMs: now) else { return XCTFail() }
+        XCTAssertEqual(claim.body["device"]?["proof_v2"]?.s, v["proof"]!.s)
+        XCTAssertEqual(claim.body["proof"]?.s, f["proof"]!.s, "v1 stays, so a gateway from before v2 still pairs")
+        // A relay that renames the device cannot keep the proof valid.
+        XCTAssertNotEqual(v["renamed_proof"]!.s, v["proof"]!.s)
+
+        let att = Attestation(format: v["attestation"]!["format"]!.s, data: v["attestation"]!["data"]!.s)
+        XCTAssertEqual(Pairing.attestationSHA256(att), v["attestation_sha256"]!.s)
+        XCTAssertNil(Pairing.attestationSHA256(nil))
+        XCTAssertEqual(Pairing.proofV2SigningInput(gatewayId: q.gatewayId, deviceId: device.deviceId, devicePublicKey: device, name: "iPhone", platform: "ios", attestation: att), v["signing_input_attested"]!.s)
+        guard case .success(let attested) = Pairing.claim(qr: q, devicePublicKey: device, platform: "ios", name: "iPhone", attestation: att, software: false, nowMs: now) else { return XCTFail() }
+        XCTAssertEqual(attested.body["device"]?["proof_v2"]?.s, v["proof_attested"]!.s)
+
+        // What build 7 sent: v1 only.
+        guard case .success(let legacy) = Pairing.claim(qr: q, devicePublicKey: device, platform: "ios", name: "iPhone", attestation: nil, software: false, nowMs: now, proofV2: false) else { return XCTFail() }
+        XCTAssertNil(legacy.body["device"]?["proof_v2"])
+        XCTAssertEqual(legacy.body["proof"]?.s, f["proof"]!.s)
+    }
+
     func testConfirmations() throws {
         let q = try qr()
         let device = f["device_public_key"]!.jwk()!

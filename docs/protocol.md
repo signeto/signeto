@@ -561,10 +561,12 @@ sequenceDiagram
     G->>R: POST /v1/pairings {pairing_id, code_hash, expires_at}  [gateway-signed]
     G-->>D: QR: gateway_public_key, relay, code, expires_at  (out of band)
     D->>D: verify QR expires_at; compute gateway_id from key
-    D->>D: proof = HMAC-SHA256(key=code, msg=JCS{gateway_id, device_id, device_public_key})
-    D->>R: POST /v1/pairings/{pairing_id}/claim {device_public_key, attestation, proof}  [device-signed]
-    R->>G: event pairing.claimed {pairing_id, device_public_key, attestation, proof}
-    G->>G: recompute proof with own code; verify; verify attestation; pin device key
+    D->>D: proof = HMAC-SHA256(key=code, msg=JCS{gateway_id, device_id, device_public_key})  (v1)
+    D->>D: proof_v2 = HMAC-SHA256(key=code, msg=JCS{v1 members, name, platform, attestation_sha256, proof_version: 2})
+    D->>R: POST /v1/pairings/{pairing_id}/claim {device: {public_key, name, platform, attestation, proof_v2}, proof}  [device-signed]
+    R->>G: event pairing.claimed {pairing_id, device, proof}
+    G->>G: recompute proofs with own code; verify; verify attestation
+    G->>G: show device fingerprint and metadata; v1-only claim: operator confirms; pin device key
     G->>G: confirmation = Sign_gw(JCS{approver_id, device_id, gateway_id, paired_at, pairing_id, templates_pinned})
     G->>R: POST /v1/pairings/{pairing_id}/confirm {confirmation, paired_at, approver_id, templates_pinned}
     R->>D: push {pairing_id}; D fetches GET /v1/pairings/{pairing_id}
@@ -575,13 +577,18 @@ sequenceDiagram
 Normative points:
 
 1. The device MUST take the gateway public key from the QR, never from the relay. The relay's copy of the key is informational.
-2. The device MUST compute `proof` over its own `device_id` and the QR's `gateway_id`. The gateway MUST recompute the proof from the device key it received and its own code. A relay that substitutes a device key cannot produce a matching proof because it holds only `SHA-256(code)`.
+2. The device MUST compute `proof` over its own `device_id` and the QR's `gateway_id`. The gateway MUST recompute the proof from the device key it received and its own code. A relay that substitutes a device key cannot produce a matching proof because it holds only `SHA-256(code)`. Proof v1 covers only the key; point 8 adds proof v2 for the device's metadata.
 3. The gateway MUST verify the attestation where the platform provides one (App Attest, WebAuthn attestation, Android Key Attestation) and MUST record `software: true` when none is provided or the policy permits software keys.
    **App Attest** (`format: "apple-appattest"`, `data` = base64url of the attestation object). The device attests a fresh App Attest key with `clientDataHash` = the 32-byte RFC 7638 thumbprint of its device key, so the statement binds that device key. A verifier MUST check, per Apple's attestation rules: the `x5c` chain ends at the pinned Apple App Attestation Root CA; the credential certificate's extension `1.2.840.113635.100.8.2` holds SHA-256(`authData` ‖ `clientDataHash`); SHA-256 of the credential public key (uncompressed point) equals the `authData` credential id; `rpIdHash` = SHA-256(`"<TEAM ID>.<bundle id>"`) of an accepted app; sign count 0; `aaguid` is `appattestdevelop` (development) or `appattest` + seven zero bytes (production). A verifier MAY refuse development statements. The relay checks certificate validity at enrollment time. The gateway checks it as of the credential certificate's issuance, because the device sends the statement it made at enrollment. A statement that fails any check is refused (`attestation_invalid`), never downgraded to a software key. Formats a verifier cannot check are recorded `software: true`. Reference implementation: `@signeto/protocol/appattest`.
 4. The device MUST verify `confirmation` with the QR's key before pinning. A confirmation that fails verification MUST abort pairing on the device side, and the device SHOULD tell the user the relay or network may be hostile.
 5. The gateway MUST reject a claim after `expires_at` or a second claim for the same `pairing_id`.
 6. The pairing record on both sides stores: the peer's public key, the peer's identifier, `paired_at`, the approver the gateway pinned the device under (`approver_id`), `attestation` (gateway side), and `software` flag.
 7. Approver names are local to each gateway: they are the keys of its `signeto.yml` `approvers:` and need not equal the relay account's approver id (§7.4). The gateway names the approver it pinned the device under in the confirmation's `approver_id`, which is part of the signed input (§5.4). The device MUST take `approver_id` only from a confirmation that verifies, MUST store it with the gateway's record, and MUST put it in the `approver_id` of every receipt it signs for that gateway (§4.1), whatever name the relay knows it by. A confirmation without `approver_id`, or whose `approver_id` is not a string of 1 to 64 characters without control characters, is invalid (`pairing_confirmation_invalid`). A device holding a pin with no stored `approver_id` MUST NOT sign receipts for that gateway and SHOULD ask the user to pair it again.
+8. **Proof v2 (device metadata).** `proof` (v1) does not cover `device.name`, `device.platform` or `device.attestation`, which the gateway records, shows and uses (the name goes into `signeto.yml` `approvers.<name>.devices`). A device SHOULD also send `device.proof_v2` = base64url(HMAC-SHA256(key = code, msg = the UTF-8 JCS of `{attestation_sha256, device_id, device_public_key, gateway_id, name, platform, proof_version: 2}`)), with `name` and `platform` exactly as in `device` and `attestation_sha256` the lowercase hex SHA-256 of the JCS of `{data, format}` of `device.attestation`; any of the three is `null` when the claim has none. `proof_version` is a member, so a v2 input never equals a v1 input. v1 stays in `proof`, so a gateway that predates v2 still verifies the claim and ignores `proof_v2`.
+   - **v2 (current devices: iOS build 8 and later, `signeto device pair`, the web approver).** A gateway that knows v2 MUST verify both proofs when `proof_v2` is present and refuse the claim (`proof_invalid`) when either fails: a relay that renames the device, changes its platform, or strips, adds or swaps its attestation breaks v2. The metadata is then as trusted as the key.
+   - **v1 (legacy: iOS build 7 and earlier).** A claim without `proof_v2` is still accepted, but its metadata is unverified: a relay could have changed all three (and could strip `proof_v2` from a current claim to get here). The gateway MUST NOT pin such a claim silently. The reference CLI (`signeto pair --relay`) shows the device fingerprint, name, platform, attestation status and that the proof is v1, and pins only after the operator answers `y` at a terminal; without a terminal (`--json`, stdin not a TTY) it refuses (`pairing_declined`, the pairing is rejected at the relay, nothing is pinned) unless `--accept-unverified-metadata` is given. At a terminal it asks for v2 claims too, so the operator can compare fingerprints before anything is pinned.
+   - Whatever the version, `platform: "web"` does not by itself allow the relay's origin for WebAuthn receipts (§14 of `policy.md`): allowing an origin is an explicit policy change.
+   - The pairing code is the secret every proof rests on. A gateway MUST NOT print it where it may be captured: the reference CLI in `--json` mode writes it only to a new file named by `--qr-file` (mode 0600), never to stdout or stderr.
 
 ### 5.4 Template pinning at pairing
 
@@ -783,12 +790,12 @@ Errors: `409 pairing_exists`, `422 pairing_expired` (expiry in the past or more 
 Request:
 ```json
 {
-  "device": { "public_key": {...}, "platform": "ios", "name": "iPhone 17", "attestation": { "format": "apple-appattest", "data": "..." }, "software": false },
+  "device": { "public_key": {...}, "platform": "ios", "name": "iPhone 17", "attestation": { "format": "apple-appattest", "data": "..." }, "software": false, "proof_v2": "<base64url HMAC-SHA256>" },
   "proof": "<base64url HMAC-SHA256>"
 }
 ```
 Response `200`: `{ "status": "claimed" }`
-Errors: `404 pairing_not_found` (also when the pairing belongs to a gateway of another account: a device claims only pairings opened by its own account's gateways), `410 pairing_expired`, `409 pairing_already_claimed`, `403 forbidden` (`device.public_key` is not the authenticated device's enrolled key). The relay does not verify `proof`; it cannot. It forwards `device` exactly as sent (the proof covers the JWK as the device serialised it) in the `pairing.claimed` event.
+Errors: `404 pairing_not_found` (also when the pairing belongs to a gateway of another account: a device claims only pairings opened by its own account's gateways), `410 pairing_expired`, `409 pairing_already_claimed`, `403 forbidden` (`device.public_key` is not the authenticated device's enrolled key). The relay does not verify `proof` or `device.proof_v2` (§5.3 point 8, OPTIONAL, 43 base64url characters); it cannot. It forwards `device` exactly as sent (the proofs cover the JWK and, for v2, the metadata as the device serialised them) in the `pairing.claimed` event.
 
 `GET /v1/pairings/{pairing_id}` — auth `Signeto-Gateway` or the claiming device
 Response `200`: `{ "pairing_id": "...", "status": "open" | "claimed" | "confirmed" | "rejected" | "expired", "device_id"?: "dev_...", "device"?: {...}, "proof"?: "...", "confirmation"?: "...", "paired_at"?: "...", "approver_id"?: "...", "templates_pinned"?: [...] }`. `confirmation`, `paired_at`, `approver_id` and `templates_pinned` are the confirm request's values, returned verbatim. `expired` is reported for an `open` or `claimed` pairing past `expires_at`. Anyone other than the owning gateway and the claiming device gets `404 pairing_not_found`.
