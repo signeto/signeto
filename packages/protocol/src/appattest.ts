@@ -20,6 +20,7 @@
 import { X509Certificate, createHash } from "node:crypto";
 import { base64url } from "./encoding.js";
 import { jwkThumbprint, type PublicJwk } from "./ids.js";
+import { certExtension, derRead, DerError } from "./der.js";
 
 export const APP_ATTEST_FORMAT = "apple-appattest";
 
@@ -81,7 +82,7 @@ export function verifyAppAttest(attestationObject: Uint8Array, clientDataHash: U
   try {
     return verifyInner(attestationObject, clientDataHash, opts);
   } catch (e) {
-    return { ok: false, reason: e instanceof AttestError ? e.message : `malformed attestation: ${e instanceof Error ? e.message : String(e)}` };
+    return { ok: false, reason: e instanceof AttestError || e instanceof DerError ? e.message : `malformed attestation: ${e instanceof Error ? e.message : String(e)}` };
   }
 }
 
@@ -194,74 +195,6 @@ function verifyInner(attestationObject: Uint8Array, clientDataHash: Uint8Array, 
   if (!eq(ad.subarray(55, 55 + credLen), keyId)) fail("credential id does not match the credential certificate key");
 
   return { ok: true, environment: environment as AppAttestEnvironment, app_id: appId as string, key_id: base64url.encode(keyId), receipt: receipt instanceof Uint8Array ? receipt : null };
-}
-
-// ---- DER (just enough to find one extension) -----------------------------------------------------------
-
-interface Der {
-  tag: number;
-  value: Uint8Array;
-  end: number;
-}
-
-function derRead(buf: Uint8Array, pos: number): Der {
-  if (pos + 2 > buf.length) fail("DER truncated");
-  const tag = buf[pos] as number;
-  let len = buf[pos + 1] as number;
-  let off = pos + 2;
-  if (len & 0x80) {
-    const n = len & 0x7f;
-    if (n === 0 || n > 4 || off + n > buf.length) fail("DER length invalid");
-    len = 0;
-    for (let i = 0; i < n; i++) len = len * 256 + (buf[off + i] as number);
-    off += n;
-  }
-  if (off + len > buf.length) fail("DER value truncated");
-  return { tag, value: buf.subarray(off, off + len), end: off + len };
-}
-
-function derChildren(buf: Uint8Array): Der[] {
-  const out: Der[] = [];
-  for (let p = 0; p < buf.length; ) {
-    const d = derRead(buf, p);
-    out.push(d);
-    p = d.end;
-  }
-  return out;
-}
-
-function oidString(b: Uint8Array): string {
-  const first = b[0] as number;
-  const parts = [Math.floor(first / 40), first % 40];
-  let v = 0;
-  for (let i = 1; i < b.length; i++) {
-    const c = b[i] as number;
-    v = v * 128 + (c & 0x7f);
-    if (!(c & 0x80)) {
-      parts.push(v);
-      v = 0;
-    }
-  }
-  return parts.join(".");
-}
-
-/** extnValue (the OCTET STRING contents) of extension `oid` in a DER certificate, or undefined. */
-function certExtension(certDer: Uint8Array, oid: string): Uint8Array | undefined {
-  const cert = derRead(certDer, 0);
-  const tbs = derChildren(cert.value)[0];
-  if (!tbs || tbs.tag !== 0x30) fail("certificate has no TBSCertificate");
-  const extsWrapper = derChildren((tbs as Der).value).find((d) => d.tag === 0xa3);
-  if (!extsWrapper) return undefined;
-  const exts = derRead(extsWrapper.value, 0);
-  for (const ext of derChildren(exts.value)) {
-    const f = derChildren(ext.value);
-    if (f[0]?.tag === 0x06 && oidString(f[0].value) === oid) {
-      const octet = f[f.length - 1];
-      if (octet?.tag !== 0x04) fail("extension value is not an OCTET STRING");
-      return (octet as Der).value;
-    }
-  }
-  return undefined;
 }
 
 // ---- CBOR (the subset an attestation object uses) ------------------------------------------------------

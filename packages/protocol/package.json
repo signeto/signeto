@@ -18,6 +18,14 @@
     "./appattest/testing": {
       "types": "./dist/appattest-testing.d.ts",
       "import": "./dist/appattest-testing.js"
+    },
+    "./androidkey": {
+      "types": "./dist/androidkey.d.ts",
+      "import": "./dist/androidkey.js"
+    },
+    "./androidkey/testing": {
+      "types": "./dist/androidkey-testing.d.ts",
+      "import": "./dist/androidkey-testing.js"
     }
   },
   "files": [
@@ -51,7 +59,7 @@
     "provenance": true
   },
   "scripts": {
-    "build": "tsup src/index.ts src/appattest.ts src/appattest-testing.ts --format esm --dts --clean",
+    "build": "tsup src/index.ts src/appattest.ts src/appattest-testing.ts src/androidkey.ts src/androidkey-testing.ts --format esm --dts --clean",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "echo 'lint: todo'"

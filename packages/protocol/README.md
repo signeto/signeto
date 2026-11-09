@@ -15,6 +15,7 @@ npm install @signeto/protocol
 - `isSmallOrderEd25519`, `isWeakPublicJwk` — §5.1: small-order Ed25519 keys, refused everywhere; `verifyWithJwk` / `verifyRaw` never verify under one.
 - `gatewayIdFromJwk` / `deviceIdFromJwk` / `fingerprint` / `newActionId` / `newNonce` — identifiers (§2.6, §5.1).
 - `@signeto/protocol/appattest` — `verifyAppAttest` / `verifyDeviceAttestation`: Apple App Attest statements bound to a device key (§5.3 point 3), against the pinned Apple root. Node only. `@signeto/protocol/appattest/testing` builds Apple-shaped statements under a test root.
+- `@signeto/protocol/androidkey` — `verifyAndroidKeyAttestation` / `verifyAndroidDeviceAttestation`: Android Key Attestation chains (§5.3 point 3) against Google's hardware attestation roots, pinned by key. Refuses forged chains, another key, software keys and any key policy other than a biometric for every operation; reports a genuine statement that does not vouch for the released app (another signer, an unlocked or unverified boot) as `vouches: false`. `parseAttestationStatusList` reads Google's revocation list. Node only. `@signeto/protocol/androidkey/testing` builds Keystore-shaped chains under a test root.
 
 ## Vectors
 
