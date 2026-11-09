@@ -9,7 +9,7 @@ at most an hour, and revoked as soon as `execute` returns. The gateway never hol
 | Tool | Effect | Agent input | Resolved (signed) args | Headline |
 |---|---|---|---|---|
 | `github.merge_pull_request` | write | `{repo, pr, method?}` | `{repo, pr, base, head_sha, method}` | `Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}` |
-| `github.dispatch_workflow` | write | `{repo, workflow, ref, inputs?}` | `{repo, workflow, ref, ref_sha, inputs}` (`inputs` elided) | `Run {workflow} on {ref} ({ref_sha}) in {repo}` |
+| `github.dispatch_workflow` | write | `{repo, workflow, ref, inputs?}` | `{repo, workflow, ref, ref_sha, inputs}` | `Run {workflow} on {ref} ({ref_sha}) in {repo} with inputs {inputs}` |
 | `github.read_pull_request` | read | `{repo, pr}` | `{repo, pr}` | `Read PR #{pr} on {repo}` |
 
 What `resolve` pins:
@@ -50,9 +50,16 @@ canonical bytes (idempotency, SPEC §5).
 
 ### Card note and review links (templates v2)
 
-All three templates are version 2: they add review links the approver's device builds from the signed args, only to
-`github.com` (protocol.md §3.5), and the merge template adds a note. Version 1 of `github.merge_pull_request` stays in
-the bundled registry for older gateways.
+The merge and read templates are version 2, `github.dispatch_workflow` is version 3: version 2 added review links the
+approver's device builds from the signed args, only to `github.com` (protocol.md §3.5), and a note on the merge
+template. Version 1 of `github.merge_pull_request` stays in the bundled registry for older gateways. Dispatch v3
+(SIG-92 N9) puts the workflow `inputs` in the sentence, as their JCS text (`{}` when there are none); v2 elided them,
+so an approver saw them only in the argument rows. Dispatch v3 is bundled in `@signeto/protocol` (v2 never was), so
+approvers built against this version (CLI, web approver, iOS build 8+) render it without a pin and nobody has to
+re-pair. A gateway does not pin bundled templates at pairing, so an approver built before it (iOS build 7, an older
+CLI) cannot verify v3 even after re-pairing: it shows dispatch requests from an upgraded gateway as "unverified
+template", with the raw bytes and still approvable, until it is updated. The read template is still pinned at
+pairing (§5.4).
 
 | Tool | Note | Links |
 |---|---|---|

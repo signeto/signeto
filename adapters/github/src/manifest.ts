@@ -1,5 +1,6 @@
 // The signed surface of the adapter: resolved schemas and display templates (docs/adapters.md §2, §6).
-// `github.merge_pull_request` v2 must stay byte-identical to the builtin registry in @signeto/protocol.
+// `github.merge_pull_request` v2 and `github.dispatch_workflow` v3 must stay byte-identical to the builtin registry in
+// @signeto/protocol.
 // Review links (protocol.md §3.5) are built on the approver's device from the signed args, only to github.com.
 import type { AdapterManifest, ToolSpec } from "@signeto/adapter-sdk";
 import { enm, int, obj, str, stringMap } from "./schema.js";
@@ -81,9 +82,9 @@ export const dispatchWorkflow: ToolSpec = {
   ),
   template: {
     id: "github.dispatch_workflow",
-    version: 2,
-    text: "Run {workflow} on {ref} ({ref_sha}) in {repo}",
-    elide: ["inputs"],
+    // v3 (SIG-92 N9): the inputs are in the sentence (v2 elided them). Shown as their JCS text, `{}` when none.
+    version: 3,
+    text: "Run {workflow} on {ref} ({ref_sha}) in {repo} with inputs {inputs}",
     // `workflow` is resolved to the file name under .github/workflows/ (resolveDispatch).
     links: [
       { label: "Workflow file at approved commit", url: "https://github.com/{repo:path}/blob/{ref_sha}/.github/workflows/{workflow}" },

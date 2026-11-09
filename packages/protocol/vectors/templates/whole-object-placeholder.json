@@ -1,0 +1,24 @@
+{
+  "description": "A placeholder naming an object or array covers everything beneath it (rendered as JCS)",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"files\":[\"a.txt\",\"b.txt\"],\"order\":{\"limit_price\":\"999.00\",\"side\":\"buy\",\"tif\":{\"kind\":\"gtc\"}}},\"expires_at\":\"1970-01-01T00:03:00.011Z\",\"idempotency_key\":\"dbd07cc3fa5b882b6fb9b05843439e89068024e8885110d2dc7e0fb851945861\",\"issued_at\":\"1970-01-01T00:00:00.011Z\",\"mode\":\"enforce\",\"nonce\":\"RRRRRRRRRRRRRRRRRRRRRR\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.whole\",\"template_version\":1,\"tier\":2,\"tool\":\"test.whole\"}",
+    "registries": [
+      {
+        "adapter": "test",
+        "templates": [
+          {
+            "template_id": "test.whole",
+            "template_version": 1,
+            "text": "Order {order}; files {files}",
+            "sha256": "a9b31e618bec778c819ff5671403b3e9fe472a9e09c2975d5758c2e2d62b778d"
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "ok",
+    "text": "Order {\"limit_price\":\"999.00\",\"side\":\"buy\",\"tif\":{\"kind\":\"gtc\"}}; files [\"a.txt\",\"b.txt\"]",
+    "hidden": []
+  }
+}

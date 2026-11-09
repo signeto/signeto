@@ -1,0 +1,24 @@
+{
+  "description": "An empty object no placeholder covers is itself unreferenced",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"extra\":{},\"files\":[],\"order\":{}},\"expires_at\":\"1970-01-01T00:03:00.012Z\",\"idempotency_key\":\"df300899b5e7bf21865777934eeeda9e691a415804618723d57997b90df86245\",\"issued_at\":\"1970-01-01T00:00:00.012Z\",\"mode\":\"enforce\",\"nonce\":\"SSSSSSSSSSSSSSSSSSSSSS\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"test.whole\",\"template_version\":1,\"tier\":2,\"tool\":\"test.whole\"}",
+    "registries": [
+      {
+        "adapter": "test",
+        "templates": [
+          {
+            "template_id": "test.whole",
+            "template_version": 1,
+            "text": "Order {order}; files {files}",
+            "sha256": "a9b31e618bec778c819ff5671403b3e9fe472a9e09c2975d5758c2e2d62b778d"
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "unverified",
+    "reason": "unreferenced_key",
+    "detail": "extra"
+  }
+}

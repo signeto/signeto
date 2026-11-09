@@ -285,14 +285,16 @@ A JCS object starts with `{"`, which is never valid template text (§3.2), so th
 
 ### 3.4 Unknown or failing templates
 
-If the template is not in the device's registry, the version is unknown, the template does not hash to its `sha256` (§3.1), its text or note is malformed, a placeholder path in the text or note does not resolve, or `args_resolved` contains keys that no `text` placeholder references, the device MUST:
+If the template is not in the device's registry, the version is unknown, the template does not hash to its `sha256` (§3.1), its text or note is malformed, a placeholder path in the text or note does not resolve, or `args_resolved` contains an argument that no `text` placeholder references, the device MUST:
 
 - Show the raw canonical bytes as the primary content.
 - Mark the request "unverified template" with a visible warning.
 - Still allow approve and deny. The signature covers the bytes, not the rendering, so an unverified template does not weaken the receipt; it only weakens the human's understanding.
 - Show no note and no review links: they come only from a verified template.
 
-The "unreferenced key" rule exists so that an adapter cannot hide a material argument behind a template that does not mention it. Adapters whose templates intentionally omit arguments MUST list those keys in the template's `elide` array; the device then shows an "N hidden fields" disclosure instead of the warning.
+The "unreferenced key" rule exists so that an adapter cannot hide a material argument behind a template that does not mention it. It applies to every leaf of `args_resolved`, not only to top-level keys: a leaf is a scalar, or an empty object or array, at a dotted path (`order.limit_price`, `files.1`). A `text` placeholder covers its own path and everything beneath it (`{order}` renders the whole object as JCS and covers `order.limit_price`; `{order.qty}` covers only `order.qty`). Members are walked in ECMAScript key order and array elements by index; the first uncovered leaf is reported as `unreferenced_key` with its dotted path as the detail. Adapters whose templates intentionally omit arguments MUST list those top-level keys in the template's `elide` array (an elided key hides everything beneath it); the device then shows an "N hidden fields" disclosure instead of the warning. `elide` is for descriptive text, never for an argument that changes what the action does (SIG-92 N9: `alpaca.place_order` v2 and `github.dispatch_workflow` v3 replaced templates that elided `limit_price`, `time_in_force` and `inputs`). A device built before the nested rule applies only the top-level check; templates bundled since then pass both.
+
+A changed template is a new `template_version` (§3.1), and the old version stays in the bundled registry for gateways that still send it. A device that does not know a version renders the request "unverified template" with the raw bytes (above), still approvable: that is what an approver built before a bump (for example iOS build 7 with `alpaca.place_order` v2 or `github.dispatch_workflow` v3) shows until it is updated. A gateway pins at pairing only templates that are not bundled (§5.4), so re-pairing does not help a device whose bundled registry predates a bundled template.
 
 Invalid review links are not in this list: they never make a card unverified (§3.5).
 

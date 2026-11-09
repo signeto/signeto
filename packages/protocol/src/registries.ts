@@ -23,6 +23,15 @@ export const githubRegistry: TemplateRegistry = {
       ],
       link_hosts: GITHUB_LINK_HOSTS,
     }),
+    // Bundled from v3 (SIG-92 N9: the inputs are in the sentence; v2 elided them and was only ever pinned at pairing),
+    // so devices built against this package render it without a pin. Byte-identical to the github adapter's manifest.
+    t("github.dispatch_workflow", 3, "Run {workflow} on {ref} ({ref_sha}) in {repo} with inputs {inputs}", undefined, {
+      links: [
+        { label: "Workflow file at approved commit", url: "https://github.com/{repo:path}/blob/{ref_sha}/.github/workflows/{workflow}" },
+        { label: "Actions", url: "https://github.com/{repo:path}/actions" },
+      ],
+      link_hosts: GITHUB_LINK_HOSTS,
+    }),
     t("github.create_deployment", 1, "Deploy {ref} to {environment} on {repo}", ["description"]),
   ],
 };
@@ -35,7 +44,10 @@ export const postgresRegistry: TemplateRegistry = {
 export const alpacaRegistry: TemplateRegistry = {
   adapter: "alpaca",
   templates: [
+    // v1 hid limit_price and time_in_force (SIG-92 N9). Kept for gateways that still send it.
     t("alpaca.place_order", 1, "Place order: {side} {qty} {symbol} {type} on {account} (notional {notional_usd} USD)", ["limit_price", "time_in_force"]),
+    // v2: every argument in the sentence. The adapter always resolves limit_price (null for a market order).
+    t("alpaca.place_order", 2, "Place order: {side} {qty} {symbol} {type}, limit price {limit_price}, time in force {time_in_force}, on {account} (notional {notional_usd} USD)"),
   ],
 };
 

@@ -23,6 +23,14 @@ describe("manifest", () => {
     expect(manifest.secrets.map((s) => s.name).sort()).toEqual(["app_id", "private_key"]);
   });
 
+  it("dispatch_workflow v3 matches the builtin protocol registry byte for byte (bundled since SIG-92 N9)", () => {
+    const ours = registryFromManifest(manifest).templates.find((t) => t.template_id === "github.dispatch_workflow");
+    const builtin = findTemplate([githubRegistry], "github.dispatch_workflow", 3);
+    expect(builtin).toBeDefined();
+    expect(ours).toEqual(builtin);
+    expect(ours!.sha256).toBe(templateSha256(builtin!));
+  });
+
   it("merge_pull_request v2 matches the builtin protocol registry byte for byte, links and note included", () => {
     const ours = findTemplate([registryFromManifest(manifest)], "github.merge_pull_request", 2);
     const builtin = findTemplate([githubRegistry], "github.merge_pull_request", 2);
@@ -41,7 +49,7 @@ describe("manifest", () => {
     const reg = registryFromManifest(manifest);
     expect(reg.templates.map((t) => [t.template_id, t.template_version, t.text, t.elide ?? null])).toEqual([
       ["github.merge_pull_request", 2, "Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}", null],
-      ["github.dispatch_workflow", 2, "Run {workflow} on {ref} ({ref_sha}) in {repo}", ["inputs"]],
+      ["github.dispatch_workflow", 3, "Run {workflow} on {ref} ({ref_sha}) in {repo} with inputs {inputs}", null],
       ["github.read_pull_request", 2, "Read PR #{pr} on {repo}", null],
     ]);
     expect(reg.templates.map((t) => t.note ?? null)).toEqual(["Approving commit {head_sha:short}. If the PR changes, this approval will not merge it.", null, null]);
