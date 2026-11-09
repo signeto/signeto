@@ -18,11 +18,32 @@ What `resolve` pins:
   or living in a different repository than the agent named), and signs the **head SHA** and base branch. `method`
   defaults to `squash`. `execute` sends `sha: head_sha` to GitHub's merge endpoint, so GitHub itself refuses with
   `409` if the branch moved after the approver signed; the adapter reports that (and `405`, no longer mergeable) as
-  `precondition_failed`.
+  `precondition_failed`. The merge endpoint takes no base, so immediately before the merge `execute` re-reads the PR
+  and throws `precondition_failed`, merging nothing and posting no check run, unless `base.ref`, `base.repo.full_name`
+  and `head.sha` are still the signed `base`, `repo` and `head_sha` (a PR retargeted from `dev` to `main` after
+  approval is refused). When the check run is posted the PR is read again after it, so the last read is the request
+  right before the merge.
 - **dispatch**: confirms the workflow exists and is active, normalises a numeric workflow id to its file name
   (`deploy.yml`), and signs the **commit SHA** the ref points at. `workflow_dispatch` takes no SHA, so `execute`
-  re-reads the ref with the minted token and throws `precondition_failed` without dispatching if it moved.
+  re-reads the ref with the minted token and throws `precondition_failed` without dispatching if it moved, then reads
+  it again right after dispatching (see Races).
 - **read**: confirms the PR exists; signs only `{repo, pr}`.
+
+### Races
+
+GitHub cannot enforce every signed value, so two small windows remain:
+
+- **merge base**: between the PR re-read and the merge request (one round trip), a retarget is not detectable. GitHub's
+  merge endpoint accepts `sha` but no base precondition.
+- **dispatch ref**: `workflow_dispatch` resolves the branch or tag when GitHub processes the request. `execute` checks
+  the ref is at `ref_sha` as the last request before the dispatch and re-reads it as the first request after. If it
+  moved in between, it lists this workflow's `workflow_dispatch` runs on that ref created since the dispatch, cancels
+  every one whose `head_sha` is not `ref_sha` (a concurrent dispatch by someone else on the new commit is cancelled
+  too: the safe side), and throws `precondition_failed` naming the cancelled runs. It succeeds only if the one run
+  found is on `ref_sha`. What remains: the run can execute steps for the seconds before the cancel lands; GitHub may
+  not have created the run yet when it is listed (then the action fails and the error says to check Actions; nothing
+  is cancelled); a ref moved away and back between the two reads is not seen. A workflow that must never run an
+  unapproved commit should also check `github.sha` itself (for example against a protected tag).
 
 Repository names are lower-cased and merge methods normalised, so two spellings of the same action produce the same
 canonical bytes (idempotency, SPEC §5).
