@@ -17,6 +17,8 @@ This repository is the **integration toolkit**: the open protocol, the libraries
 | [`packages/protocol`](packages/protocol) | `@signeto/protocol` | Canonical action bytes (RFC 8785), display templates, receipts, signature verification for ES256, Ed25519 and WebAuthn. Ships the conformance vectors every implementation must pass. |
 | [`packages/adapter-sdk`](packages/adapter-sdk) | `@signeto/adapter-sdk` | The adapter interface: manifest, `resolve` / `mint` / `custody` / `execute` hooks, `AdapterError`, manifest validation. Use it to bring a new upstream system under Signeto. |
 | [`adapters/github`](adapters/github) | `@signeto/adapter-github` | Reference adapter: GitHub App installation tokens minted per action (merge a PR, dispatch a workflow). Shows the mint pattern end to end. |
+| [`ios`](ios) | SignetoSign (Swift) | The approver-device side of the protocol for iOS and macOS: verify requests, render templates, sign receipts, pair. The Signeto iPhone app is built on it. |
+| [`android`](android) | signeto-sign (Kotlin) | The same library for Android and the JVM, a port of SignetoSign with the same tests. The Signeto Android app is built on it. |
 | [`docs/guide`](docs/guide) | | Integration guide: how agents connect, what they see, how to read results. |
 | [`docs/protocol.md`](docs/protocol.md) | | The normative protocol. |
 | [`docs/receipts.md`](docs/receipts.md) | | Verify a Signeto receipt yourself, with no Signeto service in the loop. |

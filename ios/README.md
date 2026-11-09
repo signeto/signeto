@@ -59,7 +59,8 @@ every negative code), `receipts/signing-input/`, `approval-request/`, `ids/`, `r
 
 `Tests/SignetoSignTests/Fixtures/` holds what the vectors do not cover yet, generated from the built TS package:
 pairing (there is no `pairing/` vector set), ~3,500 number formatting cases, string escaping and key ordering,
-extra renderer cases, TS-signed ES256 receipts with a reason, an ES256 gateway, and the bundled registries.
+extra renderer cases, TS-signed ES256 receipts with a reason, an ES256 gateway, and the bundled registries. The
+Kotlin port in [`../android`](../android/README.md) runs the same fixtures, so a regenerated fixture applies to both.
 
 ```sh
 pnpm --filter @signeto/protocol build            # from the repository root

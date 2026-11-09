@@ -1,0 +1,20 @@
+# signeto-sign (Kotlin): the approver-device protocol library for Android. Runs the shared conformance vectors and the
+# Swift package's fixtures (see android/README.md).
+name: android
+on:
+  push:
+    branches: [main]
+    paths: ["android/**", "packages/protocol/vectors/**", "ios/Tests/SignetoSignTests/Fixtures/**", "ios/Sources/SignetoSign/Resources/**", ".github/workflows/android.yml"]
+  pull_request:
+    paths: ["android/**", "packages/protocol/vectors/**", "ios/Tests/SignetoSignTests/Fixtures/**", "ios/Sources/SignetoSign/Resources/**", ".github/workflows/android.yml"]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: android }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew test --no-daemon
