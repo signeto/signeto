@@ -27,11 +27,21 @@ export const ANDROID_KEY_FORMAT = "android-key";
 export const SIGNETO_ANDROID_PACKAGE = "dev.signeto.approver";
 
 /**
- * Production signers of the Signeto app: lowercase hex SHA-256 of the Play App Signing certificate.
- * Empty until the app exists in Play Console (SIG-124): until then no statement is `production`, so every
- * Android device records `software: true`, which is the safe default.
+ * Packages accepted by default: the app and its development flavour (`.dev`, built from the same source with the
+ * development certificate). Which one a statement names does not make it trusted: the signer does (production
+ * signers sign only the released package through Play; a development build vouches only for a listed development
+ * signer, else it records as software).
  */
-export const SIGNETO_ANDROID_SIGNERS: readonly string[] = [];
+export const SIGNETO_ANDROID_PACKAGES: readonly string[] = [SIGNETO_ANDROID_PACKAGE, `${SIGNETO_ANDROID_PACKAGE}.dev`];
+
+/**
+ * Production signers of the Signeto app: lowercase hex SHA-256 of the Play App Signing certificate (Play Console ›
+ * App integrity › App signing). Only builds installed from Google Play carry it; a locally built release (upload
+ * key) or development build is not `production`.
+ */
+export const SIGNETO_ANDROID_SIGNERS: readonly string[] = [
+  "878cc3710274db5c0ae019cd12bed89991f9dd5e351262908fd351f2c8286c3f",
+];
 
 /** KeyDescription extension (Android Keystore attestation). */
 export const KEY_DESCRIPTION_OID = "1.3.6.1.4.1.11129.2.1.17";
@@ -105,7 +115,7 @@ export type VerifiedBoot = "verified" | "self_signed" | "unverified" | "failed";
 export type AndroidKeyEnvironment = "production" | "development";
 
 export interface AndroidKeyOptions {
-  /** Accepted package names. Default: [SIGNETO_ANDROID_PACKAGE]. */
+  /** Accepted package names. Default: SIGNETO_ANDROID_PACKAGES. */
   packages?: readonly string[];
   /** Production signers (lowercase hex SHA-256 of the signing certificate). Default: SIGNETO_ANDROID_SIGNERS. */
   signers?: readonly string[];
@@ -248,7 +258,7 @@ function authList(d: Der, which: string): Map<number, Der> {
 
 function verifyInner(data: string, devicePublicKey: PublicJwk, opts: AndroidKeyOptions): AndroidKeyResult {
   const now = opts.now ?? Date.now();
-  const packages = opts.packages ?? [SIGNETO_ANDROID_PACKAGE];
+  const packages = opts.packages ?? SIGNETO_ANDROID_PACKAGES;
   const signers = opts.signers ?? SIGNETO_ANDROID_SIGNERS;
   const devSigners = opts.developmentSigners ?? [];
   if (devicePublicKey.kty !== "EC" || devicePublicKey.crv !== "P-256") fail("Android Key Attestation binds ES256 (P-256) device keys only");

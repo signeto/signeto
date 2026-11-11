@@ -6,6 +6,8 @@ import {
   normalizeSerial,
   parseAttestationStatusList,
   SIGNETO_ANDROID_PACKAGE,
+  SIGNETO_ANDROID_PACKAGES,
+  SIGNETO_ANDROID_SIGNERS,
   verifyAndroidDeviceAttestation,
   verifyAndroidKeyAttestation,
   type AndroidKeyOptions,
@@ -81,9 +83,17 @@ describe("Android Key Attestation: genuine but not vouching (records software: t
     expect(check({ deviceLocked: false, signers: [TEST_ANDROID_OTHER_SIGNER] }, { developmentSigners: [TEST_ANDROID_OTHER_SIGNER] })).toMatchObject({ ok: true, vouches: false });
   });
 
-  it("with no production signers configured (the default today) nothing is production", () => {
+  it("by default only the Play App Signing certificate is production", () => {
+    expect(SIGNETO_ANDROID_SIGNERS).toEqual(["878cc3710274db5c0ae019cd12bed89991f9dd5e351262908fd351f2c8286c3f"]);
     const fx = makeAndroidAttestation();
     expect(verifyAndroidDeviceAttestation(fx.attestation, fx.devicePublicKey, { roots: [TEST_ANDROID_ROOT_PEM], now: NOW })).toMatchObject({ ok: true, vouches: false });
+  });
+
+  it("the development flavour is accepted by default and vouches only through a development signer", () => {
+    expect(SIGNETO_ANDROID_PACKAGES).toEqual([SIGNETO_ANDROID_PACKAGE, "dev.signeto.approver.dev"]);
+    const dev = { packages: ["dev.signeto.approver.dev"], signers: [TEST_ANDROID_OTHER_SIGNER] };
+    expect(check(dev, { developmentSigners: [TEST_ANDROID_OTHER_SIGNER] })).toMatchObject({ ok: true, vouches: true, environment: "development", package_name: "dev.signeto.approver.dev" });
+    expect(check(dev)).toMatchObject({ ok: true, vouches: false, package_name: "dev.signeto.approver.dev" });
   });
 });
 
