@@ -887,6 +887,7 @@ The request also carries every step's canonical bytes (`steps[]` in the request 
   - `Bearer <session>` — account session obtained by email + passkey login. Used for account-level operations: gateway registration, device enrollment.
   - `Signeto-Gateway <gateway_id>.<ts>.<sig>` — request signed by the gateway key. `sig` is base64url of the signature over the signing input `JCS({"method", "path", "ts", "body_sha256"})`. `ts` is RFC 3339; the relay MUST reject requests whose `ts` is more than 60 s from its clock. `body_sha256` is the hex SHA-256 of the raw request body, or of the empty string when there is none.
   - `Signeto-Device <device_id>.<ts>.<sig>` — same construction with the device key.
+- **Registration grant (reference relay).** A relay MAY accept one more credential, at gateway registration (§7.2) and nowhere else: `Signeto-Grant <grant>`, a one-time grant the relay issued for a hosted gateway (Signeto Cloud), so that no account session is copied onto the machine the gateway runs on.
 - **Device sessions.** A device whose key needs a user gesture for every signature cannot sign each relay request: WebAuthn authenticators, and hardware keys bound to biometrics such as a Secure Enclave key created with `.biometryCurrentSet`. For these the relay issues a device session token at enrollment (§7.4), sent as `Bearer`, and the device key signs only the objects that carry their own signature. A device session MUST be scoped to: fetching approvals (§7.6), claiming a pairing and reading its status (§7.3), submitting receipts (§7.7) and freeze objects (§7.9), whose own signatures authenticate them and which the relay and gateway verify regardless of how the request was authenticated, setting its own push registration (§7.4), revoking its own device (§7.4), withdrawing its own pairings (§7.3 unlink), and submitting a gateway revocation object (§7.2), whose own signature authenticates it. It MUST NOT be accepted for account operations, for another device, or for anything gateway-side. It is revoked with its device. What a stolen session allows is in `docs/threat-model.md`; it cannot approve anything.
 - Signed request details (`@signeto/protocol` `signRelayRequest` / `verifyRelayRequest`, vectors in `relay-auth/`):
   - `method` is the HTTP method in upper case.
@@ -904,7 +905,7 @@ The request also carries every step's canonical bytes (`steps[]` in the request 
 
 ### 7.2 Gateway registration
 
-`POST /v1/gateways` — auth `Bearer` (account session)
+`POST /v1/gateways` — auth `Bearer` (account session), or `Signeto-Grant` (a registration grant, below; reference relay)
 
 Request:
 ```json
@@ -917,6 +918,14 @@ Response `201`:
 Errors: `401 unauthorized`, `409 gateway_exists` (same thumbprint already registered to another account, or a revoked key registered again), `422 key_invalid` (not an EC P-256 or OKP Ed25519 public JWK, coordinates not 32 bytes, point not on the curve, or private member `d` present), `422 unsupported_protocol_version` (no `1.x` in `protocol_versions`), `403 gateway_limit` (plan gateway limit; Free allows one active gateway). Re-registering the same key on the same account while it is active returns `200` with the same body. A key that a device revoked (below) MAY be registered again by its holder: the same account, with a proof of possession, within the plan's gateway limit; the relay then answers `201` with `"reinstated": true` and keeps the gateway's pairings and chain heads, so its other devices work again at once. A key revoked by the gateway itself or by an account session stays refused (`409 gateway_exists`). The relay stores only the RFC 7638 required members of the JWK.
 
 **Successor (§5.6.2).** The request MAY carry `"successor_of": "<gateway_id>"`: an active gateway of the same account, not itself on standby. The new gateway is then registered on **standby** as that gateway's successor: it MUST be a new key with a valid proof of possession (`proof`, otherwise `422 request_malformed`; a key already registered or revoked is `409 gateway_exists`), it does not count against the plan's gateway limit, and until a handoff to it completes it can neither open pairings (§7.3) nor submit approval requests (§7.5): `403 gateway_standby`. It authenticates, reads its events and reads its handoffs. A gateway has at most one successor on standby (`409 handoff_pending`). Errors: `404 not_found` (`successor_of` is not a gateway of this account), `422 handoff_invalid` (it is revoked, on standby itself, or the same key). A standby gateway is revoked like any other, which abandons the move.
+
+**Registration grant (reference relay).** A hosted gateway (Signeto Cloud) registers without an account session: the operator's provisioning service obtains one from the relay out of band, bound to the account and the hosting tenant, and hands it to the machine. The gateway sends `Authorization: Signeto-Grant <grant>` (`sgg_` + 43 base64url characters, opaque to the gateway) with the request above.
+- `proof` is REQUIRED, with `session_sha256` the hex SHA-256 of the UTF-8 grant: the proof binds to the credential the request carries, as it does to a session. Missing: `422 request_malformed`; not verifying: `422 signature_invalid`.
+- The gateway is registered on the grant's account by the same rules as with a session (plan gateway limit, `successor_of` and standby, idempotency, reinstatement), and the relay records the grant's tenant on it. A hosted gateway is normally a successor: it registers with `successor_of` and a handoff (§5.6) moves the account's phones to it. An existing registration of the same key counts as this one only if the same tenant's grant made it; otherwise `409 gateway_exists`.
+- A grant registers one gateway, within 15 minutes of issue. The registration that succeeds spends it, an idempotent `200` included; a refused registration (any `4xx` above) leaves it unspent. Then: `401 grant_used`. Past its lifetime: `401 grant_expired`. A grant the relay does not know, a malformed one, or a relay that issues none: `401 grant_invalid`. An account no longer eligible for hosting: `403 cloud_not_eligible`.
+- A gateway whose answer was lost, and whose retry gets `401 grant_used`, checks with a signed request (for example `GET /v1/gateways/{gateway_id}/devices`): if that succeeds, it is registered.
+- The `201` (or `200`) answer also carries `account_id` and `tenant_id`.
+- The relay keeps only the grant's SHA-256, and SHOULD rate-limit grant presentations per client address.
 
 `DELETE /v1/gateways/{gateway_id}` — auth `Signeto-Gateway` (the gateway itself) or `Bearer` (its account). Revokes; a revoked key can no longer authenticate (`401 gateway_revoked`, §7.1) and its approvals are no longer served. Response `204`, also when already revoked. Errors: `403 forbidden` (another gateway), `404 not_found`.
 
@@ -1301,6 +1310,10 @@ Codes are stable strings. HTTP status is advisory; clients MUST branch on `code`
 | `handoff_expired` | 410 | relay | The completion came after `expires_at` plus 5 minutes; the handoff is now `expired`. |
 | `nonce_reused` | 409 | relay | Also: a handoff whose `nonce` the relay already recorded (§7.5). |
 | `handoff_malformed`, `not_a_handoff`, `handoff_unsupported`, `successor_mismatch`, `gateway_not_pinned`, `receipt_not_own`, `receipt_mismatch`, `handoff_not_approved`, `completion_invalid` | n/a | device, gateway | A device or successor refuses to act on a handoff (§5.6.5, §5.6.6); with `approver_mismatch`, `hash_mismatch`, `invalid_signature`, `clock_skew`, `gateway_signature_invalid` and `receipt_malformed` as for receipts. |
+| `grant_invalid` | 401 | relay (reference) | Unknown or malformed registration grant, or the relay accepts none (§7.2). |
+| `grant_expired` | 401 | relay (reference) | The registration grant is past its lifetime, 15 minutes from issue (§7.2). |
+| `grant_used` | 401 | relay (reference) | The registration grant already registered a gateway (§7.2). |
+| `cloud_not_eligible` | 403 | relay (reference) | The account may not hold a hosted (Cloud) gateway, at grant issue or at registration (§7.2). |
 
 ---
 
