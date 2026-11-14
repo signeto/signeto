@@ -118,4 +118,30 @@ class SignerTests {
         assertTrue(state.verifies(s.publicKey))
         assertFalse(state.copy(frozen = true).verifies(s.publicKey))
     }
+
+    @Test
+    fun gatewayRevokeBody() = runBlocking {
+        val s = vectorP256Signer("device-es256")
+        val gw = "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs"
+        val at = "2026-11-14T12:00:00.000Z"
+        val input = "{\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"purpose\":\"gateway.revoke\",\"signed_at\":\"2026-11-14T12:00:00.000Z\"}"
+        assertEquals(input, GatewayRevoke.signingInput(gw, at))
+        val body = GatewayRevoke.body(gw, at, s)
+        assertEquals(setOf("gateway_id", "signed_at", "signature"), body.objectValue!!.keys.toSet(), "strict body: purpose is signed, not sent")
+        assertEquals(gw, body("gateway_id").s)
+        assertEquals(at, body("signed_at").s)
+        assertTrue(s.publicKey.verify(body("signature").s, input))
+        assertFalse(s.publicKey.verify(body("signature").s, GatewayRevoke.signingInput(gw, "2026-11-14T12:00:01.000Z")))
+        assertFalse(s.publicKey.verify(body("signature").s, Freeze.signingInput(true, at)))
+    }
+
+    @Test
+    fun gatewayRevokeVectors() {
+        for ((name, v) in vectors("gateway-revoke")) {
+            val input = GatewayRevoke.signingInput(v("inputs")("gateway_id").s, v("inputs")("signed_at").s)
+            assertEquals(v("expected")("signing_input").s, input, name)
+            val key = v("inputs")("device_public_key").jwk()!!
+            assertTrue(key.verify(v("expected")("body")("signature").s, input), name)
+        }
+    }
 }

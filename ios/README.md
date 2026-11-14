@@ -27,9 +27,11 @@ package:
 1. **Receipt** (`Receipts.sign`): the hash is computed here from the canonical bytes the caller rendered,
    never taken from the network. Signing input = UTF-8 JCS of `{canonical_bytes_sha256, decision, reason?, signed_at}`.
 2. **Freeze** (`Freeze.body`): UTF-8 JCS of `{frozen, signed_at}`.
-3. **Relay request** (`RelayAuth.deviceHeader`), software keys only: UTF-8 JCS of `{body_sha256, method, path, ts}`.
+3. **Gateway revocation** (`GatewayRevoke.body`, `POST /v1/gateways/{gateway_id}/revoke`): UTF-8 JCS of
+   `{gateway_id, purpose: "gateway.revoke", signed_at}`; the body sends `gateway_id`, `signed_at` and `signature`.
+4. **Relay request** (`RelayAuth.deviceHeader`), software keys only: UTF-8 JCS of `{body_sha256, method, path, ts}`.
    A Secure Enclave key that needs Face ID per signature authenticates to the relay with the device session
-   the relay issues at enrollment (protocol.md §7.1) and signs only receipts and freezes.
+   the relay issues at enrollment (protocol.md §7.1) and signs only receipts, freezes and gateway revocations.
 
 `SecureEnclaveSigner.sign` creates a new, unevaluated `LAContext` (with `promptReason` as its text), re-opens
 the Secure Enclave key from its encrypted blob with it and calls CryptoKit's ECDSA P-256 over SHA-256 of the

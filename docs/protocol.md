@@ -634,7 +634,7 @@ The relay cannot:
 - Alter a canonical action in transit without the device's hash failing to match the gateway's bytes (§4.5 step 9), even if the device-side check were somehow skipped.
 - Alter a receipt's decision or reason without invalidating the signature.
 - Unfreeze a frozen gateway (§7.9: a freeze set by a device is signed; the local freeze file wins).
-- Re-enable a device: a revocation it reports is applied as a suspension that only the gateway's operator can lift (§7.8). It can suspend devices, and hide revocations by withholding them (the account's own revocation then does not reach the gateway; local `signeto devices revoke` always does).
+- Re-enable a device: a revocation it reports is applied as a suspension that only the gateway's operator can lift (§7.8). It can suspend devices, and hide revocations by withholding them (the account's own revocation then does not reach the gateway; local `signeto devices revoke` always does). The same holds for a device's unlink (§7.3): the relay can report one falsely (denial of service) or withhold one, but cannot undo one.
 
 ---
 
@@ -764,7 +764,7 @@ The request also carries every step's canonical bytes (`steps[]` in the request 
   - `Bearer <session>` — account session obtained by email + passkey login. Used for account-level operations: gateway registration, device enrollment.
   - `Signeto-Gateway <gateway_id>.<ts>.<sig>` — request signed by the gateway key. `sig` is base64url of the signature over the signing input `JCS({"method", "path", "ts", "body_sha256"})`. `ts` is RFC 3339; the relay MUST reject requests whose `ts` is more than 60 s from its clock. `body_sha256` is the hex SHA-256 of the raw request body, or of the empty string when there is none.
   - `Signeto-Device <device_id>.<ts>.<sig>` — same construction with the device key.
-- **Device sessions.** A device whose key needs a user gesture for every signature cannot sign each relay request: WebAuthn authenticators, and hardware keys bound to biometrics such as a Secure Enclave key created with `.biometryCurrentSet`. For these the relay issues a device session token at enrollment (§7.4), sent as `Bearer`, and the device key signs only the objects that carry their own signature. A device session MUST be scoped to: fetching approvals (§7.6), claiming a pairing and reading its status (§7.3), submitting receipts (§7.7) and freeze objects (§7.9), whose own signatures authenticate them and which the relay and gateway verify regardless of how the request was authenticated, setting its own push registration (§7.4), and revoking its own device (§7.4). It MUST NOT be accepted for account operations, for another device, or for anything gateway-side. It is revoked with its device. What a stolen session allows is in `docs/threat-model.md`; it cannot approve anything.
+- **Device sessions.** A device whose key needs a user gesture for every signature cannot sign each relay request: WebAuthn authenticators, and hardware keys bound to biometrics such as a Secure Enclave key created with `.biometryCurrentSet`. For these the relay issues a device session token at enrollment (§7.4), sent as `Bearer`, and the device key signs only the objects that carry their own signature. A device session MUST be scoped to: fetching approvals (§7.6), claiming a pairing and reading its status (§7.3), submitting receipts (§7.7) and freeze objects (§7.9), whose own signatures authenticate them and which the relay and gateway verify regardless of how the request was authenticated, setting its own push registration (§7.4), revoking its own device (§7.4), withdrawing its own pairings (§7.3 unlink), and submitting a gateway revocation object (§7.2), whose own signature authenticates it. It MUST NOT be accepted for account operations, for another device, or for anything gateway-side. It is revoked with its device. What a stolen session allows is in `docs/threat-model.md`; it cannot approve anything.
 - Signed request details (`@signeto/protocol` `signRelayRequest` / `verifyRelayRequest`, vectors in `relay-auth/`):
   - `method` is the HTTP method in upper case.
   - `path` is the request-target exactly as sent on the request line (RFC 9112 origin-form): the absolute path plus `?` and the query string when present, byte for byte, percent-encoding untouched. No scheme, host, port or fragment. A relay behind a proxy that rewrites paths MUST verify against the path the client sent.
@@ -774,7 +774,7 @@ The request also carries every step's canonical bytes (`steps[]` in the request 
   - The header is `<scheme> <key_id>.<ts>.<sig>` with one space. `ts` contains a `.`, so the credential is split at its first and last `.` (neither ids nor base64url contain one). The scheme name is case-insensitive; the rest is not. `key_id` MUST be `gw_…` under `Signeto-Gateway` and `dev_…` under `Signeto-Device` and MUST equal the thumbprint id of the registered key.
   - The relay MUST refuse a second request carrying the same `(key_id, sig)` within 120 s (replay). Ed25519 is deterministic, so a client retrying a request MUST re-sign it with a fresh `ts`.
   - Order of checks: header shape, registered key, key id matches the key, `ts` window, signature, revocation, replay, rate limit. Revocation is reported only after the signature verifies.
-  - Failures are `401` with code `unauthorized`, except `clock_skew` (stale or future `ts`) and `device_revoked` (signature valid, device revoked), which are also `401` so a client can tell resynchronising its clock from re-enrolling.
+  - Failures are `401` with code `unauthorized`, except `clock_skew` (stale or future `ts`), `device_revoked` (signature valid, device revoked) and `gateway_revoked` (signature valid, gateway revoked), which are also `401` so a client can tell resynchronising its clock from re-enrolling or re-registering. The `gateway_revoked` message SHOULD say who revoked the gateway (itself, the account, or a device, §7.2), when, and whether the key may be registered again; only the key holder sees it, since it follows a valid signature.
 - Errors: HTTP status plus body `{"error": {"code": "<§8 code>", "message": "<human text>", "retry_after"?: seconds}}`. A `429` also carries a `Retry-After` header.
 - Every response carries `X-Signeto-Relay-Id`, including errors.
 - Request objects are strict: an unknown member is `request_malformed` rather than ignored. Bodies larger than the relay's limit (256 KiB by default) are `413 request_malformed`.
@@ -791,9 +791,25 @@ Response `201`:
 ```json
 { "gateway_id": "gw_...", "relay_id": "relay-eu-1", "created_at": "..." }
 ```
-Errors: `401 unauthorized`, `409 gateway_exists` (same thumbprint already registered to another account, or a revoked key registered again), `422 key_invalid` (not an EC P-256 or OKP Ed25519 public JWK, coordinates not 32 bytes, point not on the curve, or private member `d` present), `422 unsupported_protocol_version` (no `1.x` in `protocol_versions`), `403 gateway_limit` (plan gateway limit; Free allows one active gateway). Re-registering the same key on the same account while it is active returns `200` with the same body. The relay stores only the RFC 7638 required members of the JWK.
+Errors: `401 unauthorized`, `409 gateway_exists` (same thumbprint already registered to another account, or a revoked key registered again), `422 key_invalid` (not an EC P-256 or OKP Ed25519 public JWK, coordinates not 32 bytes, point not on the curve, or private member `d` present), `422 unsupported_protocol_version` (no `1.x` in `protocol_versions`), `403 gateway_limit` (plan gateway limit; Free allows one active gateway). Re-registering the same key on the same account while it is active returns `200` with the same body. A key that a device revoked (below) MAY be registered again by its holder: the same account, with a proof of possession, within the plan's gateway limit; the relay then answers `201` with `"reinstated": true` and keeps the gateway's pairings and chain heads, so its other devices work again at once. A key revoked by the gateway itself or by an account session stays refused (`409 gateway_exists`). The relay stores only the RFC 7638 required members of the JWK.
 
-`DELETE /v1/gateways/{gateway_id}` — auth `Signeto-Gateway` (the gateway itself) or `Bearer` (its account). Revokes; a revoked key can no longer authenticate and its approvals are no longer served. Response `204`, also when already revoked. Errors: `403 forbidden` (another gateway), `404 not_found`.
+`DELETE /v1/gateways/{gateway_id}` — auth `Signeto-Gateway` (the gateway itself) or `Bearer` (its account). Revokes; a revoked key can no longer authenticate (`401 gateway_revoked`, §7.1) and its approvals are no longer served. Response `204`, also when already revoked. Errors: `403 forbidden` (another gateway), `404 not_found`.
+
+`POST /v1/gateways/{gateway_id}/revoke` — auth `Signeto-Device`, or the device's `Bearer` device session (§7.1); either way the revocation object's own `signature` authenticates the request.
+
+A paired, hardware-attested device MAY revoke a gateway of its own account, for example one whose machine is gone and that still counts against the plan's gateway limit. Request:
+```json
+{ "gateway_id": "gw_...", "signed_at": "...", "signature": "<Sign_dev(JCS{gateway_id, purpose: \"gateway.revoke\", signed_at})>" }
+```
+The signing input is the UTF-8 JCS serialization of `{"gateway_id": "<the path's gateway_id>", "purpose": "gateway.revoke", "signed_at": "<§2.5 timestamp>"}`, signed with the device key in its algorithm exactly as a receipt (§4.2) or a freeze object (§7.9). `purpose` is signed but not sent; it keeps the object apart from receipts and freeze objects, whose members differ, so no signature made for one verifies as another. `@signeto/protocol` exports `gatewayRevokeSigningInput`, `signGatewayRevoke` and `verifyGatewayRevoke`; `vectors/gateway-revoke/` fixes the bytes.
+
+The device MUST produce this signature with the same user-presence gate as a receipt (Face ID, Touch ID or biometric unlock: a Secure Enclave or Android Keystore key that requires user authentication for every use). The relay cannot observe that gate; it relies on the key being a hardware key it verified (§7.4 `attestation_status: "verified"`, `software: false`), which is the kind the approver apps create bound to user presence. WebAuthn devices do not use this endpoint; the account page revokes with a web session instead.
+
+The relay MUST, in order: verify `signature` with the authenticated device's key (`422 signature_invalid`); require `signed_at` within 60 s of its clock (`422 clock_skew`); require the gateway to belong to the device's account (`404 not_found`); answer `200` with `already_revoked: true` if it is already revoked; require the device's key to be hardware-attested (`403 attestation_required`) and the device to have a confirmed pairing with an active gateway of the account (`403 forbidden`); refuse a `(device_id, signature)` seen within the last 120 s (`422 clock_skew`), so a revocation cannot be replayed after the gateway is registered again. It then revokes the gateway as `DELETE` does (the plan slot is freed), withdraws the revoking device's own pairing with it (as in §7.3 unlink, with a `device.unlinked` event), MUST record the revocation with the signed object in its audit mirror, and MUST notify the account by email. A relay that cannot send the notice (for example past its outbound email cap) SHOULD refuse with `429 rate_limited` rather than revoke unannounced. The relay SHOULD rate-limit the endpoint per account.
+
+Response `200`: `{ "gateway_id": "gw_...", "revoked_at": "...", "already_revoked": false }`. Errors: `401 unauthorized` / `device_revoked`, `403 attestation_required`, `403 forbidden`, `404 not_found`, `422 request_malformed` (unknown member, `gateway_id` not the path's), `422 signature_invalid`, `422 clock_skew`, `429 rate_limited`.
+
+What this allows: the worst a stolen, unlocked device whose biometrics pass can do is deny service, by cutting off the account's gateways. It cannot approve anything (approval needs a receipt for an action the gateway issued, §4.5), cannot re-enable anything, and the gateway's key holder attaches the gateway again with `signeto relay register` (above). The email notice and the audit entry make it visible.
 
 ### 7.3 Pairing
 
@@ -816,7 +832,7 @@ Response `200`: `{ "status": "claimed" }`
 Errors: `404 pairing_not_found` (also when the pairing belongs to a gateway of another account: a device claims only pairings opened by its own account's gateways), `410 pairing_expired`, `409 pairing_already_claimed`, `403 forbidden` (`device.public_key` is not the authenticated device's enrolled key). The relay does not verify `proof` or `device.proof_v2` (§5.3 point 8, OPTIONAL, 43 base64url characters); it cannot. It forwards `device` exactly as sent (the proofs cover the JWK and, for v2, the metadata as the device serialised them) in the `pairing.claimed` event.
 
 `GET /v1/pairings/{pairing_id}` — auth `Signeto-Gateway` or the claiming device
-Response `200`: `{ "pairing_id": "...", "status": "open" | "claimed" | "confirmed" | "rejected" | "expired", "device_id"?: "dev_...", "device"?: {...}, "proof"?: "...", "confirmation"?: "...", "paired_at"?: "...", "approver_id"?: "...", "templates_pinned"?: [...] }`. `confirmation`, `paired_at`, `approver_id` and `templates_pinned` are the confirm request's values, returned verbatim. `expired` is reported for an `open` or `claimed` pairing past `expires_at`. Anyone other than the owning gateway and the claiming device gets `404 pairing_not_found`.
+Response `200`: `{ "pairing_id": "...", "status": "open" | "claimed" | "confirmed" | "rejected" | "unlinked" | "expired", "device_id"?: "dev_...", "device"?: {...}, "proof"?: "...", "confirmation"?: "...", "paired_at"?: "...", "approver_id"?: "...", "templates_pinned"?: [...] }`. `confirmation`, `paired_at`, `approver_id` and `templates_pinned` are the confirm request's values, returned verbatim. `expired` is reported for an `open` or `claimed` pairing past `expires_at`. Anyone other than the owning gateway and the claiming device gets `404 pairing_not_found`.
 
 `POST /v1/pairings/{pairing_id}/confirm` — auth `Signeto-Gateway`
 Request: `{ "confirmation": "<base64url Sign_gw>", "paired_at": "...", "approver_id": "jason", "templates_pinned": [ { "template_id", "template_version", "sha256" } ] }`
@@ -825,6 +841,8 @@ Response `200`: `{ "status": "confirmed" }`. The relay pushes `{pairing_id}` to 
 Errors: `409 pairing_not_claimed` (open or rejected), `410 pairing_expired`.
 
 `POST /v1/pairings/{pairing_id}/reject` — auth `Signeto-Gateway`. Proof failed on the gateway. Response `204` (also when already rejected); status becomes `rejected`. Rejecting a confirmed pairing withdraws it: the device is no longer paired with that gateway. The relay SHOULD notify the device and MUST ledger the event in its audit mirror.
+
+`DELETE /v1/devices/{device_id}/gateways/{gateway_id}` — auth `Signeto-Device`, or the device's `Bearer` device session (§7.1). A device withdraws its own confirmed pairing with one gateway ("unlink", when the user removes the gateway from the phone). `device_id` MUST be the authenticated device (`403 forbidden` otherwise). No body and no signed object: it only reduces what the device can do, as revoking its own device does, so no user-presence gate is required. The relay MUST stop treating the device as paired with that gateway for §7.5 and §7.6 (no requests, pushes or history from it; the reference relay keeps the pairing row as `unlinked`, so the device's earlier receipts still verify in the account's ledger view) and MUST send `device.unlinked` to the gateway (§7.8), and ledger the event in its audit mirror. A later confirmed pairing of the same device and gateway links them again. Response `204`, also when there was no confirmed pairing. Errors: `401 unauthorized` / `device_revoked`, `403 forbidden`, `404 not_found` (unknown gateway, or another account's), `429 rate_limited`. `GET /v1/pairings/{pairing_id}` reports a withdrawn pairing as `"status": "unlinked"`.
 
 ### 7.4 Device enrollment
 
@@ -978,6 +996,7 @@ Event envelope: `{ "cursor": "...", "type": "<type>", "at": "...", "data": {...}
 | `receipt` | `{approval_id, action_id, receipt}` |
 | `pairing.claimed` | `{pairing_id, device, proof}` |
 | `device.revoked` | `{device_id, revoked_at}` |
+| `device.unlinked` | `{device_id, gateway_id, unlinked_at}` — the device withdrew its pairing with this gateway (§7.3) |
 | `freeze` | `{frozen: true|false, set_by_device_id, signed_at, signature}` (§7.9) |
 | `approval.cancelled` | `{approval_id, by_device_id, reason?}` — cooling-off cancellation from a device, carried as a signed denial receipt in `data.receipt` |
 
@@ -985,11 +1004,13 @@ Events are retained for at least 24 hours. A gateway that reconnects with a stal
 
 **Device revocations from the relay are suspensions.** A `device.revoked` event (or the list below) carries no proof that the account owner revoked the device: the relay accepts the revocation from an account session, so it has nothing signed to forward. A gateway MUST stop accepting the device's receipts at once (fail closed) and MUST NOT let anything from the relay make the device usable again. The reference gateway ledgers the suspension (`device_revoked` with `by: "relay"` and the relay's `revoked_at`), shows it in `signeto devices` and `signeto status`, and leaves the decision to the local operator: `signeto devices revoke` confirms it (final), and `signeto devices reinstate` lifts it (a new `pairing` entry for the same key). A relay revocation already applied (same `revoked_at`) is not applied again, so a reinstated device stays reinstated; a new one suspends again. A hostile relay can therefore suspend devices (denial of service, visible), but cannot re-enable one or force a re-pairing.
 
-`GET /v1/gateways/{gateway_id}/devices` — auth `Signeto-Gateway` (the gateway itself; `403 forbidden` otherwise). The revocation state of every device with a confirmed pairing to this gateway, so a gateway that was offline longer than the event retention, or whose events were dropped, still learns of a revocation:
+**Unlinks.** A `device.unlinked` event (or `unlinked_at` in the list below) is likewise unproven, and is handled the same way with a different label: the gateway MUST stop accepting the device's receipts at once and MUST NOT let anything from the relay undo it. The reference gateway ledgers it as `device_revoked` with `by: "relay"`, `reason: "unlinked"` and the relay's `unlinked_at`, shows the device as unlinked in `signeto devices`, `signeto status` and `signeto doctor`, and clears it at the next successful pairing of that device (a new `pairing` entry); `signeto devices reinstate` also lifts it. An unlink already applied (same `unlinked_at`) is not applied again. A relay revocation of an unlinked device turns it into a suspension.
+
+`GET /v1/gateways/{gateway_id}/devices` — auth `Signeto-Gateway` (the gateway itself; `403 forbidden` otherwise). The revocation state of every device with a confirmed (or withdrawn, §7.3) pairing to this gateway, so a gateway that was offline longer than the event retention, or whose events were dropped, still learns of a revocation:
 ```json
-{ "gateway_id": "gw_...", "devices": [ { "device_id": "dev_...", "revoked_at": null }, { "device_id": "dev_...", "revoked_at": "..." } ] }
+{ "gateway_id": "gw_...", "devices": [ { "device_id": "dev_...", "revoked_at": null, "unlinked_at": null }, { "device_id": "dev_...", "revoked_at": "...", "unlinked_at": null } ] }
 ```
-Gateways SHOULD read it at start and periodically (the reference gateway: every 5 minutes) and treat every `revoked_at` like a `device.revoked` event. A device the list does not name is not affected (it may be paired locally only). A failed read keeps what the gateway knows.
+Gateways SHOULD read it at start and periodically (the reference gateway: every 5 minutes) and treat every `revoked_at` like a `device.revoked` event, and every `unlinked_at` (with `revoked_at` null) like a `device.unlinked` event. The list also names devices whose pairing with this gateway was withdrawn (§7.3), with `unlinked_at`, until a new pairing confirms them again; `unlinked_at` is `null` otherwise. A gateway MUST treat a missing `unlinked_at` (an older relay) as `null`. A device the list does not name is not affected (it may be paired locally only). A failed read keeps what the gateway knows.
 
 ### 7.9 Freeze flag
 
@@ -1113,6 +1134,8 @@ Codes are stable strings. HTTP status is advisory; clients MUST branch on `code`
 | `targets_invalid` | 422 | relay | Unknown approver or device in targets. |
 | `chain_head_regressed` | 409 | relay | Ledger chain head moved backwards or forked. |
 | `signature_invalid` | 422 | relay | Gateway or device signature on a relay-level object failed. |
+| `attestation_required` | 403 | relay | The operation needs a device whose hardware key the relay verified (§7.2 gateway revocation by a device). |
+| `gateway_revoked` | 401 | relay | Signature valid, gateway revoked (§7.1, §7.2); the message says by whom and whether the key may be registered again. |
 
 ---
 
@@ -1133,6 +1156,7 @@ Codes are stable strings. HTTP status is advisory; clients MUST branch on `code`
 | `batch/` | Steps → manifest bytes and hash for `atomic: true`; a reordered-steps negative vector. |
 | `pairing/` | Code, keys → `pairing_id`, `proof`, confirmation signing input, and a substituted-key negative vector. |
 | `relay-auth/` | Request → `Signeto-Gateway` / `Signeto-Device` header value, with body and without (query string in `path`); negative vectors for an expired or future `ts`, the 60 s edge, a wrong key, an altered body, query or method, and a device id under the gateway scheme. |
+| `gateway-revoke/` | Device key, `gateway_id`, `signed_at` → the §7.2 revocation signing input and a deterministic Ed25519 signature. |
 | `ledger/` | Chain head signing input; genesis `prev_hash` from a gateway public key. |
 
 ### 9.1 Worked example: canonical action and idempotency key
@@ -1220,4 +1244,5 @@ This section lists only what the protocol adds to SPEC §9; the SPEC requirement
 - **Template registry is a display aid, not a trust boundary.** A wrong or missing template degrades to raw bytes with a warning (§3.4). It MUST NOT degrade to a silently different rendering, and an adapter MUST NOT be able to elide arguments without the device showing a count of hidden fields.
 - **Review links are built, never received.** A link's host and shape are in the hashed, pinned template; its values come from the verified bytes, percent-encoded so they cannot leave the path (§3.5). The page behind a link can change after review; the approval is bound to the bytes, and adapters pin execution to what the bytes name (a merge at `head_sha`).
 - **WebAuthn origin binding.** The gateway's allow-list of approver origins (§4.4) is the only thing that prevents a phishing page from obtaining a valid assertion. Self-hosted deployments MUST configure it; the default MUST be the empty list, not a wildcard.
+- **A device can revoke a gateway, not approve one.** A paired, hardware-attested device may revoke its account's gateways with a biometric-gated signature (§7.2). A stolen phone that passes biometrics can therefore deny service, never forge an approval; every such revocation is audited and emailed, and the gateway's key holder reverses it with a fresh registration of the same key.
 - **Threat model.** Attack trees for compromised agent, compromised relay, lost device, malicious adapter, and rogue gateway are in `docs/threat-model.md`. Each mitigation there references a section of this document.

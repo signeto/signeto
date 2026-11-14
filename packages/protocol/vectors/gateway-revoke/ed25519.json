@@ -1,0 +1,21 @@
+{
+  "description": "Ed25519 device key revokes a gateway (protocol.md §7.2): signing input and deterministic signature",
+  "inputs": {
+    "device_public_key": {
+      "crv": "Ed25519",
+      "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8",
+      "kty": "OKP"
+    },
+    "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+    "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+    "signed_at": "2026-11-14T12:00:00.000Z"
+  },
+  "expected": {
+    "signing_input": "{\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"purpose\":\"gateway.revoke\",\"signed_at\":\"2026-11-14T12:00:00.000Z\"}",
+    "body": {
+      "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+      "signed_at": "2026-11-14T12:00:00.000Z",
+      "signature": "r1YTow7tME4h_qfZdGxRG4VJcGQqp2ApLdLWSJ34BCAzt0LlEZXzMqP5xhCsqwQhe8l4L7f-RMWplcX21cAdCA"
+    }
+  }
+}

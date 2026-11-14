@@ -45,6 +45,33 @@ final class SignerTests: XCTestCase {
         XCTAssertFalse(flipped.verifies(with: s.publicKey))
     }
 
+    func testGatewayRevokeBody() throws {
+        let s = try vectorP256Signer("device-es256")
+        let id = "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs", at = "2026-11-14T12:00:00.000Z"
+        let input = GatewayRevoke.signingInput(gatewayId: id, signedAt: at)
+        XCTAssertEqual(input, "{\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"purpose\":\"gateway.revoke\",\"signed_at\":\"2026-11-14T12:00:00.000Z\"}")
+        let body = try GatewayRevoke.body(gatewayId: id, signedAt: at, signer: s)
+        XCTAssertEqual(body.objectValue?.keys.sorted(), ["gateway_id", "signature", "signed_at"], "the purpose is signed, not sent")
+        XCTAssertEqual(body["gateway_id"], .string(id))
+        XCTAssertEqual(body["signed_at"], .string(at))
+        let sig = body["signature"]!.s
+        XCTAssertTrue(s.publicKey.verify(base64URLSignature: sig, over: input))
+        XCTAssertFalse(s.publicKey.verify(base64URLSignature: sig, over: GatewayRevoke.signingInput(gatewayId: id, signedAt: "2026-11-14T12:00:01.000Z")))
+        XCTAssertFalse(s.publicKey.verify(base64URLSignature: sig, over: Freeze.signingInput(frozen: true, signedAt: at)))
+    }
+
+    /// Shared vectors (`vectors/gateway-revoke`): same signing input, and the vector's signature verifies over it.
+    func testGatewayRevokeVectors() throws {
+        for (name, v) in try vectors("gateway-revoke") {
+            let i = v["inputs"]!, e = v["expected"]!
+            let input = GatewayRevoke.signingInput(gatewayId: i["gateway_id"]!.s, signedAt: i["signed_at"]!.s)
+            XCTAssertEqual(input, e["signing_input"]!.s, name)
+            let key = try XCTUnwrap(i["device_public_key"]!.jwk(), name)
+            XCTAssertTrue(key.verify(base64URLSignature: e["body"]!["signature"]!.s, over: input), name)
+            XCTAssertEqual(e["body"]!.objectValue?.keys.sorted(), ["gateway_id", "signature", "signed_at"], name)
+        }
+    }
+
     /// The Secure Enclave path needs hardware, an unlocked Mac with Touch ID and a signed test runner;
     /// opt in with SIGNETO_SE_TESTS=1. Key creation does not prompt; signing would.
     func testSecureEnclaveKeyCreation() throws {
