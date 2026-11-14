@@ -19,6 +19,7 @@ registered). It uses no `java.time` and no Java 9+ APIs, so an Android app needs
 | `RelayAuth.kt` | §7.1 | `Signeto-Device` request signing for software keys (and relay-side verification for conformance tests). |
 | `Pairing.kt` | §5 | QR parsing, `pairing_id`, `code_hash`, HMAC proofs v1 and v2, and the claim body. Confirmation verification covers `approver_id` (§5.3) and `templates_pinned` (§5.4). Also the `PinnedGateway` record and its storage form, and the `android-key` attestation data. |
 | `Freeze.kt` | §7.9 | Device-signed freeze objects. |
+| `Handoff.kt` | §5.6 | Gateway succession on the device (`Handoff.verifyForDevice`): pin the successor only when the `signeto.gateway_handoff` request verifies under the pinned gateway's key and this device's own receipt approves those exact bytes (or, after the window, the predecessor's signed completion names this device). The new pin keeps the approver binding and template pins. The approval itself is an ordinary receipt (`Receipts.sign`); nothing new is signed. |
 
 The bundled registries (`builtin-registries.json`) are a data port of `@signeto/protocol` `builtinRegistries`.
 

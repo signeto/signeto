@@ -103,6 +103,19 @@
         "text": "Test request from {gateway}, code {code}",
         "sha256": "9bdbc8861b6c124e2bd38a60028218a23035987dcc99bd94e17e0f27a13752a3",
         "note": "Nothing runs when you approve this. It checks that this phone receives, shows and signs requests."
+      },
+      {
+        "template_id": "signeto.gateway_handoff",
+        "template_version": 1,
+        "text": "Move this gateway to {successor_name} ({successor_gateway_id})",
+        "sha256": "3a9133411f629d5208855c853514fa6be6336162c1a4b6287994173261091bec",
+        "elide": [
+          "ledger_head",
+          "ledger_seq",
+          "policy_hash",
+          "successor_public_key"
+        ],
+        "note": "Its ledger continues from entry {ledger_seq} ({ledger_head:short}) under policy {policy_hash:short}. This phone keeps approving for the new gateway, and this one stops once the move completes. Approve only if you started this move."
       }
     ]
   }

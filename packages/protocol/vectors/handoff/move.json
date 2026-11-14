@@ -1,0 +1,197 @@
+{
+  "description": "A gateway hands over to its successor (protocol.md §5.6): the handoff action, G1's request signature, the device's receipt, G1's completion, the rendered card and the successor pin",
+  "inputs": {
+    "predecessor_private_key": {
+      "crv": "Ed25519",
+      "d": "72djSA6ucldA156aX_VpuldyXeeO8gbpxTZZQJy-vlw",
+      "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28",
+      "kty": "OKP"
+    },
+    "successor_public_key": {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "x": "p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s"
+    },
+    "device_private_key": {
+      "crv": "Ed25519",
+      "d": "lRjDf1TqC80UW4at-i81Td658VW3QFzRPsbyICQQmTc",
+      "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8",
+      "kty": "OKP"
+    },
+    "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+    "host": "jason-mbp",
+    "nonce": "SGFuZG9mZlZlY3Rvck5vbg",
+    "issued_at": "2026-11-14T12:00:00.000Z",
+    "expiry_ms": 300000,
+    "args": {
+      "successor_gateway_id": "gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk",
+      "successor_public_key": {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "x": "p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s"
+      },
+      "successor_name": "Signeto Cloud",
+      "ledger_seq": 41,
+      "ledger_head": "eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd",
+      "policy_hash": "da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8"
+    },
+    "pin": {
+      "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+      "public_key": {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+      },
+      "approver_id": "jason",
+      "templates_pinned": [
+        {
+          "template_id": "acme.deploy",
+          "template_version": 2,
+          "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+        }
+      ]
+    },
+    "receipt_signed_at": "2026-11-14T12:01:00.000Z",
+    "completion_fields": {
+      "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+      "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164",
+      "predecessor_gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+      "successor_gateway_id": "gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk",
+      "final_seq": 44,
+      "final_entry_hash": "50fd29f44d92074959c22c8601b62f6b2390ea3e23b3a8b78d59be935c4c799b",
+      "completed_at": "2026-11-14T12:01:30.000Z"
+    },
+    "devices": [
+      {
+        "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+        "public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "approver_id": "jason",
+        "attested": true,
+        "platform": "ios",
+        "name": "iPhone 17",
+        "attestation_sha256": "8d8a5404ab7628278ac8900b6d56047eefb032f0c635c8192a91f09c9298da19"
+      },
+      {
+        "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+        "public_key": {
+          "kty": "EC",
+          "crv": "P-256",
+          "x": "Of8uj529uXHN5vuSVnd9npjQoo3omxCJUxXVYt_WXS8",
+          "y": "ymLO0QWGOus6jSc_kOwiyELsXG3f1Gf9MmJQczzivw4"
+        },
+        "approver_id": "jason",
+        "attested": true,
+        "platform": "android",
+        "name": "Pixel 9",
+        "attestation_sha256": null
+      }
+    ]
+  },
+  "expected": {
+    "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"8e021ef6d8663feef999d213560d9b18a57b15851b6b5b9e3a3f598e0e7a5fe9\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+    "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164",
+    "request_signing_input": "{\"action_id\":\"act_01JCQ0HANDXFF5ZCCE55RS0000\",\"canonical_bytes_sha256\":\"f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164\",\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\"}",
+    "handoff": {
+      "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+      "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"8e021ef6d8663feef999d213560d9b18a57b15851b6b5b9e3a3f598e0e7a5fe9\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+      "gateway_signature": "SvsNW0Qr8AQscw2NYnFjGi6RFUjLFfOLiAOZFJMEpYglbSP9EXdlj6YcXxcZaz-01k4TE0wb7mnw6ifmJRDfBg"
+    },
+    "rendered": {
+      "text": "Move this gateway to Signeto Cloud (gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk)",
+      "note": "Its ledger continues from entry 41 (eb671a6) under policy da3e51b. This phone keeps approving for the new gateway, and this one stops once the move completes. Approve only if you started this move.",
+      "hidden": [
+        "ledger_head",
+        "ledger_seq",
+        "policy_hash",
+        "successor_public_key"
+      ]
+    },
+    "receipt_signing_input": "{\"canonical_bytes_sha256\":\"f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164\",\"decision\":\"approve\",\"signed_at\":\"2026-11-14T12:01:00.000Z\"}",
+    "receipt": {
+      "receipt_version": "1.0",
+      "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+      "decision": "approve",
+      "approver_id": "jason",
+      "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+      "alg": "Ed25519",
+      "signature": "JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ",
+      "signed_at": "2026-11-14T12:01:00.000Z",
+      "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+    },
+    "completion_signing_input": "{\"action_id\":\"act_01JCQ0HANDXFF5ZCCE55RS0000\",\"canonical_bytes_sha256\":\"f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164\",\"completed_at\":\"2026-11-14T12:01:30.000Z\",\"devices\":[{\"approver_id\":\"jason\",\"attestation_sha256\":\"8d8a5404ab7628278ac8900b6d56047eefb032f0c635c8192a91f09c9298da19\",\"attested\":true,\"device_id\":\"dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY\",\"name\":\"iPhone 17\",\"platform\":\"ios\",\"public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8\"}},{\"approver_id\":\"jason\",\"attestation_sha256\":null,\"attested\":true,\"device_id\":\"dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q\",\"name\":\"Pixel 9\",\"platform\":\"android\",\"public_key\":{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"Of8uj529uXHN5vuSVnd9npjQoo3omxCJUxXVYt_WXS8\",\"y\":\"ymLO0QWGOus6jSc_kOwiyELsXG3f1Gf9MmJQczzivw4\"}}],\"final_entry_hash\":\"50fd29f44d92074959c22c8601b62f6b2390ea3e23b3a8b78d59be935c4c799b\",\"final_seq\":44,\"predecessor_gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"purpose\":\"gateway.handoff.complete\",\"receipts\":[{\"action_id\":\"act_01JCQ0HANDXFF5ZCCE55RS0000\",\"alg\":\"Ed25519\",\"approver_id\":\"jason\",\"canonical_bytes_sha256\":\"f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164\",\"decision\":\"approve\",\"device_id\":\"dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY\",\"receipt_version\":\"1.0\",\"signature\":\"JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ\",\"signed_at\":\"2026-11-14T12:01:00.000Z\"}],\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\"}",
+    "completion": {
+      "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+      "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164",
+      "predecessor_gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+      "successor_gateway_id": "gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk",
+      "final_seq": 44,
+      "final_entry_hash": "50fd29f44d92074959c22c8601b62f6b2390ea3e23b3a8b78d59be935c4c799b",
+      "completed_at": "2026-11-14T12:01:30.000Z",
+      "devices": [
+        {
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+          },
+          "approver_id": "jason",
+          "attested": true,
+          "platform": "ios",
+          "name": "iPhone 17",
+          "attestation_sha256": "8d8a5404ab7628278ac8900b6d56047eefb032f0c635c8192a91f09c9298da19"
+        },
+        {
+          "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+          "public_key": {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "Of8uj529uXHN5vuSVnd9npjQoo3omxCJUxXVYt_WXS8",
+            "y": "ymLO0QWGOus6jSc_kOwiyELsXG3f1Gf9MmJQczzivw4"
+          },
+          "approver_id": "jason",
+          "attested": true,
+          "platform": "android",
+          "name": "Pixel 9",
+          "attestation_sha256": null
+        }
+      ],
+      "receipts": [
+        {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ",
+          "signed_at": "2026-11-14T12:01:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        }
+      ],
+      "signature": "EjKqJy8AS_76xDEY2u43WWEfg6WtzpStJMhf0qzpVMaJDrJGJZJMwwLdDPJnOOADVX8tOLEOVpKDHP_MnY5TCw"
+    },
+    "successor_pin": {
+      "gateway_id": "gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk",
+      "public_key": {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "x": "p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s"
+      },
+      "name": "Signeto Cloud",
+      "approver_id": "jason",
+      "templates_pinned": [
+        {
+          "template_id": "acme.deploy",
+          "template_version": 2,
+          "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+        }
+      ],
+      "predecessor_gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs"
+    }
+  }
+}

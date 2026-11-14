@@ -1,0 +1,1336 @@
+{
+  "description": "verifyHandoffForDevice (protocol.md §5.6.5): may a device that pinned G1 pin the successor? Each case gives the request, the device's pin, its public key, its own receipt and optionally G1's completion; `expected` is ok (with completed, late) or the first failing code",
+  "cases": [
+    {
+      "name": "approved-in-window",
+      "description": "own approving receipt inside the window, completion supplied",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"8e021ef6d8663feef999d213560d9b18a57b15851b6b5b9e3a3f598e0e7a5fe9\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "SvsNW0Qr8AQscw2NYnFjGi6RFUjLFfOLiAOZFJMEpYglbSP9EXdlj6YcXxcZaz-01k4TE0wb7mnw6ifmJRDfBg"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ",
+          "signed_at": "2026-11-14T12:01:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        },
+        "completion": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164",
+          "predecessor_gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "successor_gateway_id": "gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk",
+          "final_seq": 44,
+          "final_entry_hash": "50fd29f44d92074959c22c8601b62f6b2390ea3e23b3a8b78d59be935c4c799b",
+          "completed_at": "2026-11-14T12:01:30.000Z",
+          "devices": [
+            {
+              "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+              "public_key": {
+                "kty": "OKP",
+                "crv": "Ed25519",
+                "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+              },
+              "approver_id": "jason",
+              "attested": true,
+              "platform": "ios",
+              "name": "iPhone 17",
+              "attestation_sha256": "8d8a5404ab7628278ac8900b6d56047eefb032f0c635c8192a91f09c9298da19"
+            },
+            {
+              "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+              "public_key": {
+                "kty": "EC",
+                "crv": "P-256",
+                "x": "Of8uj529uXHN5vuSVnd9npjQoo3omxCJUxXVYt_WXS8",
+                "y": "ymLO0QWGOus6jSc_kOwiyELsXG3f1Gf9MmJQczzivw4"
+              },
+              "approver_id": "jason",
+              "attested": true,
+              "platform": "android",
+              "name": "Pixel 9",
+              "attestation_sha256": null
+            }
+          ],
+          "receipts": [
+            {
+              "receipt_version": "1.0",
+              "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+              "decision": "approve",
+              "approver_id": "jason",
+              "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+              "alg": "Ed25519",
+              "signature": "JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ",
+              "signed_at": "2026-11-14T12:01:00.000Z",
+              "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+            }
+          ],
+          "signature": "EjKqJy8AS_76xDEY2u43WWEfg6WtzpStJMhf0qzpVMaJDrJGJZJMwwLdDPJnOOADVX8tOLEOVpKDHP_MnY5TCw"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "completed": true,
+        "late": false
+      }
+    },
+    {
+      "name": "approved-no-completion",
+      "description": "own approving receipt inside the window; the device pins the successor before the move completes",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"8e021ef6d8663feef999d213560d9b18a57b15851b6b5b9e3a3f598e0e7a5fe9\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "SvsNW0Qr8AQscw2NYnFjGi6RFUjLFfOLiAOZFJMEpYglbSP9EXdlj6YcXxcZaz-01k4TE0wb7mnw6ifmJRDfBg"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ",
+          "signed_at": "2026-11-14T12:01:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "completed": false,
+        "late": false
+      }
+    },
+    {
+      "name": "late-with-completion",
+      "description": "a phone that missed the window approves the completed move later; the completion names it",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"8e021ef6d8663feef999d213560d9b18a57b15851b6b5b9e3a3f598e0e7a5fe9\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "SvsNW0Qr8AQscw2NYnFjGi6RFUjLFfOLiAOZFJMEpYglbSP9EXdlj6YcXxcZaz-01k4TE0wb7mnw6ifmJRDfBg"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "zh06iS6vMH5NGzY1F4KPKmQbW8ZtXfdiREi4NtAjOuxqYrc5OsSCEgwFxwalISxehB9ZIQ_rxa7AYmM-XMlNAw",
+          "signed_at": "2026-11-14T13:00:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        },
+        "completion": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164",
+          "predecessor_gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "successor_gateway_id": "gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk",
+          "final_seq": 44,
+          "final_entry_hash": "50fd29f44d92074959c22c8601b62f6b2390ea3e23b3a8b78d59be935c4c799b",
+          "completed_at": "2026-11-14T12:01:30.000Z",
+          "devices": [
+            {
+              "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+              "public_key": {
+                "kty": "OKP",
+                "crv": "Ed25519",
+                "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+              },
+              "approver_id": "jason",
+              "attested": true,
+              "platform": "ios",
+              "name": "iPhone 17",
+              "attestation_sha256": "8d8a5404ab7628278ac8900b6d56047eefb032f0c635c8192a91f09c9298da19"
+            },
+            {
+              "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+              "public_key": {
+                "kty": "EC",
+                "crv": "P-256",
+                "x": "Of8uj529uXHN5vuSVnd9npjQoo3omxCJUxXVYt_WXS8",
+                "y": "ymLO0QWGOus6jSc_kOwiyELsXG3f1Gf9MmJQczzivw4"
+              },
+              "approver_id": "jason",
+              "attested": true,
+              "platform": "android",
+              "name": "Pixel 9",
+              "attestation_sha256": null
+            }
+          ],
+          "receipts": [
+            {
+              "receipt_version": "1.0",
+              "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+              "decision": "approve",
+              "approver_id": "jason",
+              "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+              "alg": "Ed25519",
+              "signature": "JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ",
+              "signed_at": "2026-11-14T12:01:00.000Z",
+              "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+            }
+          ],
+          "signature": "EjKqJy8AS_76xDEY2u43WWEfg6WtzpStJMhf0qzpVMaJDrJGJZJMwwLdDPJnOOADVX8tOLEOVpKDHP_MnY5TCw"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "completed": true,
+        "late": true
+      }
+    },
+    {
+      "name": "late-without-completion",
+      "description": "a late receipt counts only with the completion",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"8e021ef6d8663feef999d213560d9b18a57b15851b6b5b9e3a3f598e0e7a5fe9\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "SvsNW0Qr8AQscw2NYnFjGi6RFUjLFfOLiAOZFJMEpYglbSP9EXdlj6YcXxcZaz-01k4TE0wb7mnw6ifmJRDfBg"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "zh06iS6vMH5NGzY1F4KPKmQbW8ZtXfdiREi4NtAjOuxqYrc5OsSCEgwFxwalISxehB9ZIQ_rxa7AYmM-XMlNAw",
+          "signed_at": "2026-11-14T13:00:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "clock_skew"
+      }
+    },
+    {
+      "name": "late-not-listed",
+      "description": "a late receipt from a device the completion does not name",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"8e021ef6d8663feef999d213560d9b18a57b15851b6b5b9e3a3f598e0e7a5fe9\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "SvsNW0Qr8AQscw2NYnFjGi6RFUjLFfOLiAOZFJMEpYglbSP9EXdlj6YcXxcZaz-01k4TE0wb7mnw6ifmJRDfBg"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "zh06iS6vMH5NGzY1F4KPKmQbW8ZtXfdiREi4NtAjOuxqYrc5OsSCEgwFxwalISxehB9ZIQ_rxa7AYmM-XMlNAw",
+          "signed_at": "2026-11-14T13:00:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        },
+        "completion": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164",
+          "predecessor_gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "successor_gateway_id": "gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk",
+          "final_seq": 44,
+          "final_entry_hash": "50fd29f44d92074959c22c8601b62f6b2390ea3e23b3a8b78d59be935c4c799b",
+          "completed_at": "2026-11-14T12:01:30.000Z",
+          "devices": [
+            {
+              "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+              "public_key": {
+                "kty": "EC",
+                "crv": "P-256",
+                "x": "Of8uj529uXHN5vuSVnd9npjQoo3omxCJUxXVYt_WXS8",
+                "y": "ymLO0QWGOus6jSc_kOwiyELsXG3f1Gf9MmJQczzivw4"
+              },
+              "approver_id": "jason",
+              "attested": true,
+              "platform": "android",
+              "name": "Pixel 9",
+              "attestation_sha256": null
+            }
+          ],
+          "receipts": [
+            {
+              "receipt_version": "1.0",
+              "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+              "decision": "approve",
+              "approver_id": "jason",
+              "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+              "alg": "ES256",
+              "signature": "JzTD9uauErfhGwGLhbtJ9Lts3FnGZqz6HkurWLJ6VC1U0wA5CTuw6yZ-yJ1akcNwgN8R3uwHX4AMSXDHLDbWmA",
+              "signed_at": "2026-11-14T12:01:00.000Z",
+              "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+            }
+          ],
+          "signature": "k5EL-pyiaCTpVfGicK9VpFWgfJxicY5Dp_Qh8PA2n1tMexS0pDDl73B2aj0suoGu5RRRPrgC9e82DG_0apXFCA"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "clock_skew"
+      }
+    },
+    {
+      "name": "before-issue",
+      "description": "receipt signed more than 60 s before the handoff was issued",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"8e021ef6d8663feef999d213560d9b18a57b15851b6b5b9e3a3f598e0e7a5fe9\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "SvsNW0Qr8AQscw2NYnFjGi6RFUjLFfOLiAOZFJMEpYglbSP9EXdlj6YcXxcZaz-01k4TE0wb7mnw6ifmJRDfBg"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "6-85K3MSSUMcrIWc8rvitnm1limhFKwAjtY0l1RBHln1I_2W6jLCtB1QgTUfB2AfCVgpcDoG73-yAvRhimTXDQ",
+          "signed_at": "2026-11-14T11:58:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "clock_skew"
+      }
+    },
+    {
+      "name": "signature-over-other-bytes",
+      "description": "canonical bytes G1 did not sign, with G1's signature from the real handoff",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Attacker\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"e4beb9302c4f737cd27186d6d03b8c005d77517553c8b84701a48f12be75bcfa\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "SvsNW0Qr8AQscw2NYnFjGi6RFUjLFfOLiAOZFJMEpYglbSP9EXdlj6YcXxcZaz-01k4TE0wb7mnw6ifmJRDfBg"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ",
+          "signed_at": "2026-11-14T12:01:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "gateway_signature_invalid"
+      }
+    },
+    {
+      "name": "signed-by-successor",
+      "description": "the request is signed by another key than the pinned one",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"8e021ef6d8663feef999d213560d9b18a57b15851b6b5b9e3a3f598e0e7a5fe9\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "JAeYE6gbuYzYccxgnCiTnTz5zRMPUHcUf41zvbC_JNnHBcv3LNk9JYfzPP-0eLAOLz_fQWlHTvX2rhkRFap3Dw"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ",
+          "signed_at": "2026-11-14T12:01:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "gateway_signature_invalid"
+      }
+    },
+    {
+      "name": "other-gateway-pin",
+      "description": "the device's pin is for another gateway",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"8e021ef6d8663feef999d213560d9b18a57b15851b6b5b9e3a3f598e0e7a5fe9\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "SvsNW0Qr8AQscw2NYnFjGi6RFUjLFfOLiAOZFJMEpYglbSP9EXdlj6YcXxcZaz-01k4TE0wb7mnw6ifmJRDfBg"
+        },
+        "pin": {
+          "gateway_id": "gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ",
+          "signed_at": "2026-11-14T12:01:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "gateway_not_pinned"
+      }
+    },
+    {
+      "name": "not-a-handoff",
+      "description": "a G1-signed approval request for another tool",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"base\":\"main\",\"head_sha\":\"abc1234abc1234abc1234abc1234abc1234abc12\",\"method\":\"squash\",\"pr\":42,\"repo\":\"acme/api\"},\"expires_at\":\"2026-11-14T12:03:00.000Z\",\"idempotency_key\":\"1042f4e486c40d7d6a58bb071cdcab1bb951bea4ab0f73e8a6120998b4ce77fc\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_1\"},\"template_id\":\"github.merge_pull_request\",\"template_version\":1,\"tier\":3,\"tool\":\"github.merge_pull_request\"}",
+          "gateway_signature": "grIjkgJXWccfuN-NZarTz7ga3A6QeeYzR91P2hFVCO-BJDR6u059AAA46csOA9R4dHmxrsNIQFptk4ZNkGU2BQ"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "p-qUTpzReFDhOPI29YlEp5aYQKMYve6gzN9gT9ofHmyROl5wm7Rl_6mv2MFUalVgkmkHmXDrdxZF6ZWeaipGDA",
+          "signed_at": "2026-11-14T12:01:00.000Z",
+          "canonical_bytes_sha256": "fa30a6e55be56c288f711e65964e769e2788fafa96c97864b1c9cba8e9f42ddf"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "not_a_handoff"
+      }
+    },
+    {
+      "name": "unsupported-version",
+      "description": "template_version 2, which this format does not define",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"d54a9793919977eb396790ccb38a61536d187bebc8c8125c4e77ac40620cc3ad\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":2,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "zQdeBk47IfVx2GuBojqaePDXdXTHmxmygd-2GrsVHoSsgiU01oKHpANKGb8sPuxT30AMMBoXIrFnWZ52KY9sCA"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ",
+          "signed_at": "2026-11-14T12:01:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "handoff_unsupported"
+      }
+    },
+    {
+      "name": "tier-2",
+      "description": "a handoff is tier 3",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"3d2aff305da11f6019e92887e1fef1d581ff9c20a4a1eac0eed414e3c65a28d3\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":2,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "sZ55EOUNbruhoYyFuhtA-4aEP6GNWiU7NkjGM66zZBKxl8n8nXSDOWd7eoa8b3AqbNGCbArsHtZnR3gY3jw5DA"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ",
+          "signed_at": "2026-11-14T12:01:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "handoff_malformed"
+      }
+    },
+    {
+      "name": "extra-argument",
+      "description": "args_resolved has a member the format does not define",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"note\":\"x\",\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"2a2a6b658908173f1b102d41014baf5bef0f5112ce59a1c7fd0d944be6da63e2\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "SndoRShoGJ2EBGdeCDsn4IHELXw2wpbYg3K0X9VKlDyTOv0s-VFfHac3YAzRzWWw--PMQj62c-GJmt0VxIYsAw"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ",
+          "signed_at": "2026-11-14T12:01:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "handoff_malformed"
+      }
+    },
+    {
+      "name": "successor-id-not-thumbprint",
+      "description": "successor_gateway_id is not the thumbprint of successor_public_key",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"d142aa2537f63e14e738c7cbba1f7d011bc92cc3a36a99b239f87d2385d70ec1\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "RBZsfIS9YkNCznyVFiXJSnvuZCVXl96wmNdn9cazpU0vZRwbDS9L4FZh3AuXZCLR1h7NRNy0TIAv1s8Et-j3Cw"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ",
+          "signed_at": "2026-11-14T12:01:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "successor_mismatch"
+      }
+    },
+    {
+      "name": "successor-is-self",
+      "description": "a gateway handing off to itself",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"9306a071a5b714cc8a8f208a46282ce4dc82fdc2368db2a569d6629d7708e28f\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "2TxQwgEoziF6DI2Up0CvXou46b7xadYKxzln6R6RjgkrwWhMADTZ0Ai8B-wqocJQt6S5JlqZI3OhHfsqfhIABA"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ",
+          "signed_at": "2026-11-14T12:01:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "successor_mismatch"
+      }
+    },
+    {
+      "name": "receipt-from-other-device",
+      "description": "the receipt was signed by another device",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"8e021ef6d8663feef999d213560d9b18a57b15851b6b5b9e3a3f598e0e7a5fe9\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "SvsNW0Qr8AQscw2NYnFjGi6RFUjLFfOLiAOZFJMEpYglbSP9EXdlj6YcXxcZaz-01k4TE0wb7mnw6ifmJRDfBg"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+          "alg": "ES256",
+          "signature": "8UFcpFOd46s8ILW6AO8ZSb3BCcThzobDURVi37IOi4zbW6_8Voe9rXr0npM_mC360Nv9y8FloQjvbAZB4W81GA",
+          "signed_at": "2026-11-14T12:01:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "receipt_not_own"
+      }
+    },
+    {
+      "name": "receipt-for-other-action",
+      "description": "the receipt names another action_id",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"8e021ef6d8663feef999d213560d9b18a57b15851b6b5b9e3a3f598e0e7a5fe9\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "SvsNW0Qr8AQscw2NYnFjGi6RFUjLFfOLiAOZFJMEpYglbSP9EXdlj6YcXxcZaz-01k4TE0wb7mnw6ifmJRDfBg"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0001",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ",
+          "signed_at": "2026-11-14T12:01:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "receipt_mismatch"
+      }
+    },
+    {
+      "name": "approver-mismatch",
+      "description": "the receipt names another approver than the pin",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"8e021ef6d8663feef999d213560d9b18a57b15851b6b5b9e3a3f598e0e7a5fe9\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "SvsNW0Qr8AQscw2NYnFjGi6RFUjLFfOLiAOZFJMEpYglbSP9EXdlj6YcXxcZaz-01k4TE0wb7mnw6ifmJRDfBg"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "someone-else",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ",
+          "signed_at": "2026-11-14T12:01:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "approver_mismatch"
+      }
+    },
+    {
+      "name": "denied",
+      "description": "the device denied the handoff",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"8e021ef6d8663feef999d213560d9b18a57b15851b6b5b9e3a3f598e0e7a5fe9\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "SvsNW0Qr8AQscw2NYnFjGi6RFUjLFfOLiAOZFJMEpYglbSP9EXdlj6YcXxcZaz-01k4TE0wb7mnw6ifmJRDfBg"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "deny",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "8DoHxYzZlVg1sCXdnTnQE2gpiM1-KLXvcOzE3amCTTxlideU3rHavl1V8VvSO3irhxcT7G97dV6Lh9Z2v27xBw",
+          "signed_at": "2026-11-14T12:01:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "handoff_not_approved"
+      }
+    },
+    {
+      "name": "receipt-over-other-bytes",
+      "description": "the receipt signs another hash",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"8e021ef6d8663feef999d213560d9b18a57b15851b6b5b9e3a3f598e0e7a5fe9\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "SvsNW0Qr8AQscw2NYnFjGi6RFUjLFfOLiAOZFJMEpYglbSP9EXdlj6YcXxcZaz-01k4TE0wb7mnw6ifmJRDfBg"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "FboFM739adEmN8hrjLNEnp3pLj56rEOH4iyh4cnOGNJUNDJD_zA8H9A4588aBBueXnewbhwa477BcvUp1P_TBA",
+          "signed_at": "2026-11-14T12:01:00.000Z",
+          "canonical_bytes_sha256": "a3ead5eedad5df82318c51685dbc1c147a36d1ff8584fc82de6b08d0bf63a795"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "hash_mismatch"
+      }
+    },
+    {
+      "name": "bad-receipt-signature",
+      "description": "the receipt's signature is over another signing input",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"8e021ef6d8663feef999d213560d9b18a57b15851b6b5b9e3a3f598e0e7a5fe9\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "SvsNW0Qr8AQscw2NYnFjGi6RFUjLFfOLiAOZFJMEpYglbSP9EXdlj6YcXxcZaz-01k4TE0wb7mnw6ifmJRDfBg"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "cx9MTXNJp9qYRDYRThWHUIK8oQIe8Oiqee964rOENDsCZeLtSC3GAYsdPO73bo6tJs7QJujShPgH_BHIXyKdBg",
+          "signed_at": "2026-11-14T12:01:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "invalid_signature"
+      }
+    },
+    {
+      "name": "completion-altered",
+      "description": "the completion was changed after G1 signed it",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"8e021ef6d8663feef999d213560d9b18a57b15851b6b5b9e3a3f598e0e7a5fe9\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "SvsNW0Qr8AQscw2NYnFjGi6RFUjLFfOLiAOZFJMEpYglbSP9EXdlj6YcXxcZaz-01k4TE0wb7mnw6ifmJRDfBg"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ",
+          "signed_at": "2026-11-14T12:01:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        },
+        "completion": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164",
+          "predecessor_gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "successor_gateway_id": "gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk",
+          "final_seq": 45,
+          "final_entry_hash": "50fd29f44d92074959c22c8601b62f6b2390ea3e23b3a8b78d59be935c4c799b",
+          "completed_at": "2026-11-14T12:01:30.000Z",
+          "devices": [
+            {
+              "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+              "public_key": {
+                "kty": "OKP",
+                "crv": "Ed25519",
+                "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+              },
+              "approver_id": "jason",
+              "attested": true,
+              "platform": "ios",
+              "name": "iPhone 17",
+              "attestation_sha256": "8d8a5404ab7628278ac8900b6d56047eefb032f0c635c8192a91f09c9298da19"
+            },
+            {
+              "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+              "public_key": {
+                "kty": "EC",
+                "crv": "P-256",
+                "x": "Of8uj529uXHN5vuSVnd9npjQoo3omxCJUxXVYt_WXS8",
+                "y": "ymLO0QWGOus6jSc_kOwiyELsXG3f1Gf9MmJQczzivw4"
+              },
+              "approver_id": "jason",
+              "attested": true,
+              "platform": "android",
+              "name": "Pixel 9",
+              "attestation_sha256": null
+            }
+          ],
+          "receipts": [
+            {
+              "receipt_version": "1.0",
+              "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+              "decision": "approve",
+              "approver_id": "jason",
+              "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+              "alg": "Ed25519",
+              "signature": "JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ",
+              "signed_at": "2026-11-14T12:01:00.000Z",
+              "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+            }
+          ],
+          "signature": "EjKqJy8AS_76xDEY2u43WWEfg6WtzpStJMhf0qzpVMaJDrJGJZJMwwLdDPJnOOADVX8tOLEOVpKDHP_MnY5TCw"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "completion_invalid"
+      }
+    },
+    {
+      "name": "completion-not-after-head",
+      "description": "a completion whose final_seq is not after the handoff's ledger head",
+      "inputs": {
+        "handoff": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes": "{\"args_resolved\":{\"ledger_head\":\"eb671a60e7fc209538a6c1064cdf6881d6001698df9604629e0a1d94bb218bbd\",\"ledger_seq\":41,\"policy_hash\":\"da3e51b9be97d4e107f74bdb181c50484a68f20c23e7425c7c4b1a3083ce40b8\",\"successor_gateway_id\":\"gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk\",\"successor_name\":\"Signeto Cloud\",\"successor_public_key\":{\"crv\":\"Ed25519\",\"kty\":\"OKP\",\"x\":\"p0GThxO7ORNvnCtjvrT077Z5GoVUZMQFZDqdPy4A84s\"}},\"expires_at\":\"2026-11-14T12:05:00.000Z\",\"idempotency_key\":\"8e021ef6d8663feef999d213560d9b18a57b15851b6b5b9e3a3f598e0e7a5fe9\",\"issued_at\":\"2026-11-14T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"SGFuZG9mZlZlY3Rvck5vbg\",\"origin_hash\":\"5a438bc784d48eda2ea2593913a0548f55472bc2b2c969e173c3d4ba12199c3d\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto gateway\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"handoff\"},\"template_id\":\"signeto.gateway_handoff\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.gateway_handoff\"}",
+          "gateway_signature": "SvsNW0Qr8AQscw2NYnFjGi6RFUjLFfOLiAOZFJMEpYglbSP9EXdlj6YcXxcZaz-01k4TE0wb7mnw6ifmJRDfBg"
+        },
+        "pin": {
+          "gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "public_key": {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "nuh3Kz3y1tS5JZzEAq1tfujPokfE_BySBKwiGzdYA28"
+          },
+          "approver_id": "jason",
+          "templates_pinned": [
+            {
+              "template_id": "acme.deploy",
+              "template_version": 2,
+              "sha256": "6076d8d24372297ecfea4b9da1cb834810f39588c3bcad07bc05744be984ed1a"
+            }
+          ]
+        },
+        "device_public_key": {
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+        },
+        "receipt": {
+          "receipt_version": "1.0",
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "decision": "approve",
+          "approver_id": "jason",
+          "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+          "alg": "Ed25519",
+          "signature": "JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ",
+          "signed_at": "2026-11-14T12:01:00.000Z",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+        },
+        "completion": {
+          "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+          "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164",
+          "predecessor_gateway_id": "gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs",
+          "successor_gateway_id": "gw_nEk-M3lqq3095XBalAtWQXJqiVzFY4ShhwR9Ddwf9Tk",
+          "final_seq": 41,
+          "final_entry_hash": "50fd29f44d92074959c22c8601b62f6b2390ea3e23b3a8b78d59be935c4c799b",
+          "completed_at": "2026-11-14T12:01:30.000Z",
+          "devices": [
+            {
+              "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+              "public_key": {
+                "kty": "OKP",
+                "crv": "Ed25519",
+                "x": "tBsN_24rEyvNtlfAwMOMFI4-o3VXG8chyJg_V_K1Xt8"
+              },
+              "approver_id": "jason",
+              "attested": true,
+              "platform": "ios",
+              "name": "iPhone 17",
+              "attestation_sha256": "8d8a5404ab7628278ac8900b6d56047eefb032f0c635c8192a91f09c9298da19"
+            },
+            {
+              "device_id": "dev_a0_Fuycw9mkJA94-PL1NxHX3GQN6Q_J3KLGwoNfjX2Q",
+              "public_key": {
+                "kty": "EC",
+                "crv": "P-256",
+                "x": "Of8uj529uXHN5vuSVnd9npjQoo3omxCJUxXVYt_WXS8",
+                "y": "ymLO0QWGOus6jSc_kOwiyELsXG3f1Gf9MmJQczzivw4"
+              },
+              "approver_id": "jason",
+              "attested": true,
+              "platform": "android",
+              "name": "Pixel 9",
+              "attestation_sha256": null
+            }
+          ],
+          "receipts": [
+            {
+              "receipt_version": "1.0",
+              "action_id": "act_01JCQ0HANDXFF5ZCCE55RS0000",
+              "decision": "approve",
+              "approver_id": "jason",
+              "device_id": "dev_M-3A8OrhpRe76wmCIbkfXUGgPsZd7Etzl43As47c8rY",
+              "alg": "Ed25519",
+              "signature": "JJt0pA_WfWSpbHkZTqeZ3c2lOcveqVEHbuouJnMfikEPqqjpUPElO5gRlrjkOx_WD59guDWc1A6_y6-xUIh9DQ",
+              "signed_at": "2026-11-14T12:01:00.000Z",
+              "canonical_bytes_sha256": "f542d4dea447006bd0732bf630258202c7351071efce7832806170341ad1b164"
+            }
+          ],
+          "signature": "__d3CGla9c8qkec_IV9fRjjaq19wc4xO0JSzBmxShhYheVZ-CDudx88UFs4biIXKnx3xE3K5jBX3S_WMkWtfAg"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "completion_invalid"
+      }
+    }
+  ]
+}

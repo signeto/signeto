@@ -260,7 +260,7 @@ Version 2 of the same template adds a note and review links:
 
 A JCS object starts with `{"`, which is never valid template text (§3.2), so the two forms cannot collide. The elide list, note, links and hosts are therefore part of the template's identity: the same hash checks a bundled registry entry, a pin (§5.4) and a `template_source` (§7.5), and a renderer MUST compute it over the template it is about to use and treat a mismatch as `template_hash_mismatch` (§3.4). `@signeto/protocol` exports `templateHashInput` and `templateSha256`; `vectors/template-sha256/` fixes the bytes.
 
-`@signeto/protocol` bundles the registries of the reference adapters (`github`, `postgres`, `alpaca`). Approver implementations MUST embed the registries of the protocol package version they build against. A gateway MAY also send a template's source alongside an approval request (§7.5, `template_source`); a device MUST treat that copy as unverified unless `template_id`, `template_version`, and `sha256` all match an entry in its embedded registry or an entry pinned at pairing time (§5.4).
+`@signeto/protocol` bundles the registries of the reference adapters (`github`, `postgres`, `alpaca`) and of the gateway's own built-in tools that every device must render (`signeto`: `signeto.test`, and the handoff `signeto.gateway_handoff`, §5.6.1). Approver implementations MUST embed the registries of the protocol package version they build against. A gateway MAY also send a template's source alongside an approval request (§7.5, `template_source`); a device MUST treat that copy as unverified unless `template_id`, `template_version`, and `sha256` all match an entry in its embedded registry or an entry pinned at pairing time (§5.4).
 
 ### 3.2 Placeholder syntax
 
@@ -636,6 +636,129 @@ The relay cannot:
 - Unfreeze a frozen gateway (§7.9: a freeze set by a device is signed; the local freeze file wins).
 - Re-enable a device: a revocation it reports is applied as a suspension that only the gateway's operator can lift (§7.8). It can suspend devices, and hide revocations by withholding them (the account's own revocation then does not reach the gateway; local `signeto devices revoke` always does). The same holds for a device's unlink (§7.3): the relay can report one falsely (denial of service) or withhold one, but cannot undo one.
 
+### 5.6 Gateway succession (handoff)
+
+A gateway G1 MAY be replaced by a successor gateway G2, for example when a customer moves between a self-hosted gateway and Signeto Cloud (SPEC §3.1), without pairing its devices again. G1 names G2 in a tier 3 action that a device approves like any other; each device that approved it pins G2 itself (§5.6.5); the relay moves G1's pairings to G2 and revokes G1 in one step (§5.6.4); and G2's ledger opens with an entry that chains to G1's last entry, so the two ledgers verify as one chain (§5.6.6).
+
+A handoff needs G1's key. **A gateway whose key is lost cannot hand over:** nothing else can sign for it, so its devices pair with a new gateway (§5.3) and the new gateway's ledger starts at its own genesis. That is re-pairing, not a move: the old ledger stays verifiable on its own, but nothing links it to the new one.
+
+#### 5.6.1 The handoff action
+
+The handoff is a canonical action (§2) with `tool` and `template_id` `signeto.gateway_handoff`, `template_version` `1`, `tier` `3`, `mode` `"enforce"`, no batch members and no `effective_at`, issued by G1 (`requester.gateway_id` is G1's id). Its `args_resolved` has exactly these members:
+
+| Member | Type | Meaning |
+|---|---|---|
+| `successor_gateway_id` | string | G2's `gateway_id` (§5.1). MUST be the thumbprint id of `successor_public_key` and MUST NOT be G1's. |
+| `successor_public_key` | object | G2's public key as a JWK with exactly its RFC 7638 required members (§5.1): an Ed25519 key that is not of small order, or a P-256 point on the curve. |
+| `successor_name` | string | G2's name for the card: 1 to 64 UTF-16 code units, no leading or trailing white space, and no code point the §3.6 escape would change. |
+| `ledger_seq` | integer | G1's ledger head when it issued the handoff: its `seq` (≥ 1)... |
+| `ledger_head` | string | ...and that entry's `entry_hash` (lowercase hex). |
+| `policy_hash` | string | The policy G1 enforces (`docs/policy.md` §11). G2 starts with exactly this policy. |
+
+Its other members follow §2: a fresh single-use `nonce`, and `expires_at` at most 5 minutes after `issued_at` (the reference gateway uses 5 minutes). G1 sends it as an approval request (§7.5); the request's `gateway_signature` is G1's signature over the canonical bytes' hash, `action_id`, `expires_at`, `nonce` and `gateway_id`. **The handoff, as it travels, is the triple `{action_id, canonical_bytes, gateway_signature}`.** No other G1 signature is needed: the bytes name the successor, the ledger head and the policy, and the request signature binds G1 to exactly those bytes, under the key every paired device pinned from its QR (§5.3).
+
+The display template is bundled in `@signeto/protocol` (registry `signeto`, not pinned at pairing):
+
+```json
+{
+  "template_id": "signeto.gateway_handoff",
+  "template_version": 1,
+  "text": "Move this gateway to {successor_name} ({successor_gateway_id})",
+  "elide": ["ledger_head", "ledger_seq", "policy_hash", "successor_public_key"],
+  "note": "Its ledger continues from entry {ledger_seq} ({ledger_head:short}) under policy {policy_hash:short}. This phone keeps approving for the new gateway, and this one stops once the move completes. Approve only if you started this move."
+}
+```
+
+The successor's key is elided because the sentence shows its identifier, which is the key's thumbprint, and a device checks that binding before it pins anything (§5.6.5). A device built before this template renders a handoff as an unverified template (§3.4); it cannot pin G2 either, and its user pairs it again after the move.
+
+G1 MUST send the request only to the devices that may approve a change to its policy and MUST verify their receipts with §4.5 like any action. The reference gateway uses the rule of `docs/policy.md` §15: the active, hardware-attested devices its policy lists under its approvers (or, when it lists none any more, its approvers' other attested devices). A software key never approves a handoff. A handoff is approved by one valid approving receipt unless the policy requires a quorum; a valid denial from a permitted device denies it.
+
+An agent MUST NOT be able to cause a handoff: the tool is gateway-internal, never listed to MCP clients, and only the operator starts it.
+
+#### 5.6.2 Successor registration
+
+Before G1 issues the handoff, G2 MUST be registered on the same relay account (§7.2). It MAY register as G1's successor (`successor_of`), on **standby**: a standby gateway does not count against the plan's gateway limit, and it cannot open pairings or submit approval requests (`403 gateway_standby`) until a handoff to it completes. A successor MUST be fresh: no pairing and no published chain head of its own (its ledger will start with the handoff, §5.6.6). The relay refuses a handoff naming any other gateway (§7.5).
+
+#### 5.6.3 Completion
+
+When the handoff action is approved and executed (ledgered `requested`, `approved`, `executed`, `docs/ledger.md` §3), G1 completes it:
+
+1. **Stop.** G1 refuses every new action (as if frozen), cancels pending approval requests, and waits for actions in flight to finish. If they do not, it abandons the handoff (below).
+2. **Seal.** G1 takes its ledger tip as `final_seq` and `final_entry_hash` and from then on appends nothing to its ledger, in any process. This is the entry G2's ledger chains to.
+3. **Sign** the completion (below) with the gateway key.
+4. **Post** it to the relay (§7.12) until the relay accepts it or refuses it for good, sending the same object every time, also after a restart. Network errors, `5xx`, `429` and `401 clock_skew` are retried; every other answer is final.
+
+Accepted: G1 is **retired** for good: it refuses every action and keeps its ledger sealed. Refused: G1 lifts the seal, appends a gateway-level `fail_closed` (`stage: "relay"`, `code: "handoff_not_completed"`), and works as before. Abandoned before step 2 (actions did not drain, or the relay holds no pending handoff for this action): the same `fail_closed`, nothing sealed.
+
+The completion object:
+
+| Member | Meaning |
+|---|---|
+| `action_id`, `canonical_bytes_sha256` | The handoff action and the SHA-256 of its canonical bytes. |
+| `predecessor_gateway_id`, `successor_gateway_id` | G1 and G2, as in the bytes. |
+| `final_seq`, `final_entry_hash` | G1's last ledger entry. `final_seq` MUST be greater than `ledger_seq`. |
+| `completed_at` | §2.5 timestamp. |
+| `devices` | Every active device of G1 (not revoked, suspended or unlinked), sorted by `device_id`, unique, 1 to 64: `{device_id, public_key, approver_id, attested, platform, name, attestation_sha256}` with `public_key` the device's JWK (`device_id` its thumbprint), `approver_id` the approver G1 pinned it under (§5.3 point 7), and `platform`, `name`, `attestation_sha256` (§5.3 point 8) as G1 recorded them at pairing, each `null` when absent. |
+| `receipts` | The approving receipts G1 verified for the handoff (§4.1 objects), 1 to 64. |
+| `signature` | G1's signature, in its key's algorithm, base64url without padding, over the signing input below. |
+
+The signing input is the UTF-8 JCS serialization of the completion without `signature` and with `"purpose": "gateway.handoff.complete"` added. `purpose` is signed but not sent; no other gateway-signed object has that member. A completion verifies (`verifyHandoffCompletion`) when it has exactly these members within these bounds, names this handoff and these gateways, its signature verifies with G1's key, `final_seq` follows `ledger_seq`, every device's id is its key's thumbprint (sorted, unique), and every receipt is an approval of these canonical bytes, for this `action_id`, by a listed device under its listed approver, signed within `[issued_at − 60 s, expires_at + 60 s]` (§4.5 steps 9 to 12).
+
+#### 5.6.4 Relay, states and failure modes
+
+The relay records a handoff when G1 submits its approval request (§7.5) and keeps it in one of these states:
+
+| State | Entered when | G1 | G2 | Devices |
+|---|---|---|---|---|
+| `pending` | the request is accepted | works; once approved, it stops, seals and posts the completion | stands by (no approval power) | approve or deny the request like any other |
+| `completed` | G1's completion is accepted (below) | revoked (`revoked_by: "handoff:<id>"`); retired | active, paired with every device moved | requests now come from G2 |
+| `denied` | G1 reports the request `denied` (§7.5 status) | never sealed; works | stands by | nothing to pin |
+| `expired` | G1 reports it `expired`, or no completion arrived by `expires_at` + 5 minutes | works (a late completion is refused `410 handoff_expired`; G1 lifts its seal) | stands by | a pin of G2 points at a gateway that can approve nothing; it SHOULD be dropped |
+| `failed` | G1 reports it `failed`, or the relay refuses the completion (`422 handoff_invalid`) | works, as above | stands by | as `expired` |
+| `cancelled` | G1 reports it `cancelled` (the operator withdrew it) | works | stands by | as `denied` |
+
+Completing is one relay transaction: the relay checks the completion (§5.6.3) against G1's registered key and its own record of the request, requires every receipt in it to be one the relay carried for that request, and computes the devices to move: those the completion lists that are still active devices of the account, enrolled with the same key, with a confirmed pairing to G1. None left: `failed`. Otherwise it gives G2 a confirmed pairing for each of them (same approver and template pins as G1's), takes G2 off standby, revokes G1 and records the completion; then it sends G2 a `handoff.completed` event (§7.8).
+
+**At no point do G1 and G2 both have approval power.** Until completion G2 has no pairings and cannot submit requests; from completion G1 cannot authenticate (except to read its handoff and repeat its completion, §7.12). G1 itself refuses actions from the moment it seals until the relay answers; if the relay cannot be reached, nothing is approved anywhere until it can (fail closed), and G1 never resumes without a final answer.
+
+| Interruption | Result |
+|---|---|
+| G2 registered, handoff never issued or never approved | G1 works; G2 stands by. Revoke G2 to abandon the move. |
+| Request denied, expired, cancelled | `denied` / `expired` / `cancelled`; G1 never sealed. |
+| Approved, completion refused or past its deadline | `failed` / `expired`; G1 lifts its seal, ledgers `handoff_not_completed`, works. |
+| G1 crashes or the relay is unreachable after sealing | G1 stays frozen and sealed (across restarts) and posts the same completion until it gets a final answer. |
+| The relay's answer to an accepted completion is lost | G1 repeats it; the relay answers as before (idempotent), although G1 is revoked. |
+| A listed device is revoked before completion | it is not moved; the others are. |
+
+#### 5.6.5 On the device: pinning the successor
+
+A device that pinned G1 MUST NOT pin G2 unless all of the following hold, checked in this order (`verifyHandoffForDevice` in `@signeto/protocol`, `Handoff.verifyForDevice` in SignetoSign and signeto-sign; the first failure gives the code):
+
+1. The canonical bytes are a canonical action (`handoff_malformed`) whose `requester.gateway_id` is the pinned gateway (`gateway_not_pinned`).
+2. `gateway_signature` verifies with **the key the device pinned for G1** (§7.5; never a key from the relay, from G2 or from the record): `gateway_signature_invalid`.
+3. The bytes are a handoff (`not_a_handoff`) of a version the device implements (`handoff_unsupported`), well formed per §5.6.1 (`handoff_malformed`), naming a successor whose id is its key's thumbprint and is not G1 (`successor_mismatch`).
+4. The device's **own** receipt (`receipt_malformed`; WebAuthn receipts are not accepted here) is from this device's key (`receipt_not_own`), for this `action_id` (`receipt_mismatch`), under the approver the device pinned for G1 (`approver_mismatch`), an approval (`handoff_not_approved`), over the SHA-256 of these bytes (`hash_mismatch`), with a valid signature (`invalid_signature`).
+5. When G1's completion is at hand, it verifies (§5.6.3) with the pinned G1 key: `completion_invalid`.
+6. The receipt was signed within `[issued_at − 60 s, expires_at + 60 s]`, or later than `expires_at` and the completion (step 5) lists this device: `clock_skew`.
+
+The device then pins G2: `successor_gateway_id` and `successor_public_key`, with the **same** `approver_id` and `templates_pinned` as its G1 pin. It MAY pin G2 as soon as it signs its approval (the relay routes nothing from G2 until completion), and MUST keep its G1 pin until it holds G1's completion. Once it holds a completion that verifies with the G1 key, it SHOULD drop the G1 pin: G1 itself has said that it appends nothing more. Anything only the relay says (a handoff's `status`, a `handoff.ended`) MAY make the device drop the G2 pin, never add one.
+
+The late case of step 6 is for a phone that missed the approval window: after the move completed, its user approves the same handoff on it (the device signs the bytes again, now with a later `signed_at`) and it pins G2 from G1's completion. The receipt is the device's own consent; it is not sent anywhere. A device that neither approved nor holds a completion naming it pairs with G2 again (§5.3).
+
+#### 5.6.6 The successor, and one chain
+
+G2 accepts a completed handoff only after verifying all of it (`verifyHandoffRecord`): the predecessor's public key is the key of `requester.gateway_id` (any copy of it will do, since the identifier is its thumbprint), `gateway_signature` verifies with it, the bytes are a handoff naming G2 itself, and the completion and every receipt in it verify (§5.6.3). The reference gateway (`acceptHandoff`) also requires: an empty ledger; the policy it is given hashes to `policy_hash`; and at least one approving receipt from a device that may approve a policy change under that policy (§5.6.1). It pins only the devices the relay reports as moved, when the relay reports them (`devices_moved`, §7.12): a relay can drop a device from that list, never add one G1 did not name.
+
+G2's ledger (`docs/ledger.md` §3) then opens with:
+
+1. A `handoff` entry at seq 1, `action_id` `"-"`, whose `prev_hash` is the completion's `final_entry_hash` (not G2's own genesis hash, §2 of `ledger.md`), whose `policy_hash` is the handoff's `policy_hash`, and whose payload is the whole record: `predecessor_gateway_id`, `predecessor_public_key`, `successor_gateway_id`, `action_id`, `canonical_bytes`, `gateway_signature`, `completion` and, from the relay, `handoff_id`.
+2. One `pairing` entry per device moved, with G1's fields (owner, attestation, platform, name) and `handoff_from` naming G1.
+3. `policy_changed` with equal hashes and `source: "approval_required"`: a listed hardware device approved this very move, so policy changes need a device approval from the first entry.
+
+A `handoff` entry anywhere but at seq 1 of a ledger is invalid. Verifying G2's ledger re-verifies the `handoff` entry's record as above, that it names this gateway, that `prev_hash` is `final_entry_hash`, and that `policy_hash` is the handoff's.
+
+**One chain across the move.** G1's entries travel as a §7.1 export of its ledger (the move bundle carries it; G2 keeps it next to its ledger as `predecessor-<gateway_id>.jsonl`). `signeto ledger verify` on G2 verifies that segment as well and requires: it is G1's ledger (header `gateway_id` and key), it verifies on its own from G1's genesis (or as an anchored export, with a warning), it ends exactly at `final_seq` with `final_entry_hash`, its entry at `ledger_seq` has `ledger_head`, and it contains the handoff action requested (with the same `canonical_sha256`), approved and executed. A gateway that moved more than once has one segment per predecessor, checked back as far as they go. Without the segment, verify passes with a warning: the link to G1 then rests on G1's signatures in the record.
+
 ---
 
 ## 6. Approval request lifecycle
@@ -793,6 +916,8 @@ Response `201`:
 ```
 Errors: `401 unauthorized`, `409 gateway_exists` (same thumbprint already registered to another account, or a revoked key registered again), `422 key_invalid` (not an EC P-256 or OKP Ed25519 public JWK, coordinates not 32 bytes, point not on the curve, or private member `d` present), `422 unsupported_protocol_version` (no `1.x` in `protocol_versions`), `403 gateway_limit` (plan gateway limit; Free allows one active gateway). Re-registering the same key on the same account while it is active returns `200` with the same body. A key that a device revoked (below) MAY be registered again by its holder: the same account, with a proof of possession, within the plan's gateway limit; the relay then answers `201` with `"reinstated": true` and keeps the gateway's pairings and chain heads, so its other devices work again at once. A key revoked by the gateway itself or by an account session stays refused (`409 gateway_exists`). The relay stores only the RFC 7638 required members of the JWK.
 
+**Successor (§5.6.2).** The request MAY carry `"successor_of": "<gateway_id>"`: an active gateway of the same account, not itself on standby. The new gateway is then registered on **standby** as that gateway's successor: it MUST be a new key with a valid proof of possession (`proof`, otherwise `422 request_malformed`; a key already registered or revoked is `409 gateway_exists`), it does not count against the plan's gateway limit, and until a handoff to it completes it can neither open pairings (§7.3) nor submit approval requests (§7.5): `403 gateway_standby`. It authenticates, reads its events and reads its handoffs. A gateway has at most one successor on standby (`409 handoff_pending`). Errors: `404 not_found` (`successor_of` is not a gateway of this account), `422 handoff_invalid` (it is revoked, on standby itself, or the same key). A standby gateway is revoked like any other, which abandons the move.
+
 `DELETE /v1/gateways/{gateway_id}` — auth `Signeto-Gateway` (the gateway itself) or `Bearer` (its account). Revokes; a revoked key can no longer authenticate (`401 gateway_revoked`, §7.1) and its approvals are no longer served. Response `204`, also when already revoked. Errors: `403 forbidden` (another gateway), `404 not_found`.
 
 `POST /v1/gateways/{gateway_id}/revoke` — auth `Signeto-Device`, or the device's `Bearer` device session (§7.1); either way the revocation object's own `signature` authenticates the request.
@@ -894,7 +1019,9 @@ Response `201`: `{ "approval_id": "apr_...", "action_id": "act_...", "status": "
 Repeated submission with the same `action_id` from the same gateway returns `200` with the original `approval_id` and current status; the stored request is not replaced.
 Errors: `409 frozen` (account freeze set; relay refuses to queue), `422 action_expired` (`expires_at` not in the future), `422 request_malformed` (`expires_at` more than 5 min plus 60 s out, or a malformed body), `422 targets_invalid`, `429 rate_limited`.
 
-The relay does not parse `canonical_bytes` (it may be a batch manifest) and stores it, `steps`, and `gateway_signature` as received. `targets.tier` is `2` or `3`. `targets_invalid` covers: an approver id that is not an approver of the gateway's account, a device id that is not an active device paired with this gateway, a malformed `targets` object, and targets that match no paired device (nobody could approve). Recipients are the active devices paired with the gateway that match `device_ids` if non-empty, else `approver_ids` if non-empty, else all of them; each receives a push carrying only `approval_id`.
+**Handoff requests (§5.6).** When `canonical_bytes` is a canonical action whose `tool` is `signeto.gateway_handoff`, the relay MUST also record it as a handoff, in the same transaction, or refuse the whole request: the bytes MUST be a well-formed handoff (§5.6.1) from the authenticated gateway, `expires_at` the action's, `targets.tier` 3, and the successor a registered, active gateway of the same account, with the key the bytes name, fresh (no pairing, no chain head), and not on standby for another gateway: otherwise `422 handoff_invalid`. Neither gateway may already be in a pending handoff (`409 handoff_pending`), and the action's `nonce` MUST NOT have been used by any handoff the relay holds (`409 nonce_reused`). The response then also carries `handoff_id`. A request whose `gateway_signature` does not verify is not refused here (the relay does not verify it, below), but its completion will be (§7.12). When the gateway reports the request `denied`, `expired`, `cancelled` or `failed` (status, below), the handoff ends with that state.
+
+The relay does not otherwise parse `canonical_bytes` (it may be a batch manifest) and stores it, `steps`, and `gateway_signature` as received. `targets.tier` is `2` or `3`. `targets_invalid` covers: an approver id that is not an approver of the gateway's account, a device id that is not an active device paired with this gateway, a malformed `targets` object, and targets that match no paired device (nobody could approve). Recipients are the active devices paired with the gateway that match `device_ids` if non-empty, else `approver_ids` if non-empty, else all of them; each receives a push carrying only `approval_id`.
 
 **Push payload.** A push MUST carry nothing but the opaque identifier (`approval_id` here, `pairing_id` for §7.3) and a fixed, generic alert that is identical for every request. It MUST NOT carry the gateway's name or id, the tool, any argument, the requester, the tier, template text, any byte of `canonical_bytes` or `steps`, or a count or summary derived from them. A push transport (APNs, FCM) sees the device token, the time, the topic or project, the fixed alert and the opaque id, nothing else. For APNs the whole payload is exactly
 
@@ -999,6 +1126,8 @@ Event envelope: `{ "cursor": "...", "type": "<type>", "at": "...", "data": {...}
 | `device.unlinked` | `{device_id, gateway_id, unlinked_at}` — the device withdrew its pairing with this gateway (§7.3) |
 | `freeze` | `{frozen: true|false, set_by_device_id, signed_at, signature}` (§7.9) |
 | `approval.cancelled` | `{approval_id, by_device_id, reason?}` — cooling-off cancellation from a device, carried as a signed denial receipt in `data.receipt` |
+| `handoff.completed` | `{handoff_id, predecessor_gateway_id, successor_gateway_id, completed_at}` — to the successor: the handoff to it completed (§5.6.4); it reads the record with `GET /v1/handoffs/{handoff_id}` (§7.12) |
+| `handoff.ended` | `{handoff_id, predecessor_gateway_id, status, at}` — to the successor: the handoff to it ended without a move (`denied`, `expired`, `failed`, `cancelled`); it stays on standby |
 
 Events are retained for at least 24 hours. A gateway that reconnects with a stale or missing cursor receives all retained events. Delivery is at-least-once; gateways MUST be idempotent on `cursor`.
 
@@ -1080,6 +1209,35 @@ A connection that sent `mcp.open` MAY afterwards send only `mcp` frames. The gat
 
 **Windows.** Node listens only on named pipes there, so the socket is `\\.\pipe\signeto-<first 16 hex digits of SHA-256 of the lowercased home path>`. Pipe names are machine-wide, and Node cannot set a pipe's security descriptor: the default one lets other accounts open the pipe for reading only, and a read-only client receives nothing (the gateway writes only in reply to a frame, or after `subscribe`). Another account could take the name before the gateway starts; `identify` keeps an MCP session from going to it, and the approver verifies `gateway_signature` as on any transport. The file mode and peer uid rules above do not apply.
 
+### 7.12 Handoffs
+
+A handoff (§5.6) is created by its approval request (§7.5) and identified by `handoff_id`, `hof_` + ULID.
+
+**The record.** `GET /v1/handoffs/{handoff_id}` — auth `Signeto-Gateway` (the predecessor or the successor), `Bearer` (the account), or `Signeto-Device` / device `Bearer` (a device with a confirmed or unlinked pairing to either gateway). Anyone else: `404 not_found`.
+```json
+{
+  "handoff_id": "hof_...", "status": "pending" | "completed" | "denied" | "expired" | "failed" | "cancelled",
+  "predecessor_gateway_id": "gw_...", "successor_gateway_id": "gw_...", "successor_name": "...",
+  "approval_id": "apr_...", "action_id": "act_...", "canonical_bytes": "...", "gateway_signature": "...", "expires_at": "...",
+  "predecessor_public_key": { ... } | null, "completion": { ... } | null, "devices_moved"?: ["dev_..."],
+  "created_at": "...", "ended_at"?: "...", "end_reason"?: "..."
+}
+```
+`canonical_bytes`, `gateway_signature` and `completion` are returned as received, so the record verifies on its own (§5.6.5, §5.6.6). `predecessor_public_key` is informational: a verifier checks that its thumbprint is the bytes' `requester.gateway_id`, and a device uses its own pin instead. `status` reads `expired` once a `pending` handoff is past `expires_at` plus 5 minutes. `devices_moved` (completed handoffs only) lists the devices the relay paired with the successor.
+
+`GET /v1/handoffs[?status=<state>]` — same authentication. The caller's handoffs, newest first, at most 50: a gateway's as predecessor or successor, a device's whose gateways it is paired with, the account's. Query parameters are strict (`422 request_malformed`).
+
+**Completion.** `POST /v1/handoffs/{handoff_id}/complete` — auth `Signeto-Gateway`, the predecessor only (`404 not_found` for anyone else). The body is the completion object (§5.6.3). The relay, in one transaction:
+
+1. answers a completion identical (JCS) to the stored one of a `completed` handoff with the same `200` as the first time, and refuses any other (`409 handoff_ended`). This is the one request a gateway revoked by its own handoff may still authenticate for, along with reading its handoffs: it may have lost the first answer;
+2. refuses a handoff that is not `pending` (`409 handoff_ended`) or whose gateway is revoked (`401 gateway_revoked`);
+3. past `expires_at` plus 5 minutes: sets `expired`, `410 handoff_expired`;
+4. verifies the record with the completion (§5.6.6, with the predecessor's registered key and its stored request), requires the successor to be active on the same account, and every receipt in the completion to be one the relay carried for this request: otherwise sets `failed`, `422 handoff_invalid`;
+5. moves the devices the completion lists that are still active, enrolled with the same key and confirmed with the predecessor: a confirmed pairing with the successor each, with the predecessor's `approver_id` and `templates_pinned`, and no `confirmation` of its own (the handoff is what the device verifies). None: sets `failed`, `422 handoff_invalid`;
+6. revokes the predecessor (`revoked_by: "handoff:<handoff_id>"`; it then gets `401 gateway_revoked` saying it was handed over), takes the successor off standby, stores the completion, sets `completed`, audits it, and sends the successor `handoff.completed` (§7.8).
+
+Response `200`: `{ "handoff_id": "hof_...", "status": "completed", "successor_gateway_id": "gw_...", "devices": ["dev_..."], "completed_at": "..." }`. A refusal that ends the handoff (steps 3 to 5) is committed before it is answered, and the successor gets `handoff.ended`. Errors: `401 unauthorized` / `gateway_revoked`, `404 not_found`, `409 handoff_ended`, `410 handoff_expired`, `422 handoff_invalid`, `422 request_malformed`.
+
 ---
 
 ## 8. Error codes
@@ -1136,6 +1294,13 @@ Codes are stable strings. HTTP status is advisory; clients MUST branch on `code`
 | `signature_invalid` | 422 | relay | Gateway or device signature on a relay-level object failed. |
 | `attestation_required` | 403 | relay | The operation needs a device whose hardware key the relay verified (§7.2 gateway revocation by a device). |
 | `gateway_revoked` | 401 | relay | Signature valid, gateway revoked (§7.1, §7.2); the message says by whom and whether the key may be registered again. |
+| `gateway_standby` | 403 | relay | The gateway is on standby as a successor (§7.2) and cannot pair or submit requests until a handoff to it completes. |
+| `handoff_invalid` | 422 | relay | A handoff request or completion that does not verify, or names an ineligible successor (§7.5, §7.12). Nothing was moved. |
+| `handoff_pending` | 409 | relay | One of the gateways is already in a pending handoff, or already has a successor on standby. |
+| `handoff_ended` | 409 | relay | The handoff is not pending (denied, expired, failed, cancelled, or completed with another completion). |
+| `handoff_expired` | 410 | relay | The completion came after `expires_at` plus 5 minutes; the handoff is now `expired`. |
+| `nonce_reused` | 409 | relay | Also: a handoff whose `nonce` the relay already recorded (§7.5). |
+| `handoff_malformed`, `not_a_handoff`, `handoff_unsupported`, `successor_mismatch`, `gateway_not_pinned`, `receipt_not_own`, `receipt_mismatch`, `handoff_not_approved`, `completion_invalid` | n/a | device, gateway | A device or successor refuses to act on a handoff (§5.6.5, §5.6.6); with `approver_mismatch`, `hash_mismatch`, `invalid_signature`, `clock_skew`, `gateway_signature_invalid` and `receipt_malformed` as for receipts. |
 
 ---
 
@@ -1157,6 +1322,7 @@ Codes are stable strings. HTTP status is advisory; clients MUST branch on `code`
 | `pairing/` | Code, keys → `pairing_id`, `proof`, confirmation signing input, and a substituted-key negative vector. |
 | `relay-auth/` | Request → `Signeto-Gateway` / `Signeto-Device` header value, with body and without (query string in `path`); negative vectors for an expired or future `ts`, the 60 s edge, a wrong key, an altered body, query or method, and a device id under the gateway scheme. |
 | `gateway-revoke/` | Device key, `gateway_id`, `signed_at` → the §7.2 revocation signing input and a deterministic Ed25519 signature. |
+| `handoff/` | `move.json`: a handoff from the vector gateway to a successor key → canonical bytes, the request signing input and G1's signature, the rendered card (text, note, hidden fields), the device's receipt, the completion's signing input and G1's signature over it, and the successor pin (§5.6). `device-cases.json`: the §5.6.5 device check, case by case (approved in and after the window, with and without the completion), and one case per failure code. `scripts/gen-handoff-vectors.mjs` regenerates them. |
 | `ledger/` | Chain head signing input; genesis `prev_hash` from a gateway public key. |
 
 ### 9.1 Worked example: canonical action and idempotency key
@@ -1245,4 +1411,8 @@ This section lists only what the protocol adds to SPEC §9; the SPEC requirement
 - **Review links are built, never received.** A link's host and shape are in the hashed, pinned template; its values come from the verified bytes, percent-encoded so they cannot leave the path (§3.5). The page behind a link can change after review; the approval is bound to the bytes, and adapters pin execution to what the bytes name (a merge at `head_sha`).
 - **WebAuthn origin binding.** The gateway's allow-list of approver origins (§4.4) is the only thing that prevents a phishing page from obtaining a valid assertion. Self-hosted deployments MUST configure it; the default MUST be the empty list, not a wildcard.
 - **A device can revoke a gateway, not approve one.** A paired, hardware-attested device may revoke its account's gateways with a biometric-gated signature (§7.2). A stolen phone that passes biometrics can therefore deny service, never forge an approval; every such revocation is audited and emailed, and the gateway's key holder reverses it with a fresh registration of the same key.
+- **A handoff is pinned by the device, not by the relay.** A device pins a successor only from a request its pinned gateway signed and its own approving receipt over those bytes (§5.6.5). A relay that fabricates a handoff cannot get it rendered (no gateway signature); one that replays a recorded handoff gets nowhere (a device pins only with its own receipt, and the relay refuses a nonce it has recorded, §7.5); one that withholds the completion or misreports a status can only make devices drop a pin (denial of service). G1's key is the trust anchor of the move: whoever holds it can already send requests in G1's name, and a handoff adds no power beyond that, since each device still decides for itself and G2 can approve nothing without the devices' receipts.
+- **Never two gateways with approval power.** The relay switches routing from G1 to G2 in one transaction, at the completion G1 signed, and G1 refuses actions from the moment it seals its ledger until the relay answers (§5.6.4). An interrupted move leaves G1 working or frozen, never both gateways active. A successor on standby can neither pair nor submit requests, so registering one early grants nothing.
+- **The ledger cannot fork across a move.** G1 seals its ledger at the entry its completion names, and G2 chains to that entry: an entry G1 appended after it would not be in the chain G2 continues, and verifying G1's segment against G2's first entry (§5.6.6) shows it.
+- **Policy moves with the gateway, and its approval rule too.** G2 starts with exactly the policy hash the device approved and with policy changes already needing a device approval, so a move cannot be used to relax the policy unseen.
 - **Threat model.** Attack trees for compromised agent, compromised relay, lost device, malicious adapter, and rogue gateway are in `docs/threat-model.md`. Each mitigation there references a section of this document.

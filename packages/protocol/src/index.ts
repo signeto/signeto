@@ -13,3 +13,4 @@ export * from "./display.js";
 export * from "./registries.js";
 export * from "./relay-auth.js";
 export * from "./device-messages.js";
+export * from "./handoff.js";

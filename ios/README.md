@@ -18,6 +18,7 @@ Swift can use it too.
 | `RelayAuth.swift` | §7.1 | `Signeto-Device` request signing for software keys (and relay-side verification for conformance tests). A biometric-bound key uses the relay's device session instead. |
 | `Pairing.swift` | §5 | QR parsing, `pairing_id`, `code_hash`, HMAC proof, claim body, confirmation verification including `approver_id` (§5.3) and `templates_pinned` (§5.4), the pinned-gateway record. |
 | `Freeze.swift` | §7.9 | Device-signed freeze objects. |
+| `Handoff.swift` | §5.6 | Gateway succession on the device (`Handoff.verifyForDevice`): pin the successor only when the `signeto.gateway_handoff` request verifies under the pinned gateway's key and this device's own receipt approves those exact bytes (or, after the window, the predecessor's signed completion names this device). The new pin keeps the approver binding and template pins. The approval itself is an ordinary receipt (`Receipts.sign`); nothing new is signed. |
 
 ## The signing path (what to audit)
 

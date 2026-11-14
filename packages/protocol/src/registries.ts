@@ -62,6 +62,12 @@ export const signetoRegistry: TemplateRegistry = {
     t("signeto.test", 1, "Test request from {gateway}, code {code}", undefined, {
       note: "Nothing runs when you approve this. It checks that this phone receives, shows and signs requests.",
     }),
+    // Gateway succession (protocol.md §5.6, SIG-160): bundled, not pinned, because the device that approves it pins the
+    // successor with it. The successor's key is elided: its thumbprint is the gateway id in the sentence, and a device
+    // checks that binding before it pins anything (`verifyHandoffForDevice`).
+    t("signeto.gateway_handoff", 1, "Move this gateway to {successor_name} ({successor_gateway_id})", ["ledger_head", "ledger_seq", "policy_hash", "successor_public_key"], {
+      note: "Its ledger continues from entry {ledger_seq} ({ledger_head:short}) under policy {policy_hash:short}. This phone keeps approving for the new gateway, and this one stops once the move completes. Approve only if you started this move.",
+    }),
   ],
 };
 
