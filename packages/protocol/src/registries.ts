@@ -68,6 +68,11 @@ export const signetoRegistry: TemplateRegistry = {
     t("signeto.gateway_handoff", 1, "Move this gateway to {successor_name} ({successor_gateway_id})", ["ledger_head", "ledger_seq", "policy_hash", "successor_public_key"], {
       note: "Its ledger continues from entry {ledger_seq} ({ledger_head:short}) under policy {policy_hash:short}. This phone keeps approving for the new gateway, and this one stops once the move completes. Approve only if you started this move.",
     }),
+    // A new MCP token for a hosted gateway (protocol.md §3.1, SIG-163): bundled, because the phone's approval is the
+    // only thing that lets a new agent reach the gateway. Both arguments are in the sentence and nothing is elided, so
+    // a request that carries anything else (the token's hash, say) renders unverified. `key_id` is the first 12
+    // characters of the token's secret, which the page that made the token shows next to it.
+    t("signeto.agent_token_add", 1, "Let a new agent connect to this gateway: {name} (key {key_id})"),
   ],
 };
 

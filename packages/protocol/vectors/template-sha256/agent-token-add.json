@@ -1,0 +1,12 @@
+{
+  "description": "signeto.agent_token_add v1: text-only, so the hash input is the UTF-8 text",
+  "inputs": {
+    "template": {
+      "text": "Let a new agent connect to this gateway: {name} (key {key_id})"
+    }
+  },
+  "expected": {
+    "hash_input": "Let a new agent connect to this gateway: {name} (key {key_id})",
+    "sha256": "709fcdaf225148531645b5306cb154ecfdcd10df28510c802af65f14b3dc71c1"
+  }
+}

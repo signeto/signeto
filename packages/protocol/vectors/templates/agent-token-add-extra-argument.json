@@ -1,0 +1,24 @@
+{
+  "description": "signeto.agent_token_add v1 elides nothing: an argument beside name and key_id (here the token's hash) → unverified",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"hash\":\"$sha256$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"key_id\":\"Zk3vQ9aB_x-7\",\"name\":\"claude-code\"},\"expires_at\":\"2026-11-15T12:03:00.000Z\",\"idempotency_key\":\"5c86a28e41e3a8db5450660c2cbb1473f51a0c67f5dca418d49988627593a740\",\"issued_at\":\"2026-11-15T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"QWdlbnRUb2tlbkFkZFZlYg\",\"origin_hash\":\"854c1cffb2dda16e0b6bbbd615472bf8a86c32e099ac780ee3a9f0957c5a633a\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto-cloud\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"signeto-cloud-t7f3k2q9\",\"session_id\":\"cmd_01JCT0AGENTT0KENADD0000000\"},\"template_id\":\"signeto.agent_token_add\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.agent_token_add\"}",
+    "registries": [
+      {
+        "adapter": "signeto",
+        "templates": [
+          {
+            "template_id": "signeto.agent_token_add",
+            "template_version": 1,
+            "text": "Let a new agent connect to this gateway: {name} (key {key_id})",
+            "sha256": "709fcdaf225148531645b5306cb154ecfdcd10df28510c802af65f14b3dc71c1"
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "unverified",
+    "reason": "unreferenced_key",
+    "detail": "hash"
+  }
+}
