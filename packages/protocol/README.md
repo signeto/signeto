@@ -19,7 +19,7 @@ npm install @signeto/protocol
 
 ## Vectors
 
-`vectors/` holds the conformance fixtures from §9 (`canonical`, `canonical-invalid`, `templates`, `links`, `display-escape`, `weak-keys`, `template-sha256`, `receipts`, `receipts/signing-input`, `approval-request`, `ids`). iOS, web and any third-party implementation must pass them. Regenerate with `node scripts/gen-vectors.mjs` after `pnpm build`; keys under `vectors/keys/` are test keys, generated once, never to be used elsewhere. ES256 signatures are re-randomised on each run, so regenerate only when a vector's inputs change.
+`vectors/` holds the conformance fixtures from §9 (`canonical`, `canonical-invalid`, `templates`, `links`, `display-escape`, `weak-keys`, `template-sha256`, `receipts`, `receipts/signing-input`, `approval-request`, `ids`). iOS, Android, web and any third-party implementation must pass them. Regenerate with `node scripts/gen-vectors.mjs` after `pnpm build`; keys under `vectors/keys/` are test keys, generated once, never to be used elsewhere. ES256 signatures are re-randomised on each run, so regenerate only when a vector's inputs change.
 
 Not yet covered: `batch/`, `pairing/`, `relay-auth/`, `ledger/` (P1 and relay work).
 

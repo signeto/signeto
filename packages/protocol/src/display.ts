@@ -1,6 +1,6 @@
 // docs/protocol.md §3.6: the display escape rule. One rule for every surface that shows a string from a request,
-// a relay or a pairing (CLI card, iPhone, web approver, account pages, rendered templates), mirrored byte for byte by
-// SignetoSign `Display.escape` and fixed by `vectors/display-escape/`.
+// a relay or a pairing (CLI card, phone apps, web approver, account pages, rendered templates), mirrored byte for byte by
+// SignetoSign `Display.escape` (iOS) and `dev.signeto.sign.Display.escape` (Android) and fixed by `vectors/display-escape/`.
 
 /**
  * True for a code point that is shown as an escape instead of itself (§3.6):

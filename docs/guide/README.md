@@ -15,7 +15,7 @@ How an agent talks to Signeto, what it gets back, and how to plug in new systems
 ```
 agent ──MCP──▶ Signeto gateway ──signed request──▶ your phone / laptop
                      │                                   │ you read the exact action,
-                     │                                   │ Face ID / Touch ID / passkey
+                     │                                   │ Face ID / fingerprint / Touch ID / passkey
                      │◀──────────── signed receipt ──────┘
                      │ verify signature against your enrolled key
                      │ mint a credential for this one action (e.g. a GitHub token for one repo)

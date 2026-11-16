@@ -8,7 +8,7 @@ Signeto is an approval gateway for AI agents. Before an agent takes a sensitive 
 
 This repository is the **integration toolkit**: the open protocol, the libraries you build against, a reference adapter, and the guide for wiring Signeto into your agents. The Signeto service itself (gateway, relay, portal, approver apps) is run by Signeto; see [signeto.dev](https://signeto.dev).
 
-> **Status: early access.** The hosted relay, the iPhone app and the [`signeto`](https://www.npmjs.com/package/signeto) CLI are live. The packages in this repository are stable enough to build against but not yet on npm; version numbers are `0.x` until then.
+> **Status: early access.** The hosted relay, the iPhone and Android apps and the [`signeto`](https://www.npmjs.com/package/signeto) CLI are live. The packages in this repository are stable enough to build against but not yet on npm; version numbers are `0.x` until then.
 
 ## Install Signeto
 
