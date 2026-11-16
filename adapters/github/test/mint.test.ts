@@ -38,13 +38,15 @@ describe("buildAppJwt", () => {
     const jwt = buildAppJwt(TEST_APP_ID, TEST_PRIVATE_KEY_PEM, { nowS: NOW / 1000 });
     const { header, payload, signingInput, signature } = decodeJwt(jwt);
     expect(header).toEqual({ alg: "RS256", typ: "JWT" });
-    expect(payload).toEqual({ iss: TEST_APP_ID, iat: NOW / 1000 - 60, exp: NOW / 1000 + 600 });
+    // exp is 10 minutes after the backdated iat, 9 minutes after now: GitHub accepts it from a clock up to a minute ahead.
+    expect(payload).toEqual({ iss: TEST_APP_ID, iat: NOW / 1000 - 60, exp: NOW / 1000 + 540 });
     expect(verify("sha256", Buffer.from(signingInput), TEST_PUBLIC_KEY, signature)).toBe(true);
   });
 
   it("never exceeds GitHub's 10 minute maximum", () => {
     const { payload } = decodeJwt(buildAppJwt(TEST_APP_ID, TEST_PRIVATE_KEY_PEM, { nowS: 1000, ttlS: 86_400 }));
-    expect(payload.exp - 1000).toBe(600);
+    expect(payload.exp - payload.iat).toBe(600);
+    expect(payload.exp - 1000).toBe(540);
   });
 
   it("rejects a non-numeric app id and a non-RSA key", () => {
