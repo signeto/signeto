@@ -17,7 +17,8 @@ What `resolve` pins:
 - **merge**: looks the PR up with the read-only client, refuses anything that is not open (closed, merged, draft, missing,
   or living in a different repository than the agent named), and signs the **head SHA** and base branch. `method`
   defaults to `squash`. `execute` sends `sha: head_sha` to GitHub's merge endpoint, so GitHub itself refuses with
-  `409` if the branch moved after the approver signed; the adapter reports that (and `405`, no longer mergeable) as
+  `409` if the branch moved after the approver signed; the adapter reports that (and `405`, with GitHub's own reason,
+  and for a ruleset or branch-protection block a hint to add the gateway's GitHub App to the bypass list) as
   `precondition_failed`. The merge endpoint takes no base, so immediately before the merge `execute` re-reads the PR
   and throws `precondition_failed`, merging nothing and posting no check run, unless `base.ref`, `base.repo.full_name`
   and `head.sha` are still the signed `base`, `repo` and `head_sha` (a PR retargeted from `dev` to `main` after

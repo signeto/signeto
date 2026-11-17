@@ -277,7 +277,7 @@ async function executeMerge(call: Call, action: FrozenAction, ctx: ExecuteContex
   // `sha` makes GitHub itself refuse the merge if the branch head moved after the approver signed.
   const res = await call(`/repos/${repo}/pulls/${pr}/merge`, { method: "PUT", body: JSON.stringify({ sha: head_sha, merge_method: method }) });
   if (res.status === 409) throw new AdapterError("precondition_failed", `head sha of PR #${pr} moved since approval`, false, { repo, pr, head_sha });
-  if (res.status === 405) throw new AdapterError("precondition_failed", `PR #${pr} is no longer mergeable`, false, { repo, pr, head_sha });
+  if (res.status === 405) throw new AdapterError("precondition_failed", await mergeRefusal(res, pr, base), false, { repo, pr, head_sha });
   if (!res.ok) throw new AdapterError("upstream_rejected", `GitHub ${res.status} merging PR #${pr}`, res.status >= 500, { repo, pr, status: res.status });
   const body = await parseJson(res, "merge").catch(() => undefined);
   const mergeSha = getString(body, "sha");
@@ -319,6 +319,29 @@ interface SignedMerge {
  * `head.sha` are the signed values. What remains is the gap between this read and the PUT (one request): GitHub's
  * merge endpoint accepts no base precondition, so a retarget inside that gap is not detectable.
  */
+/** Longest part of GitHub's own reason quoted in a refused merge's message. */
+const MERGE_REASON_MAX = 200;
+
+/**
+ * The message for a merge GitHub refused with 405: GitHub's own reason, on one line and shortened, so the agent and
+ * the person see why (a ruleset or branch protection, a disallowed merge method, a failing required check) instead of
+ * a guess. A rule block also says what fixes it: the gateway's GitHub App on the bypass list.
+ */
+async function mergeRefusal(res: Response, pr: number, base: string): Promise<string> {
+  const body = await parseJson(res, "merge").catch(() => undefined);
+  const reason = (getString(body, "message") ?? "")
+    .replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\.$/, "");
+  if (reason === "") return `GitHub refused to merge PR #${pr} (405): the pull request is not mergeable`;
+  const shown = reason.length > MERGE_REASON_MAX ? reason.slice(0, MERGE_REASON_MAX - 1) + "…" : reason;
+  const ruled = /\b(rule|rules|ruleset|protected|protection)\b/i.test(reason);
+  return ruled
+    ? `GitHub refused to merge PR #${pr}: ${shown}. If a ruleset or branch protection guards ${base}, add this gateway's GitHub App to its bypass list`
+    : `GitHub refused to merge PR #${pr}: ${shown}`;
+}
+
 async function confirmPullRequest(call: Call, s: SignedMerge): Promise<void> {
   const res = await call(`/repos/${s.repo}/pulls/${s.pr}`, { method: "GET" });
   if (!res.ok) throw new AdapterError("upstream_rejected", `GitHub ${res.status} re-reading PR #${s.pr} before merging`, res.status >= 500, { repo: s.repo, pr: s.pr, status: res.status });

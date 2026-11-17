@@ -144,6 +144,25 @@ describe("execute merge_pull_request", () => {
     }
   });
 
+  it("says why GitHub refused a merge (405), and what fixes a rule block", async () => {
+    const refuse = async (body: unknown, text?: string): Promise<AdapterError> => {
+      const route: Route = text === undefined ? { method: "PUT", path: "/repos/acme/api/pulls/42/merge", status: 405, body } : { method: "PUT", path: "/repos/acme/api/pulls/42/merge", status: 405, text };
+      const m = mockFetch([prOk, route]);
+      return expectCode(githubAdapter.execute(executeCtx(m.fetch), mergeAction, credential), "precondition_failed");
+    };
+    const ruled = await refuse({ message: "Repository rule violations found\n\nCannot update this protected ref.\n\n" });
+    expect(ruled.message).toBe(
+      "GitHub refused to merge PR #42: Repository rule violations found Cannot update this protected ref. If a ruleset or branch protection guards main, add this gateway's GitHub App to its bypass list",
+    );
+    const method = await refuse({ message: "Merge commits are not allowed on this repository." });
+    expect(method.message).toBe("GitHub refused to merge PR #42: Merge commits are not allowed on this repository");
+    expect((await refuse({})).message).toBe("GitHub refused to merge PR #42 (405): the pull request is not mergeable");
+    expect((await refuse(undefined, "<html>")).message).toBe("GitHub refused to merge PR #42 (405): the pull request is not mergeable");
+    const long = await refuse({ message: "x".repeat(500) });
+    expect(long.message.length).toBeLessThan(260);
+    expect(long.message).toContain("…");
+  });
+
   it("fails closed on other statuses, malformed bodies, unconfirmed merges and network errors", async () => {
     const cases: Array<[Route, AdapterError["code"]]> = [
       [{ method: "PUT", path: "/repos/acme/api/pulls/42/merge", status: 403, body: {} }, "upstream_rejected"],
