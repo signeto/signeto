@@ -30,6 +30,7 @@
   },
   "files": [
     "LICENSE",
+    "NOTICE",
     "README.md",
     "dist"
   ],
