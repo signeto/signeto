@@ -78,7 +78,12 @@ Reads always fetch fresh data: the gateway never answers a read from its cache o
 
 ## Setup
 
-Run these on the computer that runs the gateway. The value is prompted for and not echoed:
+On a new machine, `signeto setup --adapters alpaca` does it all: the gateway with an Alpaca starter policy (the tiers
+below and the custody line, after asking you), sign-in, pairing your phone, the key, Claude Code, a test request and
+a check. Use `--adapters github,alpaca` for both.
+
+To add Alpaca to a gateway you already have, run these on the computer that runs it. The value is prompted for and not
+echoed:
 
 ```sh
 signeto secrets set alpaca key_id       # your paper trading Key (starts with PK)
