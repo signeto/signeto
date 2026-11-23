@@ -42,7 +42,7 @@ thresholds on it.
 ```sh
 signeto secrets set alpaca key_id       # your paper trading key id
 signeto secrets set alpaca secret_key   # its secret (prompted, never echoed)
-signeto connect --adapters github,alpaca
+signeto connect claude-code --adapters github,alpaca
 ```
 
 ## Policy
