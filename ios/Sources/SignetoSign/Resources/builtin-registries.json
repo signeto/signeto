@@ -52,6 +52,25 @@
         ]
       },
       {
+        "template_id": "github.dispatch_workflow",
+        "template_version": 4,
+        "text": "Run {workflow} on {ref} ({ref_sha}) in {repo}",
+        "sha256": "d04c5744e1e526632f696316ce57f96fb7e33bee8a4c7802b501dbf1e7e75261",
+        "links": [
+          {
+            "label": "Workflow file at approved commit",
+            "url": "https://github.com/{repo:path}/blob/{ref_sha}/.github/workflows/{workflow}"
+          },
+          {
+            "label": "Actions",
+            "url": "https://github.com/{repo:path}/actions"
+          }
+        ],
+        "link_hosts": [
+          "github.com"
+        ]
+      },
+      {
         "template_id": "github.create_deployment",
         "template_version": 1,
         "text": "Deploy {ref} to {environment} on {repo}",

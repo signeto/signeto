@@ -32,6 +32,17 @@ export const githubRegistry: TemplateRegistry = {
       ],
       link_hosts: GITHUB_LINK_HOSTS,
     }),
+    // v4 (SIG-185): the same request when it has no inputs, without "with inputs {}". Nothing is elided: `inputs` is not
+    // in the resolved args at all, so a v4 request that does carry inputs fails the unreferenced-key rule (§3.4) and the
+    // card shows "unverified template" instead of hiding them. Bundled in the apps first; the adapter sends it later,
+    // once approvers that know it are out.
+    t("github.dispatch_workflow", 4, "Run {workflow} on {ref} ({ref_sha}) in {repo}", undefined, {
+      links: [
+        { label: "Workflow file at approved commit", url: "https://github.com/{repo:path}/blob/{ref_sha}/.github/workflows/{workflow}" },
+        { label: "Actions", url: "https://github.com/{repo:path}/actions" },
+      ],
+      link_hosts: GITHUB_LINK_HOSTS,
+    }),
     t("github.create_deployment", 1, "Deploy {ref} to {environment} on {repo}", ["description"]),
   ],
 };
