@@ -260,10 +260,10 @@ async function latestTrade(client: AlpacaReadOnlyClient, symbol: string, feed: s
   return tradeOf(body, symbol);
 }
 
-function tradeOf(body: unknown, symbol: string): Trade {
+function tradeOf(body: unknown, symbol: string, code: "resolve_failed" | "precondition_failed" = "resolve_failed"): Trade {
   const trade = isRecord(body) && isRecord(body["trade"]) ? body["trade"] : undefined;
   const p = trade?.["p"];
-  if (typeof p !== "number" || !Number.isFinite(p) || p <= 0) throw new AdapterError("resolve_failed", `no recent trade price for ${symbol}`);
+  if (typeof p !== "number" || !Number.isFinite(p) || p <= 0) throw new AdapterError(code, `no recent trade price for ${symbol}${code === "precondition_failed" ? "; nothing was sent" : ""}`);
   const t = trade?.["t"];
   // A trade price may carry more than 4 decimals: rounded to ten-thousandths for the estimate.
   return { price: BigInt(Math.round(p * 10_000)), at: typeof t === "string" ? Date.parse(t) : NaN };
@@ -329,7 +329,7 @@ async function executePlace(call: Call, spend: () => void, action: FrozenAction,
       const available = isRecord(p) && p["side"] === "long" ? Number(p["qty_available"] ?? p["qty"]) : 0;
       if (!(Number.isFinite(available) && available >= (s["qty"] as number))) throw new AdapterError("precondition_failed", `you have ${Number.isFinite(available) ? available : 0} ${symbol} available to sell now; this order sells ${String(s["qty"])} (shorting is refused); nothing was sent`, false);
     }
-    const t = tradeOf(await check(ALPACA_DATA_BASE, `/v2/stocks/${encodeURIComponent(symbol)}/trades/latest?feed=${d.feed}`), symbol);
+    const t = tradeOf(await check(ALPACA_DATA_BASE, `/v2/stocks/${encodeURIComponent(symbol)}/trades/latest?feed=${d.feed}`), symbol, "precondition_failed");
     requireRecent(t, symbol, d, true);
     const limit = type === "limit" ? parsePrice(s["limit_price"]) : null;
     const nowValue = notionalCents(s["qty"] as number, valuationPrice(side, limit, t.price));
@@ -403,8 +403,9 @@ async function preflightGet(call: Call, base: string, path: string, symbol: stri
   try {
     res = await call(base, path, {}, AbortSignal.timeout(5_000));
   } catch (e) {
-    const name = failureName(e);
-    throw new AdapterError("precondition_failed", `could not check ${symbol} before the order (${name}); nothing was sent`, false);
+    // request() has already turned the failure into a fixed-text AdapterError (timeout, unreachable)
+    const why = e instanceof AdapterError ? e.code : failureName(e);
+    throw new AdapterError("precondition_failed", `could not check ${symbol} before the order (${why}); nothing was sent`, false);
   }
   if (res.status === 404) return undefined;
   if (!res.ok) throw new AdapterError("precondition_failed", `could not check ${symbol} before the order (${res.status}); nothing was sent`, false);
