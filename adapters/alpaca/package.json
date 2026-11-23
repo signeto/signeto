@@ -1,0 +1,54 @@
+{
+  "name": "@signeto/adapter-alpaca",
+  "version": "0.0.0",
+  "description": "Signeto Alpaca adapter (custody mode, paper trading): place and cancel orders only after the approver signs the exact order on their phone.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "LICENSE",
+    "NOTICE",
+    "README.md",
+    "dist"
+  ],
+  "keywords": [
+    "signeto",
+    "alpaca",
+    "trading",
+    "ai-agents",
+    "mcp"
+  ],
+  "homepage": "https://github.com/signeto/signeto/tree/main/adapters/alpaca#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/signeto/signeto.git",
+    "directory": "adapters/alpaca"
+  },
+  "bugs": {
+    "url": "https://github.com/signeto/signeto/issues"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "echo 'lint: todo'"
+  },
+  "dependencies": {
+    "@signeto/protocol": "workspace:^",
+    "@signeto/adapter-sdk": "workspace:^"
+  }
+}

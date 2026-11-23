@@ -110,6 +110,24 @@
         "template_version": 2,
         "text": "Place order: {side} {qty} {symbol} {type}, limit price {limit_price}, time in force {time_in_force}, on {account} (notional {notional_usd} USD)",
         "sha256": "f2a7d36da123b59aa4a07f1e2d6d2e43b1eea3e0f5e631b81959af4897075654"
+      },
+      {
+        "template_id": "alpaca.cancel_order",
+        "template_version": 1,
+        "text": "Cancel order {order_id}: {side} {qty} {symbol} {type} on {account}",
+        "sha256": "62c3127ae1fa4acb4f013f0b465b1cf32fa8c01666df982f60e8ae2b53c2e1f3"
+      },
+      {
+        "template_id": "alpaca.read_positions",
+        "template_version": 1,
+        "text": "Read positions on {account}",
+        "sha256": "329fb7a36c46d5c12bdbd36101f32f6c2a7b752e1fbc4a4d7f5061723e697650"
+      },
+      {
+        "template_id": "alpaca.read_orders",
+        "template_version": 1,
+        "text": "Read {status} orders on {account} (at most {limit})",
+        "sha256": "b2fdcc06eb0a6c826e624a3c909fc2c7162fbc9b46535fe8c6736303dbd766ae"
       }
     ]
   },

@@ -59,6 +59,12 @@ export const alpacaRegistry: TemplateRegistry = {
     t("alpaca.place_order", 1, "Place order: {side} {qty} {symbol} {type} on {account} (notional {notional_usd} USD)", ["limit_price", "time_in_force"]),
     // v2: every argument in the sentence. The adapter always resolves limit_price (null for a market order).
     t("alpaca.place_order", 2, "Place order: {side} {qty} {symbol} {type}, limit price {limit_price}, time in force {time_in_force}, on {account} (notional {notional_usd} USD)"),
+    // SIG-184: cancelling an open order, described by what it cancels. Bundled in the apps from the builds after
+    // 2026-11-23; until then a cancel that policy sends for approval shows "unverified template" (still approvable).
+    t("alpaca.cancel_order", 1, "Cancel order {order_id}: {side} {qty} {symbol} {type} on {account}"),
+    // Reads, for a policy that asks before an agent sees the account. Bundled with cancel_order.
+    t("alpaca.read_positions", 1, "Read positions on {account}"),
+    t("alpaca.read_orders", 1, "Read {status} orders on {account} (at most {limit})"),
   ],
 };
 
