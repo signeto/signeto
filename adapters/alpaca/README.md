@@ -13,8 +13,9 @@ Alpaca keys are all or nothing: there is no short-lived or read-only key to mint
 (see [docs/security.md](../../docs/security.md)). The key pair lives in your gateway's credential store, never in the
 agent, and the gateway narrows its use by the adapter's discipline, not by an upstream scope:
 
-- Before approval, `resolve` reads, with GET only and to a fixed list of paths: the account, the market clock, the
-  asset, your position in it (for a sell) and the latest trade. These requests carry the key, as every Alpaca request
+- Before approval, `resolve` reads, with GET only and to a fixed list of paths: the account, the market clock (for a
+  market order or a sell), the asset, your position in it (for a sell) and the latest trade (shown on every card; it
+  values a market order or a sell). These requests carry the key, as every Alpaca request
   must, but **no write is sent**.
 - After approval, `custody` hands the key to `execute` for that one action, labelled `custody: …` in the ledger.
 - `execute` sends **at most one write request**: the order, or the cancel. The order carries the action id as Alpaca's
@@ -33,10 +34,18 @@ adapters: Alpaca is for self-hosted gateways only.
 
 | Tool | Effect | What the approver signs |
 | --- | --- | --- |
-| `alpaca.place_order` | write | `Place order: buy 10 AAPL market, limit price null, time in force day, on paper (notional 3489.1 USD)` |
-| `alpaca.cancel_order` | write | `Cancel order 6b2c…: buy 5 AAPL limit on paper` |
+| `alpaca.place_order` | write | `Place order on paper: buy 10 AAPL at market (value 3489.1 USD)`, with a second line `Last trade 348.91 USD at 2026-11-23 20:06 UTC.` |
+| `alpaca.cancel_order` | write | `Cancel order on paper: buy 5 AAPL limit 150.00, good till canceled`, with the order id on the second line |
 | `alpaca.read_positions` | read | `Read positions on paper` |
 | `alpaca.read_orders` | read | `Read open orders on paper (at most 50)` |
+
+The card states the order's terms in words: `at market`, `limit 150.00, today only` (a day order),
+`… , good till canceled` (gtc). The order's `type`, `limit_price` and `time_in_force` are signed too, so policy can test
+them, and the app lists them under the card's hidden fields. Before sending, the adapter checks that the signed terms
+say exactly what the order says, and refuses (nothing sent) if they don't.
+
+These cards are template v3 (place) and v2 (cancel), in the apps from iOS 1.1.1 (16) and Android 1.1.1 (8). An older
+app shows them as "unverified template": the exact signed values, still approvable.
 
 Orders are whole-share US equity orders, `market` or `limit`, `day` or `gtc`.
 

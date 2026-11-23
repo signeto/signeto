@@ -112,10 +112,37 @@
         "sha256": "f2a7d36da123b59aa4a07f1e2d6d2e43b1eea3e0f5e631b81959af4897075654"
       },
       {
+        "template_id": "alpaca.place_order",
+        "template_version": 3,
+        "text": "Place order on {account}: {side} {qty} {symbol} {terms} (value {notional_usd} USD)",
+        "sha256": "8dcb7a5c389288deb22fb2e7800e49afa8638bda4eb390dc0eed3513ca53a492",
+        "elide": [
+          "type",
+          "limit_price",
+          "time_in_force",
+          "last_price",
+          "last_trade_at"
+        ],
+        "note": "Last trade {last_price} USD at {last_trade_at}."
+      },
+      {
         "template_id": "alpaca.cancel_order",
         "template_version": 1,
         "text": "Cancel order {order_id}: {side} {qty} {symbol} {type} on {account}",
         "sha256": "62c3127ae1fa4acb4f013f0b465b1cf32fa8c01666df982f60e8ae2b53c2e1f3"
+      },
+      {
+        "template_id": "alpaca.cancel_order",
+        "template_version": 2,
+        "text": "Cancel order on {account}: {side} {qty} {symbol} {terms}",
+        "sha256": "52d717d4486ec491148994fbd2ee3f57233541c9d129e034840c5c19183f9ec8",
+        "elide": [
+          "order_id",
+          "type",
+          "limit_price",
+          "time_in_force"
+        ],
+        "note": "Order {order_id}."
       },
       {
         "template_id": "alpaca.read_positions",

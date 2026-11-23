@@ -177,6 +177,19 @@ lv("github-merge-pr-v2", "Builtin github.merge_pull_request v2: note with {head_
     L("Files changed", "https://github.com/acme/api/pull/42/files"),
     L("Code at approved commit", "https://github.com/acme/api/tree/abc1234abc1234abc1234abc1234abc1234abc12"),
   ], { note: "Approving commit abc1234. If the PR changes, this approval will not merge it." }));
+{
+  // alpaca.place_order v3 / cancel_order v2: terms in words, type/limit_price/time_in_force (and the last trade) hidden.
+  const am = (tool, v, args, nonce) => P.buildCanonicalAction({ tool, template_version: v, args_resolved: { account: "paper", ...args }, requester, origin_hash: "0".repeat(64), tier: 2, mode: "enforce" }, { now: Date.parse("2026-11-23T20:07:00.000Z"), nonce }).canonical_bytes;
+  lv("alpaca-place-order-v3-market", "Builtin alpaca.place_order v3, a market order: terms in words, the last trade on the note line",
+    am("alpaca.place_order", 3, { side: "buy", qty: 3, symbol: "AAPL", type: "market", limit_price: null, time_in_force: "day", notional_usd: 1049.61, terms: "at market", last_price: "349.87", last_trade_at: "2026-11-23 20:06 UTC" }, "AAAAAAAAAAAAAAAAAAAAAg"),
+    regs, okv("Place order on paper: buy 3 AAPL at market (value 1049.61 USD)", [], { hidden: ["last_price", "last_trade_at", "limit_price", "time_in_force", "type"], note: "Last trade 349.87 USD at 2026-11-23 20:06 UTC." }));
+  lv("alpaca-place-order-v3-limit-gtc", "Builtin alpaca.place_order v3, a gtc limit order",
+    am("alpaca.place_order", 3, { side: "buy", qty: 1, symbol: "AAPL", type: "limit", limit_price: "100.00", time_in_force: "gtc", notional_usd: 100, terms: "limit 100.00, good till canceled", last_price: "349.87", last_trade_at: "2026-11-23 20:06 UTC" }, "AAAAAAAAAAAAAAAAAAAAAw"),
+    regs, okv("Place order on paper: buy 1 AAPL limit 100.00, good till canceled (value 100 USD)", [], { hidden: ["last_price", "last_trade_at", "limit_price", "time_in_force", "type"], note: "Last trade 349.87 USD at 2026-11-23 20:06 UTC." }));
+  lv("alpaca-cancel-order-v2", "Builtin alpaca.cancel_order v2: the cancelled order's terms, the order id on the note line",
+    am("alpaca.cancel_order", 2, { order_id: "6b2c0f3e-1a2b-4c3d-8e4f-5a6b7c8d9e0f", side: "buy", qty: 1, symbol: "AAPL", type: "limit", limit_price: "100.00", time_in_force: "day", terms: "limit 100.00, today only" }, "AAAAAAAAAAAAAAAAAAAABA"),
+    regs, okv("Cancel order on paper: buy 1 AAPL limit 100.00, today only", [], { hidden: ["limit_price", "order_id", "time_in_force", "type"], note: "Order 6b2c0f3e-1a2b-4c3d-8e4f-5a6b7c8d9e0f." }));
+}
 inject("value-owner-name", "A '/' in a plain placeholder is encoded (%2F); {v:path} keeps it as a separator", "acme/api", "acme/api", "acme%2Fapi", "acme/api", "acme%2Fapi");
 inject("value-integer", "An integer renders as its JCS text", 42, "42", "42", "42", "42");
 inject("value-negative-integer", "A negative integer renders as its JCS text", -7, "-7", "-7", "-7", "-7");
@@ -274,6 +287,8 @@ sv("note-only", "A note alone selects the extended form", { text: "Ship {sha}", 
 sv("empty-elide-with-links", "An empty elide is omitted from the extended form", { text: "Read PR #{pr} on {repo}", elide: [], links: [L("View pull request", "https://github.com/{repo:path}/pull/{pr}")], link_hosts: ["github.com"] });
 sv("unicode", "Unicode in the label and note is hashed as JCS UTF-8", { text: "{a}", note: "Zoë 😀", links: [L("Öffnen ↗", "https://example.com/{a}")], link_hosts: ["example.com"] });
 sv("github-merge-pr-v2", "The bundled github.merge_pull_request v2", (({ template_id, template_version, sha256, ...b }) => b)(P.findTemplate(regs, "github.merge_pull_request", 2)));
+sv("alpaca-place-order-v3", "The bundled alpaca.place_order v3", (({ template_id, template_version, sha256, ...b }) => b)(P.findTemplate(regs, "alpaca.place_order", 3)));
+sv("alpaca-cancel-order-v2", "The bundled alpaca.cancel_order v2", (({ template_id, template_version, sha256, ...b }) => b)(P.findTemplate(regs, "alpaca.cancel_order", 2)));
 
 // ---------- receipts/signing-input/
 const h = mergePr.canonical_bytes_sha256;

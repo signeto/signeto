@@ -1,0 +1,20 @@
+{
+  "description": "The bundled alpaca.place_order v3",
+  "inputs": {
+    "template": {
+      "text": "Place order on {account}: {side} {qty} {symbol} {terms} (value {notional_usd} USD)",
+      "elide": [
+        "type",
+        "limit_price",
+        "time_in_force",
+        "last_price",
+        "last_trade_at"
+      ],
+      "note": "Last trade {last_price} USD at {last_trade_at}."
+    }
+  },
+  "expected": {
+    "hash_input": "{\"elide\":[\"type\",\"limit_price\",\"time_in_force\",\"last_price\",\"last_trade_at\"],\"note\":\"Last trade {last_price} USD at {last_trade_at}.\",\"text\":\"Place order on {account}: {side} {qty} {symbol} {terms} (value {notional_usd} USD)\"}",
+    "sha256": "8dcb7a5c389288deb22fb2e7800e49afa8638bda4eb390dc0eed3513ca53a492"
+  }
+}

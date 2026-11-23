@@ -1,0 +1,19 @@
+{
+  "description": "The bundled alpaca.cancel_order v2",
+  "inputs": {
+    "template": {
+      "text": "Cancel order on {account}: {side} {qty} {symbol} {terms}",
+      "elide": [
+        "order_id",
+        "type",
+        "limit_price",
+        "time_in_force"
+      ],
+      "note": "Order {order_id}."
+    }
+  },
+  "expected": {
+    "hash_input": "{\"elide\":[\"order_id\",\"type\",\"limit_price\",\"time_in_force\"],\"note\":\"Order {order_id}.\",\"text\":\"Cancel order on {account}: {side} {qty} {symbol} {terms}\"}",
+    "sha256": "52d717d4486ec491148994fbd2ee3f57233541c9d129e034840c5c19183f9ec8"
+  }
+}

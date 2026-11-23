@@ -59,9 +59,19 @@ export const alpacaRegistry: TemplateRegistry = {
     t("alpaca.place_order", 1, "Place order: {side} {qty} {symbol} {type} on {account} (notional {notional_usd} USD)", ["limit_price", "time_in_force"]),
     // v2: every argument in the sentence. The adapter always resolves limit_price (null for a market order).
     t("alpaca.place_order", 2, "Place order: {side} {qty} {symbol} {type}, limit price {limit_price}, time in force {time_in_force}, on {account} (notional {notional_usd} USD)"),
-    // Cancelling an open order, described by what it cancels. Bundled in the apps from the builds after
-    // 2026-11-23; until then a cancel that policy sends for approval shows "unverified template" (still approvable).
+    // v3: the order's terms in words ("at market", "limit 349.50, today only") instead of "limit price null", and the
+    // last trade on the note line. Bundled in the apps from iOS 1.1.1 (16) and Android 1.1.1 (8); the adapter sends it
+    // once those builds are out. Byte-identical to the alpaca adapter's manifest.
+    t("alpaca.place_order", 3, "Place order on {account}: {side} {qty} {symbol} {terms} (value {notional_usd} USD)", ["type", "limit_price", "time_in_force", "last_price", "last_trade_at"], {
+      note: "Last trade {last_price} USD at {last_trade_at}.",
+    }),
+    // Cancelling an open order, described by what it cancels. v1 is in the app builds from 2026-11-23 on.
     t("alpaca.cancel_order", 1, "Cancel order {order_id}: {side} {qty} {symbol} {type} on {account}"),
+    // v2: the cancelled order's terms in words, as on the order card; the order id on the note line. Bundled with
+    // place_order v3.
+    t("alpaca.cancel_order", 2, "Cancel order on {account}: {side} {qty} {symbol} {terms}", ["order_id", "type", "limit_price", "time_in_force"], {
+      note: "Order {order_id}.",
+    }),
     // Reads, for a policy that asks before an agent sees the account. Bundled with cancel_order.
     t("alpaca.read_positions", 1, "Read positions on {account}"),
     t("alpaca.read_orders", 1, "Read {status} orders on {account} (at most {limit})"),

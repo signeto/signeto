@@ -1,6 +1,8 @@
 // The signed surface of the Alpaca adapter: resolved schemas and display templates (docs/adapters.md §2, §6).
-// `alpaca.place_order` v2 must stay byte-identical to the builtin registry in @signeto/protocol (the apps render it
-// from there); `alpaca.cancel_order` v1 is bundled there too, from the app builds after 2026-11-23.
+// Every template here must stay byte-identical to the builtin registry in @signeto/protocol (the apps render them from
+// there). `alpaca.place_order` v3 and `alpaca.cancel_order` v2 are bundled in the app builds from iOS 1.1.1 (16) and
+// Android 1.1.1 (8): release a gateway that sends them only once those builds are out, or older apps show the card
+// as "unverified template".
 //
 // Custody mode (docs/adapters.md §3.3): Alpaca has no scoped or short-lived keys, so the gateway keeps the account's
 // key pair in its encrypted store and unlocks it for one approved request. Paper trading only: the only trading host
@@ -37,10 +39,25 @@ export const TIMES_IN_FORCE = ["day", "gtc"] as const;
 /** Whole shares per order; Alpaca's own limits apply below this. */
 export const MAX_QTY = 100_000;
 
+/**
+ * How the order trades, in words, as the card says it: `at market` or `limit 349.50`, then `, good till canceled` for
+ * gtc and, for a limit order, `, today only` for day (a market order fills now, so day goes unsaid).
+ */
+export const TERMS_PATTERN = "^(at market|limit (0|[1-9][0-9]{0,6})\\.[0-9]{2,4})(, today only|, good till canceled)?$";
+/** When the last trade happened, to the minute: `2026-11-23 20:06 UTC`. */
+export const TRADE_TIME_PATTERN = "^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2} UTC$";
+
+/** `terms` for an order's type, limit price (formatted, or null) and time in force. */
+export function termsOf(type: string, limitPrice: string | null, timeInForce: string): string {
+  const how = type === "market" ? "at market" : `limit ${limitPrice}`;
+  if (timeInForce === "gtc") return `${how}, good till canceled`;
+  return type === "market" ? how : `${how}, today only`;
+}
+
 export const placeOrder: ToolSpec = {
   name: "place_order",
   description:
-    "Place a stock order on the Alpaca paper account (whole shares; market or limit; day or gtc). The approver signs the exact order: side, quantity, symbol, type, limit price, time in force and the estimated value. Returns Alpaca's order id and status, and the fill if it comes within a few seconds.",
+    "Place a stock order on the Alpaca paper account (whole shares; market or limit; day or gtc). The approver signs the exact order: side, quantity, symbol, type, limit price, time in force and the estimated value, with the last trade for reference. Returns Alpaca's order id and status, and the fill if it comes within a few seconds.",
   effect: "write",
   classification: "internal",
   input: obj(
@@ -65,14 +82,23 @@ export const placeOrder: ToolSpec = {
       time_in_force: enm(...TIMES_IN_FORCE),
       // A number, not a string, so policy can set thresholds on it (`when: { notional_usd: { gt: 500 } }`).
       notional_usd: num(0, MAX_NOTIONAL_USD),
+      // type, limit_price and time_in_force in words (termsOf); execute refuses an order whose terms don't match them.
+      terms: str(TERMS_PATTERN, 60),
+      // The last trade when the order was priced, for the approver to compare a limit with the market. Shown, not used
+      // to value a buy limit order.
+      last_price: str(PRICE_PATTERN, 12),
+      last_trade_at: str(TRADE_TIME_PATTERN, 20),
     },
-    ["account", "side", "qty", "symbol", "type", "limit_price", "time_in_force", "notional_usd"],
+    ["account", "side", "qty", "symbol", "type", "limit_price", "time_in_force", "notional_usd", "terms", "last_price", "last_trade_at"],
   ),
   template: {
     id: "alpaca.place_order",
-    // v2 (SIG-92 N9): every argument in the sentence; v1 elided limit_price and time_in_force.
-    version: 2,
-    text: "Place order: {side} {qty} {symbol} {type}, limit price {limit_price}, time in force {time_in_force}, on {account} (notional {notional_usd} USD)",
+    // v3: the order's terms in words (no "limit price null"), and the last trade on the note line. type, limit_price
+    // and time_in_force stay signed (policy can test them) and are listed under the card's hidden fields.
+    version: 3,
+    text: "Place order on {account}: {side} {qty} {symbol} {terms} (value {notional_usd} USD)",
+    elide: ["type", "limit_price", "time_in_force", "last_price", "last_trade_at"],
+    note: "Last trade {last_price} USD at {last_trade_at}.",
   },
 };
 
@@ -90,13 +116,19 @@ export const cancelOrder: ToolSpec = {
       qty: int(1, MAX_QTY),
       symbol: str(SYMBOL_PATTERN, 10),
       type: enm(...ORDER_TYPES),
+      limit_price: nullableDecimal(PRICE_PATTERN),
+      time_in_force: enm(...TIMES_IN_FORCE),
+      terms: str(TERMS_PATTERN, 60),
     },
-    ["account", "order_id", "side", "qty", "symbol", "type"],
+    ["account", "order_id", "side", "qty", "symbol", "type", "limit_price", "time_in_force", "terms"],
   ),
   template: {
     id: "alpaca.cancel_order",
-    version: 1,
-    text: "Cancel order {order_id}: {side} {qty} {symbol} {type} on {account}",
+    // v2: the order's terms in words, as on the order card; the order id on the note line.
+    version: 2,
+    text: "Cancel order on {account}: {side} {qty} {symbol} {terms}",
+    elide: ["order_id", "type", "limit_price", "time_in_force"],
+    note: "Order {order_id}.",
   },
 };
 

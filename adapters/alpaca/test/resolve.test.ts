@@ -9,7 +9,10 @@ describe("resolve place_order", () => {
   it("prices a market order from the latest trade and signs the notional", async () => {
     const fake = new FakeAlpaca();
     const r = await adapter.resolve(resolveCtx(fake), "alpaca.place_order", { symbol: "aapl", side: "buy", qty: 10, type: "market" });
-    expect(r.args).toEqual({ account: "paper", side: "buy", qty: 10, symbol: "AAPL", type: "market", limit_price: null, time_in_force: "day", notional_usd: 1895 });
+    expect(r.args).toEqual({
+      account: "paper", side: "buy", qty: 10, symbol: "AAPL", type: "market", limit_price: null, time_in_force: "day", notional_usd: 1895,
+      terms: "at market", last_price: "189.50", last_trade_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC$/),
+    });
     // a number, so policy thresholds can test it; facts are copied into the signed args, so they must agree
     expect(r.facts).toEqual({ notional_usd: 1895 });
     expect(fake.calls.map((c) => `${c.method} ${c.host}${c.path}`)).toEqual([
@@ -20,24 +23,37 @@ describe("resolve place_order", () => {
     ]);
   });
 
-  it("prices a buy limit order at its limit, in exact decimals, without reading the market", async () => {
+  it("prices a buy limit order at its limit, in exact decimals; the last trade is shown, not used, and may be old", async () => {
     const fake = new FakeAlpaca();
+    fake.isOpen = false;
+    fake.tradeTime = () => "2026-11-20T20:59:58.123456789Z";
     const r = await adapter.resolve(resolveCtx(fake), "place_order", { symbol: "BRK.B", side: "buy", qty: 3, type: "limit", limit_price: "400.1", time_in_force: "gtc" });
-    expect(r.args).toMatchObject({ symbol: "BRK.B", limit_price: "400.10", time_in_force: "gtc", notional_usd: 1200.3 });
-    // a buy limit can't fill above its limit: no price read
-    expect(fake.calls.some((c) => c.host === "data.alpaca.markets")).toBe(false);
+    // a buy limit can't fill above its limit: valued at the limit, whatever the market, open or not
+    expect(r.args).toMatchObject({ symbol: "BRK.B", limit_price: "400.10", time_in_force: "gtc", notional_usd: 1200.3, terms: "limit 400.10, good till canceled", last_price: "412.33", last_trade_at: "2026-11-20 20:59 UTC" });
+    expect(fake.calls.some((c) => c.path === "/v2/clock")).toBe(false);
+  });
+
+  it("refuses a buy limit order when Alpaca has no trade for the symbol to show", async () => {
+    const fake = new FakeAlpaca();
+    fake.assets.set("NEW", { symbol: "NEW", tradable: true, status: "active" });
+    await expect(adapter.resolve(resolveCtx(fake), "place_order", { symbol: "NEW", side: "buy", qty: 1, type: "limit", limit_price: "10" })).rejects.toEqual(err("resolve_failed", /no trades for NEW/));
+    fake.prices.set("NEW", 10);
+    fake.tradeTime = () => undefined;
+    await expect(adapter.resolve(resolveCtx(fake), "place_order", { symbol: "NEW", side: "buy", qty: 1, type: "limit", limit_price: "10" })).rejects.toEqual(err("resolve_failed", /didn't say when/));
   });
 
   it("keeps sub-dollar prices to 4 decimals and rounds the notional half up to cents", async () => {
     const fake = new FakeAlpaca();
     fake.assets.set("PENNY", { symbol: "PENNY", tradable: true, status: "active" });
+    fake.prices.set("PENNY", 0.12345);
     const r = await adapter.resolve(resolveCtx(fake), "place_order", { symbol: "PENNY", side: "buy", qty: 30, type: "limit", limit_price: 0.1235 });
-    expect(r.args).toMatchObject({ limit_price: "0.1235", notional_usd: 3.71 });
+    expect(r.args).toMatchObject({ limit_price: "0.1235", notional_usd: 3.71, terms: "limit 0.1235, today only", last_price: "0.1235" });
   });
 
   it("refuses an order worth less than $1 (no zero-value order slips past the drift check)", async () => {
     const fake = new FakeAlpaca();
     fake.assets.set("PENNY", { symbol: "PENNY", tradable: true, status: "active" });
+    fake.prices.set("PENNY", 0.12);
     await expect(adapter.resolve(resolveCtx(fake), "place_order", { symbol: "PENNY", side: "buy", qty: 3, type: "limit", limit_price: 0.1235 })).rejects.toEqual(err("resolve_failed", /less than \$1/));
   });
 
@@ -112,7 +128,7 @@ describe("resolve cancel_order", () => {
     const fake = new FakeAlpaca();
     fake.open({ id: ID, symbol: "AAPL", side: "buy", qty: "5", type: "limit" });
     const r = await adapter.resolve(resolveCtx(fake), "cancel_order", { order_id: ID.toUpperCase() });
-    expect(r.args).toEqual({ account: "paper", order_id: ID, side: "buy", qty: 5, symbol: "AAPL", type: "limit" });
+    expect(r.args).toEqual({ account: "paper", order_id: ID, side: "buy", qty: 5, symbol: "AAPL", type: "limit", limit_price: "150.00", time_in_force: "gtc", terms: "limit 150.00, good till canceled" });
   });
 
   it("refuses an order that was not placed through Signeto, unless the gateway allows it", async () => {

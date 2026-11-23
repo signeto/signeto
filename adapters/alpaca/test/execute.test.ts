@@ -53,6 +53,22 @@ describe("custody", () => {
 });
 
 describe("execute place_order", () => {
+  it.each([
+    ["a limit order signed as at market", LIMIT, "at market"],
+    ["a gtc limit signed as today only", LIMIT, "limit 150.00, today only"],
+    ["a limit signed at another price", LIMIT, "limit 15.00, good till canceled"],
+    ["a market order signed as a limit", MARKET, "limit 189.50, today only"],
+  ])("refuses %s before sending anything: the card's terms must match the order", async (_what, input, terms) => {
+    const adapter = fastAdapter();
+    const fake = new FakeAlpaca();
+    const r = await adapter.resolve(resolveCtx(fake), "place_order", input);
+    const action = frozen("place_order", { ...r.args, terms });
+    const credential = await adapter.custody!(credentialCtx(fake), action);
+    fake.calls = [];
+    await expect(adapter.execute(executeCtx(fake), action, credential)).rejects.toEqual(err("precondition_failed", /terms don't match/));
+    expect(fake.calls).toEqual([]);
+  });
+
   it("re-prices, sends exactly one order with the action id as client_order_id, and reports the fill", async () => {
     const adapter = fastAdapter();
     const fake = new FakeAlpaca();

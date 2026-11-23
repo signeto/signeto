@@ -18,7 +18,7 @@ import { AdapterError } from "@signeto/adapter-sdk";
 import { ACTION_ID_RE } from "@signeto/protocol";
 import { ALPACA_DATA_BASE, ALPACA_PAPER_BASE, AlpacaApiError, MALFORMED_KEY_MESSAGE, alpacaHeaders, errorMessage, failureName, isAlpacaReadOnlyClient, isWellFormedKey, type AlpacaKey, type AlpacaReadOnlyClient, type FetchFn } from "./client.js";
 import { centsOf, formatPrice, notionalCents, parsePrice, usd } from "./decimal.js";
-import { ACCOUNT_LABEL, MAX_QTY, ORDER_ID_PATTERN, ORDER_STATUSES, ORDER_TYPES, SECRET_KEY_ID, SECRET_SECRET_KEY, SIDES, SYMBOL_PATTERN, TIMES_IN_FORCE, manifest } from "./manifest.js";
+import { ACCOUNT_LABEL, MAX_QTY, ORDER_ID_PATTERN, ORDER_STATUSES, ORDER_TYPES, SECRET_KEY_ID, SECRET_SECRET_KEY, SIDES, SYMBOL_PATTERN, TIMES_IN_FORCE, manifest, termsOf } from "./manifest.js";
 
 export type AlpacaToolName = "place_order" | "cancel_order" | "read_positions" | "read_orders";
 
@@ -176,18 +176,21 @@ async function resolvePlace(client: AlpacaReadOnlyClient, a: Record<string, unkn
   if (fromMarket && !(await marketOpen(client, signal))) throw new AdapterError("resolve_failed", "the market is closed: market orders and sells are taken only while it is open (a buy limit order is taken any time)");
   if (side === "sell") await requireLongPosition(client, symbol, qty as number, signal);
 
-  let last: bigint | undefined;
-  if (fromMarket) {
-    const t = await latestTrade(client, symbol, d.feed, signal);
-    requireRecent(t, symbol, d);
-    last = t.price;
-  }
-  const cents = notionalCents(qty as number, valuationPrice(side, limit, last));
+  // Every order shows the last trade on its card. Only an order valued from the market needs it recent; a buy limit
+  // order shows it for comparison (it may be from the last session).
+  const t = await latestTrade(client, symbol, d.feed, signal);
+  if (fromMarket) requireRecent(t, symbol, d);
+  if (!Number.isFinite(t.at)) throw new AdapterError("resolve_failed", `Alpaca didn't say when the latest ${symbol} trade was`);
+  const cents = notionalCents(qty as number, valuationPrice(side, limit, fromMarket ? t.price : undefined));
   if (cents < 100n) throw new AdapterError("resolve_failed", "orders worth less than $1 are refused");
   const notional_usd = usd(cents);
+  const limit_price = limit === null ? null : formatPrice(limit);
   logger.debug("alpaca order priced", { symbol, side, type, notional_usd });
   return {
-    args: { account: ACCOUNT_LABEL, side, qty: qty as number, symbol, type, limit_price: limit === null ? null : formatPrice(limit), time_in_force: tif, notional_usd },
+    args: {
+      account: ACCOUNT_LABEL, side, qty: qty as number, symbol, type, limit_price, time_in_force: tif, notional_usd,
+      terms: termsOf(type, limit_price, tif), last_price: formatPrice(t.price), last_trade_at: tradeTime(t.at),
+    },
     // Facts are copied into the signed args (docs/adapters.md §1.2): the same values, so policy tests what is signed.
     facts: { notional_usd },
   };
@@ -277,6 +280,11 @@ function requireRecent(t: Trade, symbol: string, d: { now: () => number; maxTrad
   throw new AdapterError(nothingSent ? "precondition_failed" : "resolve_failed", `${what}, too old to value an order from the market (a market order or a sell)${nothingSent ? "; nothing was sent" : ""}`);
 }
 
+/** A trade time to the minute, in UTC, as the card shows it: `2026-11-23 20:06 UTC`. */
+export function tradeTime(ms: number): string {
+  return `${new Date(ms).toISOString().slice(0, 16).replace("T", " ")} UTC`;
+}
+
 async function readGet(client: AlpacaReadOnlyClient, api: "trading" | "data", path: string, signal: AbortSignal, notFound: string): Promise<unknown> {
   try {
     return await client.get(api, path, { signal });
@@ -312,6 +320,10 @@ async function executePlace(call: Call, spend: () => void, action: FrozenAction,
   const symbol = s["symbol"] as string;
   const type = s["type"] as string;
   const side = s["side"] as string;
+  // The card shows `terms`; what is sent is type, limit_price and time_in_force. They must say the same thing.
+  if (s["terms"] !== termsOf(type, (s["limit_price"] ?? null) as string | null, s["time_in_force"] as string)) {
+    throw new AdapterError("precondition_failed", "the signed terms don't match the signed order; nothing was sent", false);
+  }
   // Time to send the order and, if its answer is lost, to look it up. Without it, refuse before sending.
   const tooLate = () => {
     if (d.deadline.getTime() - d.now() < d.minExecuteMs) throw new AdapterError("precondition_failed", "too little time is left before the approval expires to send the order safely; nothing was sent", false);
@@ -477,13 +489,24 @@ async function findByClientId(call: Call, clientId: string, signal: AbortSignal)
 // ---------- helpers ----------
 
 /** The parts of an order the cancel card describes, or undefined for an order this adapter would not have placed. */
-function orderSignature(o: Record<string, unknown>): { side: string; qty: number; symbol: string; type: string } | undefined {
+function orderSignature(o: Record<string, unknown>): { side: string; qty: number; symbol: string; type: string; limit_price: string | null; time_in_force: string; terms: string } | undefined {
   const qty = Number(o["qty"]);
   const symbol = o["symbol"];
+  const type = o["type"];
+  const tif = o["time_in_force"];
   if (typeof o["side"] !== "string" || !(SIDES as readonly string[]).includes(o["side"])) return undefined;
-  if (typeof o["type"] !== "string" || !(ORDER_TYPES as readonly string[]).includes(o["type"])) return undefined;
+  if (typeof type !== "string" || !(ORDER_TYPES as readonly string[]).includes(type)) return undefined;
+  if (typeof tif !== "string" || !(TIMES_IN_FORCE as readonly string[]).includes(tif)) return undefined;
   if (!Number.isInteger(qty) || qty < 1 || qty > MAX_QTY || typeof symbol !== "string" || !SYMBOL_RE.test(symbol)) return undefined;
-  return { side: o["side"], qty, symbol, type: o["type"] };
+  let limit_price: string | null = null;
+  if (type === "limit") {
+    try {
+      limit_price = formatPrice(parsePrice(o["limit_price"]));
+    } catch {
+      return undefined;
+    }
+  }
+  return { side: o["side"], qty, symbol, type, limit_price, time_in_force: tif, terms: termsOf(type, limit_price, tif) };
 }
 
 function orderMismatch(o: Record<string, unknown>, s: Readonly<Record<string, JsonValue>>, clientId: string): boolean {

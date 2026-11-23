@@ -1,0 +1,211 @@
+{
+  "description": "Builtin alpaca.place_order v3, a market order: terms in words, the last trade on the note line",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"account\":\"paper\",\"last_price\":\"349.87\",\"last_trade_at\":\"2026-11-23 20:06 UTC\",\"limit_price\":null,\"notional_usd\":1049.61,\"qty\":3,\"side\":\"buy\",\"symbol\":\"AAPL\",\"terms\":\"at market\",\"time_in_force\":\"day\",\"type\":\"market\"},\"expires_at\":\"2026-11-23T20:10:00.000Z\",\"idempotency_key\":\"34dca8d216976bd87f04d524e1b8909ce730489d7eac1645d5f9f51d6b53f58f\",\"issued_at\":\"2026-11-23T20:07:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"AAAAAAAAAAAAAAAAAAAAAg\",\"origin_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"claude-code\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"jason-mbp\",\"session_id\":\"sess_01JBXK3M8PQ7R2T4V6W8Y0Z1A3\"},\"template_id\":\"alpaca.place_order\",\"template_version\":3,\"tier\":2,\"tool\":\"alpaca.place_order\"}",
+    "registries": [
+      {
+        "adapter": "github",
+        "templates": [
+          {
+            "template_id": "github.merge_pull_request",
+            "template_version": 1,
+            "text": "Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}",
+            "sha256": "0280710fb0ac477803f2002b1c52027717ed45bc7e8da1ec79b87ec7754d75de"
+          },
+          {
+            "template_id": "github.merge_pull_request",
+            "template_version": 2,
+            "text": "Merge PR #{pr} into {base} on {repo} ({method}) at {head_sha}",
+            "sha256": "d004d3b2763f6a8994e632c37b644cad9ad4b5bbabaea49e6c8c1aa135ba8486",
+            "note": "Approving commit {head_sha:short}. If the PR changes, this approval will not merge it.",
+            "links": [
+              {
+                "label": "View pull request",
+                "url": "https://github.com/{repo:path}/pull/{pr}"
+              },
+              {
+                "label": "Files changed",
+                "url": "https://github.com/{repo:path}/pull/{pr}/files"
+              },
+              {
+                "label": "Code at approved commit",
+                "url": "https://github.com/{repo:path}/tree/{head_sha}"
+              }
+            ],
+            "link_hosts": [
+              "github.com"
+            ]
+          },
+          {
+            "template_id": "github.dispatch_workflow",
+            "template_version": 3,
+            "text": "Run {workflow} on {ref} ({ref_sha}) in {repo} with inputs {inputs}",
+            "sha256": "8b232b72716ed4e964b1c2880e11f210bea5ba5d6d4c75092cffe4462b1f67dc",
+            "links": [
+              {
+                "label": "Workflow file at approved commit",
+                "url": "https://github.com/{repo:path}/blob/{ref_sha}/.github/workflows/{workflow}"
+              },
+              {
+                "label": "Actions",
+                "url": "https://github.com/{repo:path}/actions"
+              }
+            ],
+            "link_hosts": [
+              "github.com"
+            ]
+          },
+          {
+            "template_id": "github.dispatch_workflow",
+            "template_version": 4,
+            "text": "Run {workflow} on {ref} ({ref_sha}) in {repo}",
+            "sha256": "d04c5744e1e526632f696316ce57f96fb7e33bee8a4c7802b501dbf1e7e75261",
+            "links": [
+              {
+                "label": "Workflow file at approved commit",
+                "url": "https://github.com/{repo:path}/blob/{ref_sha}/.github/workflows/{workflow}"
+              },
+              {
+                "label": "Actions",
+                "url": "https://github.com/{repo:path}/actions"
+              }
+            ],
+            "link_hosts": [
+              "github.com"
+            ]
+          },
+          {
+            "template_id": "github.create_deployment",
+            "template_version": 1,
+            "text": "Deploy {ref} to {environment} on {repo}",
+            "sha256": "a028b1a2c4a7afef58043b6d0f01a4230b1ecc39c0b8c410675a3d28d4f9ede1",
+            "elide": [
+              "description"
+            ]
+          }
+        ]
+      },
+      {
+        "adapter": "postgres",
+        "templates": [
+          {
+            "template_id": "postgres.execute",
+            "template_version": 1,
+            "text": "{statement_kind} on {database}@{host}: {statement}",
+            "sha256": "4c2078abc027b5d4b398c910825ca198c0333b899aeef2c69baf964c1bd3d8d6"
+          }
+        ]
+      },
+      {
+        "adapter": "alpaca",
+        "templates": [
+          {
+            "template_id": "alpaca.place_order",
+            "template_version": 1,
+            "text": "Place order: {side} {qty} {symbol} {type} on {account} (notional {notional_usd} USD)",
+            "sha256": "a51cb02216bbb48f39b64e6c3a1ba38e748612792bbb1b17f203138d519e0123",
+            "elide": [
+              "limit_price",
+              "time_in_force"
+            ]
+          },
+          {
+            "template_id": "alpaca.place_order",
+            "template_version": 2,
+            "text": "Place order: {side} {qty} {symbol} {type}, limit price {limit_price}, time in force {time_in_force}, on {account} (notional {notional_usd} USD)",
+            "sha256": "f2a7d36da123b59aa4a07f1e2d6d2e43b1eea3e0f5e631b81959af4897075654"
+          },
+          {
+            "template_id": "alpaca.place_order",
+            "template_version": 3,
+            "text": "Place order on {account}: {side} {qty} {symbol} {terms} (value {notional_usd} USD)",
+            "sha256": "8dcb7a5c389288deb22fb2e7800e49afa8638bda4eb390dc0eed3513ca53a492",
+            "elide": [
+              "type",
+              "limit_price",
+              "time_in_force",
+              "last_price",
+              "last_trade_at"
+            ],
+            "note": "Last trade {last_price} USD at {last_trade_at}."
+          },
+          {
+            "template_id": "alpaca.cancel_order",
+            "template_version": 1,
+            "text": "Cancel order {order_id}: {side} {qty} {symbol} {type} on {account}",
+            "sha256": "62c3127ae1fa4acb4f013f0b465b1cf32fa8c01666df982f60e8ae2b53c2e1f3"
+          },
+          {
+            "template_id": "alpaca.cancel_order",
+            "template_version": 2,
+            "text": "Cancel order on {account}: {side} {qty} {symbol} {terms}",
+            "sha256": "52d717d4486ec491148994fbd2ee3f57233541c9d129e034840c5c19183f9ec8",
+            "elide": [
+              "order_id",
+              "type",
+              "limit_price",
+              "time_in_force"
+            ],
+            "note": "Order {order_id}."
+          },
+          {
+            "template_id": "alpaca.read_positions",
+            "template_version": 1,
+            "text": "Read positions on {account}",
+            "sha256": "329fb7a36c46d5c12bdbd36101f32f6c2a7b752e1fbc4a4d7f5061723e697650"
+          },
+          {
+            "template_id": "alpaca.read_orders",
+            "template_version": 1,
+            "text": "Read {status} orders on {account} (at most {limit})",
+            "sha256": "b2fdcc06eb0a6c826e624a3c909fc2c7162fbc9b46535fe8c6736303dbd766ae"
+          }
+        ]
+      },
+      {
+        "adapter": "signeto",
+        "templates": [
+          {
+            "template_id": "signeto.test",
+            "template_version": 1,
+            "text": "Test request from {gateway}, code {code}",
+            "sha256": "9bdbc8861b6c124e2bd38a60028218a23035987dcc99bd94e17e0f27a13752a3",
+            "note": "Nothing runs when you approve this. It checks that this phone receives, shows and signs requests."
+          },
+          {
+            "template_id": "signeto.gateway_handoff",
+            "template_version": 1,
+            "text": "Move this gateway to {successor_name} ({successor_gateway_id})",
+            "sha256": "3a9133411f629d5208855c853514fa6be6336162c1a4b6287994173261091bec",
+            "elide": [
+              "ledger_head",
+              "ledger_seq",
+              "policy_hash",
+              "successor_public_key"
+            ],
+            "note": "Its ledger continues from entry {ledger_seq} ({ledger_head:short}) under policy {policy_hash:short}. This phone keeps approving for the new gateway, and this one stops once the move completes. Approve only if you started this move."
+          },
+          {
+            "template_id": "signeto.agent_token_add",
+            "template_version": 1,
+            "text": "Let a new agent connect to this gateway: {name} (key {key_id})",
+            "sha256": "709fcdaf225148531645b5306cb154ecfdcd10df28510c802af65f14b3dc71c1"
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "ok",
+    "text": "Place order on paper: buy 3 AAPL at market (value 1049.61 USD)",
+    "hidden": [
+      "last_price",
+      "last_trade_at",
+      "limit_price",
+      "time_in_force",
+      "type"
+    ],
+    "note": "Last trade 349.87 USD at 2026-11-23 20:06 UTC.",
+    "links": []
+  }
+}
