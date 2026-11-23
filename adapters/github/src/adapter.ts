@@ -6,13 +6,13 @@ import {
   GITHUB_API_BASE,
   GithubApiError,
   asRecord,
-  errorMessage,
   getNumber,
   getString,
   githubHeaders,
   isAbortError,
   isGithubReadOnlyClient,
   parseJson,
+  requestErrorText,
   signalFor,
   toAdapterError,
   type FetchFn,
@@ -255,7 +255,7 @@ async function executeRequest(f: FetchFn, path: string, init: RequestInit): Prom
     return await f(GITHUB_API_BASE + path, init);
   } catch (e) {
     if (isAbortError(e)) throw new AdapterError("timeout", "GitHub request timed out", true);
-    throw new AdapterError("upstream_unreachable", `GitHub unreachable: ${errorMessage(e)}`, true);
+    throw new AdapterError("upstream_unreachable", `GitHub unreachable: ${requestErrorText(e)}`, true);
   }
 }
 
@@ -424,7 +424,7 @@ async function postCheckRun(
     return getNumber(await parseJson(res, "check-runs").catch(() => undefined), "id") ?? null;
   } catch (e) {
     if (e instanceof AdapterError && e.code === "timeout" && !opts.mergeOf) throw e;
-    logger.warn("github: check run not created", { repo, err: errorMessage(e) });
+    logger.warn("github: check run not created", { repo, err: requestErrorText(e) });
     return null;
   }
 }
@@ -454,7 +454,7 @@ async function executeDispatch(call: Call, action: FrozenAction, logger: Logger,
     after = await readRef(call, repo, ref);
   } catch (e) {
     // Unknown, not moved: the pre-dispatch check stands.
-    logger.warn("github: ref re-read after dispatch failed", { repo, ref, err: errorMessage(e) });
+    logger.warn("github: ref re-read after dispatch failed", { repo, ref, err: requestErrorText(e) });
   }
   if (after !== undefined && after !== ref_sha) return refMovedDuringDispatch(call, { repo, workflow, ref, ref_sha, current_sha: after }, dispatchedAt, logger);
 
@@ -471,7 +471,7 @@ async function executeDispatch(call: Call, action: FrozenAction, logger: Logger,
       if (id !== undefined && created && Date.parse(created) >= dispatchedAt - RUN_ATTRIBUTION_MS) run = { id, url: getString(first, "html_url") ?? null };
     }
   } catch (e) {
-    logger.warn("github: run lookup after dispatch failed", { err: errorMessage(e) });
+    logger.warn("github: run lookup after dispatch failed", { err: requestErrorText(e) });
   }
   return {
     content: { dispatched: true, ...(run ? { run_id: run.id, run_url: run.url } : {}) },
@@ -523,7 +523,7 @@ async function refMovedDuringDispatch(
       (c?.status === 202 ? cancelled : notCancelled).push(id);
     }
   } catch (e) {
-    logger.warn("github: run lookup after a moved ref failed", { repo, ref, err: errorMessage(e) });
+    logger.warn("github: run lookup after a moved ref failed", { repo, ref, err: requestErrorText(e) });
   }
   const run = onSigned[0];
   if (listed && run && cancelled.length === 0 && notCancelled.length === 0) {

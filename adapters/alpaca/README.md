@@ -3,23 +3,28 @@
 Signeto adapter for [Alpaca](https://alpaca.markets) **paper trading**. Your agent can read positions and orders and
 place or cancel orders, and each order your policy gates waits for you to sign the exact order on your phone.
 
-Paper only: the adapter talks to `paper-api.alpaca.markets` and `data.alpaca.markets` and nothing else, and it refuses
-a key whose account is not a paper account (`PA…`).
+Paper only: the adapter's code talks to `paper-api.alpaca.markets` and `data.alpaca.markets` and has no other host.
+A live key doesn't work against the paper host, and placing an order also checks that the account is a paper account
+(`PA…`).
 
-## Custody mode, honestly
+## Custody mode, plainly
 
 Alpaca keys are all or nothing: there is no short-lived or read-only key to mint. So this is a **custody** adapter
-(docs/adapters.md §3.3). The key pair lives in your gateway's credential store, never in the agent, and the gateway
-narrows it by discipline, not by upstream scope:
+(see [docs/security.md](../../docs/security.md)). The key pair lives in your gateway's credential store, never in the
+agent, and the gateway narrows its use by the adapter's discipline, not by an upstream scope:
 
-- `resolve` reads (GET only, to an allowlist of paths) the account, the asset and a price. Nothing is sent.
+- Before approval, `resolve` reads, with GET only and to a fixed list of paths: the account, the market clock, the
+  asset, your position in it (for a sell) and the latest trade. These requests carry the key, as every Alpaca request
+  must, but **no write is sent**.
 - After approval, `custody` hands the key to `execute` for that one action, labelled `custody: …` in the ledger.
-- `execute` sends **exactly one write request**: the order, or the cancel. The order carries the action id as
-  Alpaca's `client_order_id`, so Alpaca itself refuses a second order for the same approval. If the answer is lost,
-  the adapter looks the order up by that id instead of sending it again.
-- A market order is re-priced just before it is sent and refused if its value moved more than 5% from what you
-  signed.
-- The gateway calls `revoke` when execute is done, and the key is dropped from the credential.
+- `execute` sends **at most one write request**: the order, or the cancel. The order carries the action id as Alpaca's
+  `client_order_id`, so Alpaca refuses a second order for the same approval.
+- If the order's answer is lost (no answer, a server error, an unreadable answer), the adapter looks the order up by
+  that id and never sends it again. If the lookup can't confirm it either way, the result says **the outcome is
+  unknown**, is not marked retryable, and tells the agent to read the orders before trying again.
+- An order valued from the market (a market order, or any sell) is re-priced just before it is sent and refused if
+  its value moved more than 5% from what you signed.
+- The gateway calls `revoke` when execute is done, and the adapter drops its reference to the key.
 
 Because the gateway holds a long-lived key, the policy must say so (see Policy). Signeto Cloud never runs custody
 adapters: Alpaca is for self-hosted gateways only.
@@ -28,22 +33,48 @@ adapters: Alpaca is for self-hosted gateways only.
 
 | Tool | Effect | What the approver signs |
 | --- | --- | --- |
-| `alpaca.place_order` | write | `Place order: buy 10 AAPL market, limit price null, time in force day, on paper (notional 1895 USD)` |
+| `alpaca.place_order` | write | `Place order: buy 10 AAPL market, limit price null, time in force day, on paper (notional 3489.1 USD)` |
 | `alpaca.cancel_order` | write | `Cancel order 6b2c…: buy 5 AAPL limit on paper` |
 | `alpaca.read_positions` | read | `Read positions on paper` |
 | `alpaca.read_orders` | read | `Read open orders on paper (at most 50)` |
 
-Orders are whole-share US equity orders, `market` or `limit`, `day` or `gtc`. `notional_usd` is quantity × the limit
-price, or × the latest trade for a market order, in exact cents. It is a number in the signed args so policy can set
-thresholds on it.
+Orders are whole-share US equity orders, `market` or `limit`, `day` or `gtc`.
+
+**`notional_usd`**, the order's value, is quantity × the price it can trade at, in exact cents. It is a number in the
+signed args so policy can set thresholds on it:
+
+| Order | Valued at |
+| --- | --- |
+| buy limit | the limit price (it can't fill above it) |
+| market | the latest trade |
+| sell limit | the higher of the limit price and the latest trade (a sell limit below the market fills at the market) |
+
+What the adapter refuses, before anything is approved:
+
+- **Sells that don't reduce a long position you hold.** Shorting is refused, so "sell" on the card always means
+  selling shares you own (up to the quantity available to sell).
+- **Market orders while the market is closed**, and market orders valued from a trade older than 15 minutes. A
+  market order queued for the open would fill at whatever the open is, not at the value you signed. Use a limit order.
+- **Orders worth less than $1.**
+- **Cancelling an order that wasn't placed through Signeto** (a person's own order). A gateway can allow it with the
+  adapter option `cancelAnyOrder`.
+
+Reads always fetch fresh data: the gateway never answers a read from its cache of earlier calls.
 
 ## Setup
 
+Run these on the computer that runs the gateway. The value is prompted for and not echoed:
+
 ```sh
-signeto secrets set alpaca key_id       # your paper trading key id
-signeto secrets set alpaca secret_key   # its secret (prompted, never echoed)
+signeto secrets set alpaca key_id       # your paper trading Key (starts with PK)
+signeto secrets set alpaca secret_key   # its Secret, shown once by Alpaca when the key is made
+signeto stop                            # a running gateway picks the key up on its next start
 signeto connect claude-code --adapters github,alpaca
 ```
+
+With a system-mode gateway, run `sudo signeto secrets set …` instead; the gateway re-reads its store on its own.
+Avoid `--value KEY`: it puts the key in your shell history. A value with a line break or another control character
+is refused.
 
 ## Policy
 
@@ -53,8 +84,8 @@ Tiers by order value, first matching rule wins:
 rules:
   - tool: alpaca.place_order
     when: { notional_usd: { gt: 5000 } }
-    tier: 3                 # large orders: jason signs on a hardware-backed device
-    approver: jason
+    tier: 3                 # large orders: alice signs on a hardware-backed device
+    approver: alice
   - tool: alpaca.place_order
     when: { notional_usd: { gt: 500 } }
     tier: 2                 # mid-size: any approver signs
@@ -71,8 +102,24 @@ credentials:
     acknowledge: "the gateway holds a long-lived credential for this adapter"
 ```
 
-`signeto policy lint --adapters github,alpaca` warns that the tier 1 rule auto-approves a write; that is the point
-of a small-order threshold, and the warning stays so you see it.
+`signeto policy lint --adapters github,alpaca` warns that a tier 1 rule auto-approves a write; that is the point of a
+small-order threshold, and the warning stays so you see it. `signeto policy dry-run alpaca.place_order --args '…'
+--adapters github,alpaca` prices the order with your key (reads only) and shows the tier it would get.
+
+Rules can also test `side`, `symbol`, `type` and `qty`, for example to require approval for every sell.
+
+### What thresholds don't do
+
+Know these before relying on tier 1 for writes:
+
+- **No totals.** Each order is tested on its own. An agent can place many orders just under a threshold, each at
+  tier 1. Signeto has no daily or per-session limit yet. If that matters, don't give writes a tier 1 rule.
+- **The 5% drift allowance.** An order signed just under a threshold can execute up to 5% above it.
+- **Sell limits after hours.** A sell limit is valued at the higher of its limit and the last trade. If the market
+  opens far above that, the order fills higher than the value signed. This is in your favour as the seller, but it
+  is still a different amount from the one on the card.
+- **Tier 1 cancels.** With the rule above, the agent can cancel any open order it placed through Signeto without
+  asking.
 
 ## License
 

@@ -3,7 +3,7 @@
 // AdapterError in the fail-closed vocabulary of docs/adapters.md §4; nothing here ever echoes a key, JWT or token.
 import { AdapterError } from "@signeto/adapter-sdk";
 import type { Logger } from "@signeto/adapter-sdk";
-import { GITHUB_API_BASE, asRecord, errorMessage, getNumber, getString, githubHeaders, isAbortError, parseJson, type FetchFn } from "./client.js";
+import { GITHUB_API_BASE, asRecord, errorMessage, getNumber, getString, githubHeaders, isAbortError, parseJson, requestErrorText, type FetchFn } from "./client.js";
 import { buildAppJwt } from "./jwt.js";
 
 export type PermissionLevel = "read" | "write";
@@ -29,7 +29,7 @@ export async function mintRequest(f: FetchFn, path: string, init: RequestInit): 
     return await f(GITHUB_API_BASE + path, init);
   } catch (e) {
     if (isAbortError(e)) throw new AdapterError("timeout", "GitHub request timed out while minting", true);
-    throw new AdapterError("upstream_unreachable", `GitHub unreachable while minting: ${errorMessage(e)}`, true);
+    throw new AdapterError("upstream_unreachable", `GitHub unreachable while minting: ${requestErrorText(e)}`, true);
   }
 }
 
@@ -160,7 +160,7 @@ export async function revokeToken(f: FetchFn, token: string, logger: Logger): Pr
     });
     if (res.status !== 204) logger.warn("github: installation token revoke returned non-204", { status: res.status });
   } catch (e) {
-    logger.warn("github: installation token revoke failed", { err: errorMessage(e) });
+    logger.warn("github: installation token revoke failed", { err: requestErrorText(e) });
   }
 }
 

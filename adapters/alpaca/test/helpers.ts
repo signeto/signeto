@@ -40,9 +40,19 @@ export class FakeAlpaca {
   ]);
   prices = new Map<string, number>([["AAPL", 189.5], ["BRK.B", 412.33]]);
   orders: FakeOrder[] = [];
-  positions: Record<string, unknown>[] = [{ symbol: "AAPL", qty: "10", side: "long", avg_entry_price: "180.00", market_value: "1895.00", unrealized_pl: "95.00", current_price: "189.50", asset_id: "x" }];
+  positions: Record<string, unknown>[] = [{ symbol: "AAPL", qty: "10", qty_available: "10", side: "long", avg_entry_price: "180.00", market_value: "1895.00", unrealized_pl: "95.00", current_price: "189.50", asset_id: "x" }];
+  /** The market clock. */
+  isOpen = true;
+  /** When the latest trade happened; now by default. */
+  tradeTime: () => string | undefined = () => new Date().toISOString();
   /** The next order request fails like this (a dropped connection), after Alpaca recorded it or before. */
   dropOrder: "before" | "after" | undefined;
+  /** The next order request: Alpaca records the order, then answers 503 / never answers / answers garbage. */
+  orderAnswer: "503" | "hang" | "garbage" | undefined;
+  /** This many client-id lookups fail (connection dropped) before they work. */
+  lookupFailures = 0;
+  /** This many client-id lookups answer 404 even when the order exists (it hasn't shown up yet). */
+  lookupLag = 0;
   /** Market orders fill on the next read back. */
   fillOnRead = true;
   private n = 0;
@@ -60,10 +70,17 @@ export class FakeAlpaca {
     if (u.host === "data.alpaca.markets") {
       const m = /^\/v2\/stocks\/([^/]+)\/trades\/latest$/.exec(u.pathname);
       const p = m ? this.prices.get(decodeURIComponent(m[1] as string)) : undefined;
-      return p === undefined ? send(404, { message: "not found" }) : send(200, { symbol: m![1], trade: { p, s: 100, t: "2026-11-23T15:00:00Z" } });
+      const t = this.tradeTime();
+      return p === undefined ? send(404, { message: "not found" }) : send(200, { symbol: m![1], trade: { p, s: 100, ...(t ? { t } : {}) } });
     }
     if (u.host !== "paper-api.alpaca.markets") return send(404, { message: "wrong host" });
     if (method === "GET" && u.pathname === "/v2/account") return send(200, this.account);
+    if (method === "GET" && u.pathname === "/v2/clock") return send(200, { timestamp: new Date().toISOString(), is_open: this.isOpen });
+    const pos = /^\/v2\/positions\/(.+)$/.exec(u.pathname);
+    if (method === "GET" && pos) {
+      const p = this.positions.find((x) => x["symbol"] === decodeURIComponent(pos[1] as string));
+      return p ? send(200, p) : send(404, { code: 40410000, message: "position does not exist" });
+    }
     const asset = /^\/v2\/assets\/(.+)$/.exec(u.pathname);
     if (method === "GET" && asset) {
       const a = this.assets.get(decodeURIComponent(asset[1] as string));
@@ -95,9 +112,27 @@ export class FakeAlpaca {
         this.dropOrder = undefined;
         throw new TypeError("fetch failed");
       }
+      const answer = this.orderAnswer;
+      this.orderAnswer = undefined;
+      if (answer === "503") return send(503, { message: "service unavailable" });
+      if (answer === "garbage") return new Response("<html>bad gateway</html>", { status: 200 });
+      if (answer === "hang") {
+        return new Promise<Response>((_, reject) => {
+          const sig = init.signal;
+          sig?.addEventListener("abort", () => reject(sig.reason ?? new DOMException("aborted", "AbortError")));
+        });
+      }
       return send(200, o);
     }
     if (method === "GET" && u.pathname === "/v2/orders:by_client_order_id") {
+      if (this.lookupFailures > 0) {
+        this.lookupFailures--;
+        throw new TypeError("fetch failed");
+      }
+      if (this.lookupLag > 0) {
+        this.lookupLag--;
+        return send(404, { message: "order not found" });
+      }
       const o = this.orders.find((x) => x.client_order_id === u.searchParams.get("client_order_id"));
       return o ? send(200, o) : send(404, { message: "order not found" });
     }
@@ -123,9 +158,9 @@ export class FakeAlpaca {
   /** Writes (POST, DELETE) Alpaca received. */
   writes = () => this.calls.filter((c) => c.method !== "GET");
 
-  /** Add an open order directly (one this adapter didn't place). */
+  /** Add an open order directly; by default one placed through Signeto (its client id is an action id). */
   open(o: Partial<FakeOrder> & { id: string }): FakeOrder {
-    const full: FakeOrder = { client_order_id: "other", symbol: "AAPL", side: "buy", qty: "5", type: "limit", limit_price: "150.00", time_in_force: "gtc", status: "new", filled_qty: "0", filled_avg_price: null, submitted_at: "2026-11-23T14:00:00Z", ...o };
+    const full: FakeOrder = { client_order_id: "act_01M84G7XAXDANS44CD3HWT73TD", symbol: "AAPL", side: "buy", qty: "5", type: "limit", limit_price: "150.00", time_in_force: "gtc", status: "new", filled_qty: "0", filled_avg_price: null, submitted_at: "2026-11-23T14:00:00Z", ...o };
     this.orders.push(full);
     return full;
   }

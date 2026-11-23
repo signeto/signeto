@@ -60,7 +60,7 @@ export function createReadOnlyClient(opts: ReadOnlyClientOptions): GithubReadOnl
           ...(o.signal ? { signal: o.signal } : {}),
         });
       } catch (e) {
-        throw new GithubApiError(0, path, `GitHub unreachable on GET ${path}: ${errorMessage(e)}`);
+        throw new GithubApiError(0, path, `GitHub unreachable on GET ${path}: ${requestErrorText(e)}`);
       }
       if (!res.ok) throw new GithubApiError(res.status, path);
       return parseJson(res, path);
@@ -92,6 +92,16 @@ export function errorMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
+/**
+ * The text of an error from a request that carried a token: our own errors' messages, but only the class name of
+ * anything else. fetch rejects a bad header value with an error that quotes the whole value, token included.
+ */
+export function requestErrorText(e: unknown): string {
+  if (e instanceof GithubApiError || e instanceof AdapterError) return e.message;
+  const name = (e as { name?: unknown })?.name;
+  return typeof name === "string" && /^[A-Za-z]{1,40}$/.test(name) ? name : "Error";
+}
+
 export function isAbortError(e: unknown): boolean {
   return e instanceof Error && (e.name === "AbortError" || e.name === "TimeoutError");
 }
@@ -115,7 +125,7 @@ export function toAdapterError(e: unknown, fallback: "resolve_failed" | "upstrea
     if (e.status === 0) return new AdapterError("upstream_unreachable", e.message, true);
     return new AdapterError(fallback, e.message, e.status >= 500, { status: e.status });
   }
-  return new AdapterError(fallback, errorMessage(e));
+  return new AdapterError(fallback, requestErrorText(e));
 }
 
 export function asRecord(x: unknown): Record<string, unknown> | undefined {

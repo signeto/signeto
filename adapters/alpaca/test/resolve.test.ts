@@ -15,29 +15,36 @@ describe("resolve place_order", () => {
     expect(fake.calls.map((c) => `${c.method} ${c.host}${c.path}`)).toEqual([
       "GET paper-api.alpaca.markets/v2/account",
       "GET paper-api.alpaca.markets/v2/assets/AAPL",
+      "GET paper-api.alpaca.markets/v2/clock",
       "GET data.alpaca.markets/v2/stocks/AAPL/trades/latest?feed=iex",
     ]);
   });
 
-  it("prices a limit order at its limit, in exact decimals", async () => {
+  it("prices a buy limit order at its limit, in exact decimals, without reading the market", async () => {
     const fake = new FakeAlpaca();
-    const r = await adapter.resolve(resolveCtx(fake), "place_order", { symbol: "BRK.B", side: "sell", qty: 3, type: "limit", limit_price: "400.1", time_in_force: "gtc" });
+    const r = await adapter.resolve(resolveCtx(fake), "place_order", { symbol: "BRK.B", side: "buy", qty: 3, type: "limit", limit_price: "400.1", time_in_force: "gtc" });
     expect(r.args).toMatchObject({ symbol: "BRK.B", limit_price: "400.10", time_in_force: "gtc", notional_usd: 1200.3 });
-    // no price read for a limit order
+    // a buy limit can't fill above its limit: no price read
     expect(fake.calls.some((c) => c.host === "data.alpaca.markets")).toBe(false);
   });
 
   it("keeps sub-dollar prices to 4 decimals and rounds the notional half up to cents", async () => {
     const fake = new FakeAlpaca();
     fake.assets.set("PENNY", { symbol: "PENNY", tradable: true, status: "active" });
-    const r = await adapter.resolve(resolveCtx(fake), "place_order", { symbol: "PENNY", side: "buy", qty: 3, type: "limit", limit_price: 0.1235 });
-    expect(r.args).toMatchObject({ limit_price: "0.1235", notional_usd: 0.37 });
+    const r = await adapter.resolve(resolveCtx(fake), "place_order", { symbol: "PENNY", side: "buy", qty: 30, type: "limit", limit_price: 0.1235 });
+    expect(r.args).toMatchObject({ limit_price: "0.1235", notional_usd: 3.71 });
+  });
+
+  it("refuses an order worth less than $1 (no zero-value order slips past the drift check)", async () => {
+    const fake = new FakeAlpaca();
+    fake.assets.set("PENNY", { symbol: "PENNY", tradable: true, status: "active" });
+    await expect(adapter.resolve(resolveCtx(fake), "place_order", { symbol: "PENNY", side: "buy", qty: 3, type: "limit", limit_price: 0.1235 })).rejects.toEqual(err("resolve_failed", /less than \$1/));
   });
 
   it("signs cents exactly: the number serialises as the decimal", async () => {
     const fake = new FakeAlpaca();
-    const r = await adapter.resolve(resolveCtx(fake), "place_order", { symbol: "AAPL", side: "buy", qty: 3, type: "limit", limit_price: "0.1" });
-    expect(JSON.stringify(r.args["notional_usd"])).toBe("0.3");
+    const r = await adapter.resolve(resolveCtx(fake), "place_order", { symbol: "AAPL", side: "buy", qty: 33, type: "limit", limit_price: "0.1" });
+    expect(JSON.stringify(r.args["notional_usd"])).toBe("3.3");
     const big = await adapter.resolve(resolveCtx(fake), "place_order", { symbol: "AAPL", side: "buy", qty: 100000, type: "limit", limit_price: "9999999.99" });
     expect(JSON.stringify(big.args["notional_usd"])).toBe("999999999000");
   });
@@ -108,6 +115,14 @@ describe("resolve cancel_order", () => {
     expect(r.args).toEqual({ account: "paper", order_id: ID, side: "buy", qty: 5, symbol: "AAPL", type: "limit" });
   });
 
+  it("refuses an order that was not placed through Signeto, unless the gateway allows it", async () => {
+    const fake = new FakeAlpaca();
+    fake.open({ id: ID, client_order_id: "placed-by-hand-in-the-dashboard" });
+    await expect(adapter.resolve(resolveCtx(fake), "cancel_order", { order_id: ID })).rejects.toEqual(err("resolve_failed", /not placed through Signeto/));
+    const permissive = createAlpacaAdapter({ cancelAnyOrder: true });
+    await expect(permissive.resolve(resolveCtx(fake), "cancel_order", { order_id: ID })).resolves.toBeDefined();
+  });
+
   it("refuses an order that is no longer open", async () => {
     const fake = new FakeAlpaca();
     fake.open({ id: ID, status: "filled" });
@@ -171,5 +186,79 @@ describe("read-only client", () => {
       await expect(client.get(api, path)).rejects.toEqual(err("resolve_failed", /refuses/));
     }
     expect(fake.calls).toHaveLength(1);
+  });
+});
+
+describe("resolve place_order: sells, market hours, stale prices (security review 2026-11-23)", () => {
+  it("values a sell limit far below the market at the market: the card and policy see the real value", async () => {
+    const fake = new FakeAlpaca();
+    const r = await adapter.resolve(resolveCtx(fake), "place_order", { symbol: "AAPL", side: "sell", qty: 10, type: "limit", limit_price: "0.01" });
+    // 10 × max(0.01, 189.50), not 10 × 0.01
+    expect(r.args).toMatchObject({ side: "sell", limit_price: "0.01", notional_usd: 1895 });
+    expect(r.facts).toEqual({ notional_usd: 1895 });
+  });
+
+  it("values a sell limit above the market at its limit", async () => {
+    const fake = new FakeAlpaca();
+    const r = await adapter.resolve(resolveCtx(fake), "place_order", { symbol: "AAPL", side: "sell", qty: 10, type: "limit", limit_price: "200.00" });
+    expect(r.args).toMatchObject({ notional_usd: 2000 });
+  });
+
+  it("refuses a sell that would open or extend a short", async () => {
+    const fake = new FakeAlpaca();
+    // no BRK.B position
+    await expect(adapter.resolve(resolveCtx(fake), "place_order", { symbol: "BRK.B", side: "sell", qty: 1, type: "market" })).rejects.toEqual(err("resolve_failed", /hold no BRK.B.*shorting is refused/));
+    // more than held
+    await expect(adapter.resolve(resolveCtx(fake), "place_order", { symbol: "AAPL", side: "sell", qty: 11, type: "market" })).rejects.toEqual(err("resolve_failed", /10 AAPL available to sell; this order sells 11/));
+    // a short position
+    fake.positions = [{ symbol: "AAPL", qty: "-5", qty_available: "-5", side: "short" }];
+    await expect(adapter.resolve(resolveCtx(fake), "place_order", { symbol: "AAPL", side: "sell", qty: 1, type: "limit", limit_price: "190.00" })).rejects.toEqual(err("resolve_failed", /not a long position/));
+    expect(fake.writes()).toEqual([]);
+  });
+
+  it("counts shares already held for other open orders: qty_available, not qty", async () => {
+    const fake = new FakeAlpaca();
+    fake.positions = [{ symbol: "AAPL", qty: "10", qty_available: "4", side: "long" }];
+    await expect(adapter.resolve(resolveCtx(fake), "place_order", { symbol: "AAPL", side: "sell", qty: 5, type: "market" })).rejects.toEqual(err("resolve_failed", /4 AAPL available/));
+    await expect(adapter.resolve(resolveCtx(fake), "place_order", { symbol: "AAPL", side: "sell", qty: 4, type: "market" })).resolves.toBeDefined();
+  });
+
+  it("refuses a market order while the market is closed; a limit order is still taken", async () => {
+    const fake = new FakeAlpaca();
+    fake.isOpen = false;
+    await expect(adapter.resolve(resolveCtx(fake), "place_order", { symbol: "AAPL", side: "buy", qty: 1, type: "market" })).rejects.toEqual(err("resolve_failed", /market is closed/));
+    await expect(adapter.resolve(resolveCtx(fake), "place_order", { symbol: "AAPL", side: "buy", qty: 1, type: "limit", limit_price: "180.00" })).resolves.toBeDefined();
+  });
+
+  it("refuses a market order valued from a stale or undated trade", async () => {
+    const fake = new FakeAlpaca();
+    fake.tradeTime = () => new Date(Date.now() - 20 * 60_000).toISOString();
+    await expect(adapter.resolve(resolveCtx(fake), "place_order", { symbol: "AAPL", side: "buy", qty: 1, type: "market" })).rejects.toEqual(err("resolve_failed", /20 minutes old/));
+    fake.tradeTime = () => undefined;
+    await expect(adapter.resolve(resolveCtx(fake), "place_order", { symbol: "AAPL", side: "buy", qty: 1, type: "market" })).rejects.toEqual(err("resolve_failed", /didn't say when/));
+  });
+});
+
+describe("the read-only client and a malformed stored key (security review 2026-11-23)", () => {
+  it("refuses a key with a line break or a space before it goes into a header, and never quotes it", async () => {
+    const fake = new FakeAlpaca();
+    for (const bad of [{ ...KEY, secret_key: "part-one\npart-two" }, { ...KEY, key_id: "PK KEY" }, { ...KEY, secret_key: "x\u0000y" }]) {
+      const client = createReadOnlyClient({ key: () => bad, fetch: fake.fetch });
+      const e = await client.get("trading", "/v2/account").catch((x: unknown) => x as Error);
+      expect(e).toEqual(err("resolve_failed", /characters a key can't have/));
+      expect(JSON.stringify(e) + String(e)).not.toMatch(/part-one|part-two|PK KEY/);
+    }
+    expect(fake.calls).toEqual([]);
+  });
+
+  it("a fetch error that quotes the request's headers is reported by its class name only", async () => {
+    const leaky: typeof fetch = async (_url, init) => {
+      const h = (init?.headers ?? {}) as Record<string, string>;
+      throw new TypeError(`Headers.append: "${h["apca-api-secret-key"]}" is an invalid header value.`);
+    };
+    const client = createReadOnlyClient({ key: () => KEY, fetch: leaky });
+    const e = await client.get("trading", "/v2/account").catch((x: unknown) => x as Error);
+    expect(e).toEqual(err("upstream_unreachable", /^Alpaca not reachable \(TypeError\)$/));
+    expect(JSON.stringify(e) + String(e)).not.toContain(KEY.secret_key);
   });
 });

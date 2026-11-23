@@ -32,6 +32,28 @@ export class AlpacaApiError extends Error {
   }
 }
 
+/**
+ * A key part as Alpaca issues it: printable ASCII, no spaces or line breaks. Checked before the key goes into a
+ * header, because fetch rejects a bad header value with an error that quotes the whole value, key included.
+ */
+const KEY_PART_RE = /^[\x21-\x7e]{1,256}$/;
+
+export function isWellFormedKey(key: AlpacaKey | undefined): key is AlpacaKey {
+  return !!key && typeof key.key_id === "string" && typeof key.secret_key === "string" && KEY_PART_RE.test(key.key_id) && KEY_PART_RE.test(key.secret_key);
+}
+
+/** The fixed message for a stored key that is not well formed. It never quotes the key. */
+export const MALFORMED_KEY_MESSAGE = "the stored Alpaca key has characters a key can't have (a space or a line break?): set it again with signeto secrets set alpaca key_id, then secret_key";
+
+/**
+ * Why a request that carried the key failed, without its message: fetch's own errors can quote request headers.
+ * Only the error's class name is kept (TypeError, AbortError), which never carries data.
+ */
+export function failureName(e: unknown): string {
+  const name = (e as { name?: unknown })?.name;
+  return typeof name === "string" && /^[A-Za-z]{1,40}$/.test(name) ? name : "Error";
+}
+
 export function alpacaHeaders(key: AlpacaKey, extra: Record<string, string> = {}): Record<string, string> {
   return { "apca-api-key-id": key.key_id, "apca-api-secret-key": key.secret_key, accept: "application/json", "user-agent": USER_AGENT, ...extra };
 }
@@ -56,9 +78,9 @@ export function isAlpacaReadOnlyClient(x: unknown): x is AlpacaReadOnlyClient {
   return typeof x === "object" && x !== null && typeof (x as { get?: unknown }).get === "function";
 }
 
-/** The only reads `resolve` makes: the account, one asset, one order, the latest trade of one symbol. */
+/** The only reads `resolve` makes: the account, the market clock, one asset, one position, one order, the latest trade of one symbol. */
 const READ_PATHS: Record<AlpacaApi, RegExp> = {
-  trading: new RegExp(`^/v2/(account|assets/${SYMBOL_BODY}|orders/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$`),
+  trading: new RegExp(`^/v2/(account|clock|assets/${SYMBOL_BODY}|positions/${SYMBOL_BODY}|orders/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$`),
   data: new RegExp(`^/v2/stocks/${SYMBOL_BODY}/trades/latest(\\?feed=(iex|sip))?$`),
 };
 
@@ -76,12 +98,15 @@ export function createReadOnlyClient(opts: ReadOnlyClientOptions): AlpacaReadOnl
       if (!READ_PATHS[api].test(path)) throw new AdapterError("resolve_failed", `read-only client refuses ${api} ${path}`);
       const key = opts.key();
       if (!key?.key_id || !key.secret_key) throw new AdapterError("resolve_failed", "the Alpaca key is not set: signeto secrets set alpaca key_id, then secret_key");
+      if (!isWellFormedKey(key)) throw new AdapterError("resolve_failed", MALFORMED_KEY_MESSAGE);
       const base = api === "trading" ? ALPACA_PAPER_BASE : ALPACA_DATA_BASE;
       let res: Response;
       try {
         res = await f(base + path, { method: "GET", headers: alpacaHeaders(key), redirect: "error", ...(o.signal ? { signal: o.signal } : {}) });
       } catch (e) {
-        throw new AdapterError("upstream_unreachable", `Alpaca not reachable: ${e instanceof Error ? e.message : String(e)}`, true);
+        const name = failureName(e);
+        if (name === "AbortError" || name === "TimeoutError") throw new AdapterError("timeout", "Alpaca did not answer in time", true);
+        throw new AdapterError("upstream_unreachable", `Alpaca not reachable (${name})`, true);
       }
       if (!res.ok) throw new AlpacaApiError(res.status, path, await errorMessage(res));
       return res.json();

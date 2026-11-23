@@ -3,7 +3,7 @@
 // minted for that repository alone with read permissions only, cached until shortly before it expires.
 import { AdapterError } from "@signeto/adapter-sdk";
 import type { Logger } from "@signeto/adapter-sdk";
-import { GITHUB_API_BASE, GithubApiError, errorMessage, githubHeaders, parseJson, type FetchFn, type GithubReadOnlyClient } from "./client.js";
+import { GITHUB_API_BASE, GithubApiError, githubHeaders, parseJson, requestErrorText, type FetchFn, type GithubReadOnlyClient } from "./client.js";
 import { appHeaders, findInstallation, mintInstallationToken, type PermissionSet } from "./installation.js";
 import { parsePrivateKey } from "./jwt.js";
 
@@ -126,7 +126,7 @@ export function createAppReadOnlyClient(opts: AppReadOnlyClientOptions): GithubR
         throw new AdapterError("resolve_failed", `cannot mint a read-only GitHub App token for ${repo}: ${e.message}`, e.retryable, e.detail);
       }
       if (e instanceof AdapterError) throw e;
-      throw new AdapterError("resolve_failed", `cannot mint a read-only GitHub App token for ${repo}: ${errorMessage(e)}`);
+      throw new AdapterError("resolve_failed", `cannot mint a read-only GitHub App token for ${repo}: ${requestErrorText(e)}`);
     }
   }
 
@@ -154,7 +154,7 @@ export function createAppReadOnlyClient(opts: AppReadOnlyClientOptions): GithubR
       try {
         res = await f(GITHUB_API_BASE + path, { method: "GET", headers: githubHeaders(`Bearer ${token}`), signal });
       } catch (e) {
-        throw new GithubApiError(0, path, `GitHub unreachable on GET ${path}: ${errorMessage(e)}`);
+        throw new GithubApiError(0, path, `GitHub unreachable on GET ${path}: ${requestErrorText(e)}`);
       }
       if (res.status === 401) tokens.delete(`${owner}/${name}|${Object.keys(permissions).sort().join(",")}`); // revoked or expired early: mint afresh next call
       if (!res.ok) throw new GithubApiError(res.status, path);

@@ -142,6 +142,83 @@ describe("execute place_order", () => {
     expect(fake.orders).toHaveLength(0);
   });
 
+  it("an answer lost after Alpaca took the order (503, garbage, no answer): looks it up, never resends", async () => {
+    for (const answer of ["503", "garbage", "hang"] as const) {
+      const adapter = createAlpacaAdapter({ now: () => 0, sleep: async () => {}, orderTimeoutMs: 50 });
+      const fake = new FakeAlpaca();
+      const { action, credential } = await approved(adapter, fake, "place_order", MARKET);
+      fake.orderAnswer = answer;
+      const r = await adapter.execute(executeCtx(fake), action, credential);
+      expect(fake.writes(), answer).toHaveLength(1);
+      expect(r.content).toMatchObject({ client_order_id: action.id });
+    }
+  });
+
+  it("an order that takes a moment to show up is found on the second look", async () => {
+    const adapter = fastAdapter();
+    const fake = new FakeAlpaca();
+    const { action, credential } = await approved(adapter, fake, "place_order", MARKET);
+    fake.dropOrder = "after";
+    fake.lookupLag = 1;
+    const r = await adapter.execute(executeCtx(fake), action, credential);
+    expect(r.content).toMatchObject({ client_order_id: action.id });
+    expect(fake.writes()).toHaveLength(1);
+  });
+
+  it("when the lookup fails too, the outcome is unknown: not 'no order', not retryable", async () => {
+    const adapter = fastAdapter();
+    const fake = new FakeAlpaca();
+    const { action, credential } = await approved(adapter, fake, "place_order", MARKET);
+    fake.dropOrder = "after";
+    fake.lookupFailures = 1;
+    const e = await adapter.execute(executeCtx(fake), action, credential).catch((x: unknown) => x as { code: string; message: string; retryable: boolean; detail?: unknown });
+    expect(e).toEqual(expect.objectContaining({ code: "upstream_unreachable", retryable: false, message: expect.stringMatching(/is unknown/) }));
+    expect(e.detail).toEqual({ client_order_id: action.id, outcome: "unknown" });
+    // the order does exist; nothing was sent twice
+    expect(fake.orders).toHaveLength(1);
+    expect(fake.writes()).toHaveLength(1);
+  });
+
+  it("refuses to start with too little time left to send and look up the order", async () => {
+    const adapter = createAlpacaAdapter();
+    const fake = new FakeAlpaca();
+    const { action, credential } = await approved(adapter, fake, "place_order", LIMIT);
+    await expect(adapter.execute({ ...executeCtx(fake), deadline: new Date(Date.now() + 5_000) }, action, credential)).rejects.toEqual(err("precondition_failed", /too little time.*nothing was sent/));
+    expect(fake.writes()).toEqual([]);
+  });
+
+  it("re-values a sell limit below the market and refuses it if the market moved past the drift limit", async () => {
+    const adapter = fastAdapter();
+    const fake = new FakeAlpaca();
+    const { action, credential } = await approved(adapter, fake, "place_order", { symbol: "AAPL", side: "sell", qty: 10, type: "limit", limit_price: "0.01" });
+    expect(action.args["notional_usd"]).toBe(1895);
+    fake.prices.set("AAPL", 210);
+    await expect(adapter.execute(executeCtx(fake), action, credential)).rejects.toEqual(err("precondition_failed", /moved .*nothing was sent/));
+    expect(fake.writes()).toEqual([]);
+  });
+
+  it("a fetch error quoting the key never reaches the error", async () => {
+    const adapter = fastAdapter();
+    const fake = new FakeAlpaca();
+    const { action, credential } = await approved(adapter, fake, "place_order", LIMIT);
+    const leaky: typeof fetch = async (url, init) => {
+      if ((init?.method ?? "GET") === "POST") throw new TypeError(`Headers.append: "${(init!.headers as Record<string, string>)["apca-api-secret-key"]}" is an invalid header value.`);
+      return fake.fetch(url, init);
+    };
+    const e = await adapter.execute({ ...executeCtx(fake), fetch: leaky }, action, credential).catch((x: unknown) => x);
+    expect(JSON.stringify(e) + String(e)).not.toContain(KEY.secret_key);
+    expect(e).toEqual(err("upstream_unreachable", /probably not placed/));
+  });
+
+  it("custody refuses a malformed stored key with a message that doesn't quote it", async () => {
+    const adapter = fastAdapter();
+    const fake = new FakeAlpaca();
+    const action = frozen("read_positions", { account: "paper" });
+    const e = await adapter.custody!(credentialCtx(fake, { key_id: KEY.key_id, secret_key: "line-one\nline-two" }), action).catch((x: unknown) => x);
+    expect(e).toEqual(err("credential_failed", /characters a key can't have/));
+    expect(String(e) + JSON.stringify(e)).not.toMatch(/line-one|line-two/);
+  });
+
   it("refuses when Alpaca's order differs from the signed one", async () => {
     const adapter = fastAdapter();
     const fake = new FakeAlpaca();
