@@ -223,11 +223,18 @@ describe("resolve place_order: sells, market hours, stale prices (security revie
     await expect(adapter.resolve(resolveCtx(fake), "place_order", { symbol: "AAPL", side: "sell", qty: 4, type: "market" })).resolves.toBeDefined();
   });
 
-  it("refuses a market order while the market is closed; a limit order is still taken", async () => {
+  it("refuses a market order or a sell while the market is closed; a buy limit order is still taken", async () => {
     const fake = new FakeAlpaca();
     fake.isOpen = false;
     await expect(adapter.resolve(resolveCtx(fake), "place_order", { symbol: "AAPL", side: "buy", qty: 1, type: "market" })).rejects.toEqual(err("resolve_failed", /market is closed/));
+    await expect(adapter.resolve(resolveCtx(fake), "place_order", { symbol: "AAPL", side: "sell", qty: 1, type: "limit", limit_price: "200.00" })).rejects.toEqual(err("resolve_failed", /market is closed/));
     await expect(adapter.resolve(resolveCtx(fake), "place_order", { symbol: "AAPL", side: "buy", qty: 1, type: "limit", limit_price: "180.00" })).resolves.toBeDefined();
+  });
+
+  it("refuses a sell valued from a stale trade (a thin symbol on the IEX feed)", async () => {
+    const fake = new FakeAlpaca();
+    fake.tradeTime = () => new Date(Date.now() - 3 * 24 * 3600_000).toISOString();
+    await expect(adapter.resolve(resolveCtx(fake), "place_order", { symbol: "AAPL", side: "sell", qty: 10, type: "limit", limit_price: "0.01" })).rejects.toEqual(err("resolve_failed", /too old/));
   });
 
   it("refuses a market order valued from a stale or undated trade", async () => {

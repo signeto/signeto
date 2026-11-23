@@ -169,15 +169,17 @@ async function resolvePlace(client: AlpacaReadOnlyClient, a: Record<string, unkn
   await requireTradingAccount(client, signal);
   const asset = await readGet(client, "trading", `/v2/assets/${encodeURIComponent(symbol)}`, signal, `no such asset ${symbol}`);
   if (!isRecord(asset) || asset["tradable"] !== true || asset["status"] !== "active") throw new AdapterError("resolve_failed", `${symbol} is not tradable on Alpaca`);
-  // A market order placed while the market is closed waits for the open and fills at whatever the open is: the
-  // value signed now would mean nothing then.
-  if (type === "market" && !(await marketOpen(client, signal))) throw new AdapterError("resolve_failed", "the market is closed: market orders are taken only while it is open (use a limit order)");
+  // An order valued from the market (a market order, any sell) needs a market that is open and a recent trade: one
+  // placed while the market is closed fills at whatever the open is, and a stale trade (a thin symbol on the IEX
+  // feed) could value it far below what it fills at. A buy limit can't fill above its limit, so it needs neither.
+  const fromMarket = type === "market" || side === "sell";
+  if (fromMarket && !(await marketOpen(client, signal))) throw new AdapterError("resolve_failed", "the market is closed: market orders and sells are taken only while it is open (a buy limit order is taken any time)");
   if (side === "sell") await requireLongPosition(client, symbol, qty as number, signal);
 
   let last: bigint | undefined;
-  if (type === "market" || side === "sell") {
+  if (fromMarket) {
     const t = await latestTrade(client, symbol, d.feed, signal);
-    if (type === "market") requireRecent(t, symbol, d);
+    requireRecent(t, symbol, d);
     last = t.price;
   }
   const cents = notionalCents(qty as number, valuationPrice(side, limit, last));
@@ -272,7 +274,7 @@ function requireRecent(t: Trade, symbol: string, d: { now: () => number; maxTrad
   const age = d.now() - t.at;
   if (Number.isFinite(age) && age <= d.maxTradeAgeMs) return;
   const what = Number.isFinite(age) ? `the latest ${symbol} trade is ${Math.round(age / 60_000)} minutes old` : `Alpaca didn't say when the latest ${symbol} trade was`;
-  throw new AdapterError(nothingSent ? "precondition_failed" : "resolve_failed", `${what}, too old to value a market order (use a limit order)${nothingSent ? "; nothing was sent" : ""}`);
+  throw new AdapterError(nothingSent ? "precondition_failed" : "resolve_failed", `${what}, too old to value an order from the market (a market order or a sell)${nothingSent ? "; nothing was sent" : ""}`);
 }
 
 async function readGet(client: AlpacaReadOnlyClient, api: "trading" | "data", path: string, signal: AbortSignal, notFound: string): Promise<unknown> {
@@ -311,13 +313,24 @@ async function executePlace(call: Call, spend: () => void, action: FrozenAction,
   const type = s["type"] as string;
   const side = s["side"] as string;
   // Time to send the order and, if its answer is lost, to look it up. Without it, refuse before sending.
-  if (d.deadline.getTime() - d.now() < d.minExecuteMs) throw new AdapterError("precondition_failed", "too little time is left before the approval expires to send the order safely; nothing was sent", false);
-  // §3.4: an order valued from the market is re-valued, and refused if the value moved past what was signed.
+  const tooLate = () => {
+    if (d.deadline.getTime() - d.now() < d.minExecuteMs) throw new AdapterError("precondition_failed", "too little time is left before the approval expires to send the order safely; nothing was sent", false);
+  };
+  tooLate();
+  // §3.4: what resolve checked is checked again just before the order, with the custody key, because time has passed
+  // (an approval can take minutes) and another order may have run: an order valued from the market needs the market
+  // open and a recent trade, and is refused if its value moved past what was signed; a sell needs the shares.
   if (type === "market" || side === "sell") {
-    const res = await call(ALPACA_DATA_BASE, `/v2/stocks/${encodeURIComponent(symbol)}/trades/latest?feed=${d.feed}`);
-    if (!res.ok) throw new AdapterError("precondition_failed", `could not re-price ${symbol} before the order (${res.status}); nothing was sent`, res.status >= 500);
-    const t = tradeOf(await res.json().catch(() => undefined), symbol);
-    if (type === "market") requireRecent(t, symbol, d, true);
+    const check = (base: string, path: string) => preflightGet(call, base, path, symbol);
+    const clock = await check(ALPACA_PAPER_BASE, "/v2/clock");
+    if (!isRecord(clock) || clock["is_open"] !== true) throw new AdapterError("precondition_failed", "the market closed since approval; nothing was sent", false);
+    if (side === "sell") {
+      const p = await check(ALPACA_PAPER_BASE, `/v2/positions/${encodeURIComponent(symbol)}`);
+      const available = isRecord(p) && p["side"] === "long" ? Number(p["qty_available"] ?? p["qty"]) : 0;
+      if (!(Number.isFinite(available) && available >= (s["qty"] as number))) throw new AdapterError("precondition_failed", `you have ${Number.isFinite(available) ? available : 0} ${symbol} available to sell now; this order sells ${String(s["qty"])} (shorting is refused); nothing was sent`, false);
+    }
+    const t = tradeOf(await check(ALPACA_DATA_BASE, `/v2/stocks/${encodeURIComponent(symbol)}/trades/latest?feed=${d.feed}`), symbol);
+    requireRecent(t, symbol, d, true);
     const limit = type === "limit" ? parsePrice(s["limit_price"]) : null;
     const nowValue = notionalCents(s["qty"] as number, valuationPrice(side, limit, t.price));
     const signed = centsOf(s["notional_usd"] as number);
@@ -335,6 +348,8 @@ async function executePlace(call: Call, spend: () => void, action: FrozenAction,
     client_order_id: action.id,
   };
   if (type === "limit") body["limit_price"] = s["limit_price"] as string;
+  // the checks above took time: there must still be enough left for the order and a lookup
+  tooLate();
   spend();
   let order = await sendOrder(call, action.id, body, d);
   if (orderMismatch(order, s, action.id)) throw new AdapterError("upstream_rejected", "Alpaca's order does not match the signed one; check the account now", false, { order_id: String(order["id"] ?? ""), client_order_id: action.id });
@@ -380,6 +395,20 @@ async function sendOrder(call: Call, clientId: string, body: Record<string, stri
   }
   // A 4xx: Alpaca refused it, so no order was placed.
   throw new AdapterError("upstream_rejected", `Alpaca refused the order (${res.status}): ${message}`, false, { status: res.status });
+}
+
+/** A GET before the order, with a short timeout of its own; any failure means nothing is sent. A 404 is `undefined`. */
+async function preflightGet(call: Call, base: string, path: string, symbol: string): Promise<unknown> {
+  let res: Response;
+  try {
+    res = await call(base, path, {}, AbortSignal.timeout(5_000));
+  } catch (e) {
+    const name = failureName(e);
+    throw new AdapterError("precondition_failed", `could not check ${symbol} before the order (${name}); nothing was sent`, false);
+  }
+  if (res.status === 404) return undefined;
+  if (!res.ok) throw new AdapterError("precondition_failed", `could not check ${symbol} before the order (${res.status}); nothing was sent`, false);
+  return res.json().catch(() => undefined);
 }
 
 /** The order's answer was lost: look it up by client id, twice (an order can take a moment to show). */

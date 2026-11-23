@@ -53,11 +53,17 @@ What the adapter refuses, before anything is approved:
 
 - **Sells that don't reduce a long position you hold.** Shorting is refused, so "sell" on the card always means
   selling shares you own (up to the quantity available to sell).
-- **Market orders while the market is closed**, and market orders valued from a trade older than 15 minutes. A
-  market order queued for the open would fill at whatever the open is, not at the value you signed. Use a limit order.
+- **Market orders and sells while the market is closed**, or valued from a trade older than 15 minutes. An order
+  queued for the open would fill at whatever the open is, and a stale trade (a thin symbol on the IEX feed) could
+  value it far below what it fills at. A buy limit order is taken any time, since it can't fill above its limit.
 - **Orders worth less than $1.**
-- **Cancelling an order that wasn't placed through Signeto** (a person's own order). A gateway can allow it with the
-  adapter option `cancelAnyOrder`.
+- **Cancelling an order that wasn't placed through Signeto** (a person's own order). The adapter has an option,
+  `cancelAnyOrder`, to allow it; the `signeto` CLI doesn't expose it.
+
+Just before the order is sent, with the key, the adapter checks again: the market is still open and the trade recent
+(market orders and sells), the shares are still there (sells, so two approved sells can't open a short), the value
+hasn't moved more than 5%, and there is enough time left before the approval expires to send the order and look it up
+(at least 10 seconds; an approval that arrives later is refused and nothing is sent).
 
 Reads always fetch fresh data: the gateway never answers a read from its cache of earlier calls.
 
@@ -115,9 +121,9 @@ Know these before relying on tier 1 for writes:
 - **No totals.** Each order is tested on its own. An agent can place many orders just under a threshold, each at
   tier 1. Signeto has no daily or per-session limit yet. If that matters, don't give writes a tier 1 rule.
 - **The 5% drift allowance.** An order signed just under a threshold can execute up to 5% above it.
-- **Sell limits after hours.** A sell limit is valued at the higher of its limit and the last trade. If the market
-  opens far above that, the order fills higher than the value signed. This is in your favour as the seller, but it
-  is still a different amount from the one on the card.
+- **An unknown outcome.** When an order's answer is lost and it can't be looked up, the agent is told the outcome is
+  unknown and not to retry before reading the orders. That is advice to the agent: a retry is a new action, and at
+  tier 1 nothing stops it.
 - **Tier 1 cancels.** With the rule above, the agent can cancel any open order it placed through Signeto without
   asking.
 

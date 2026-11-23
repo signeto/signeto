@@ -65,7 +65,12 @@ describe("execute place_order", () => {
       path: "/v2/orders",
       body: { symbol: "AAPL", qty: "10", side: "buy", type: "market", time_in_force: "day", client_order_id: action.id },
     });
-    expect(fake.calls[0]).toMatchObject({ method: "GET", host: "data.alpaca.markets" });
+    // checked again just before the order: the market clock, then the price; then the one write
+    expect(fake.calls.slice(0, 3).map((c) => `${c.method} ${c.host}${c.path}`)).toEqual([
+      "GET paper-api.alpaca.markets/v2/clock",
+      "GET data.alpaca.markets/v2/stocks/AAPL/trades/latest?feed=iex",
+      "POST paper-api.alpaca.markets/v2/orders",
+    ]);
     expect(r.content).toMatchObject({ symbol: "AAPL", status: "filled", filled_qty: "10", filled_avg_price: "189.5", client_order_id: action.id });
     expect(r.evidence).toMatchObject({ client_order_id: action.id, status: "filled" });
   });
@@ -217,6 +222,60 @@ describe("execute place_order", () => {
     const e = await adapter.custody!(credentialCtx(fake, { key_id: KEY.key_id, secret_key: "line-one\nline-two" }), action).catch((x: unknown) => x);
     expect(e).toEqual(err("credential_failed", /characters a key can't have/));
     expect(String(e) + JSON.stringify(e)).not.toMatch(/line-one|line-two/);
+  });
+
+  it("two sells approved against one position: the second is refused at execute, no short is opened", async () => {
+    const adapter = fastAdapter();
+    const fake = new FakeAlpaca();
+    const SELL = { symbol: "AAPL", side: "sell", qty: 10, type: "market" };
+    const first = await approved(adapter, fake, "place_order", SELL);
+    const second = await approved(adapter, fake, "place_order", SELL);
+    await adapter.execute(executeCtx(fake), first.action, first.credential);
+    // the first sell used the shares
+    fake.positions = [];
+    await expect(adapter.execute(executeCtx(fake), second.action, second.credential)).rejects.toEqual(err("precondition_failed", /0 AAPL available to sell now.*nothing was sent/));
+    expect(fake.writes()).toHaveLength(1);
+  });
+
+  it("a market order or sell approved after the close is refused at execute", async () => {
+    const adapter = fastAdapter();
+    const fake = new FakeAlpaca();
+    const { action, credential } = await approved(adapter, fake, "place_order", MARKET);
+    fake.isOpen = false;
+    await expect(adapter.execute(executeCtx(fake), action, credential)).rejects.toEqual(err("precondition_failed", /market closed since approval; nothing was sent/));
+    expect(fake.writes()).toEqual([]);
+  });
+
+  it("a sell whose latest trade went stale before execute is refused", async () => {
+    const adapter = createAlpacaAdapter({ sleep: async () => {} });
+    const fake = new FakeAlpaca();
+    const { action, credential } = await approved(adapter, fake, "place_order", { symbol: "AAPL", side: "sell", qty: 10, type: "limit", limit_price: "0.01" });
+    fake.tradeTime = () => new Date(Date.now() - 3 * 24 * 3600_000).toISOString();
+    await expect(adapter.execute(executeCtx(fake), action, credential)).rejects.toEqual(err("precondition_failed", /too old.*nothing was sent/));
+    expect(fake.writes()).toEqual([]);
+  });
+
+  it("time used up by the checks before the order: refused just before sending, nothing sent", async () => {
+    let t = 0;
+    const deadline = 20_000;
+    // each request costs 6 s of the approval's remaining time
+    const adapter = createAlpacaAdapter({ now: () => t, sleep: async () => {} });
+    const fake = new FakeAlpaca();
+    const { action, credential } = await approved(adapter, fake, "place_order", MARKET);
+    const slow: typeof fetch = async (url, init) => ((t += 6_000), fake.fetch(url, init));
+    await expect(adapter.execute({ ...executeCtx(fake), fetch: slow, deadline: new Date(deadline) }, action, credential)).rejects.toEqual(err("precondition_failed", /too little time.*nothing was sent/));
+    expect(fake.writes()).toEqual([]);
+  });
+
+  it("a 422 duplicate whose lookup fails: the outcome is unknown, nothing is sent again", async () => {
+    const adapter = fastAdapter();
+    const fake = new FakeAlpaca();
+    const { action, credential } = await approved(adapter, fake, "place_order", LIMIT);
+    // the order already exists (an earlier attempt), and the lookup fails
+    fake.orders.push({ id: "00000009-aaaa-bbbb-cccc-dddddddddddd", client_order_id: action.id, symbol: "AAPL", side: "buy", qty: "2", type: "limit", limit_price: "150.00", time_in_force: "gtc", status: "new", filled_qty: "0", filled_avg_price: null, submitted_at: "x" });
+    fake.lookupFailures = 1;
+    await expect(adapter.execute(executeCtx(fake), action, credential)).rejects.toEqual(expect.objectContaining({ code: "upstream_unreachable", retryable: false, message: expect.stringMatching(/is unknown/) }));
+    expect(fake.writes()).toHaveLength(1);
   });
 
   it("refuses when Alpaca's order differs from the signed one", async () => {
