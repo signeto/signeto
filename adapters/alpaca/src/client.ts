@@ -20,6 +20,21 @@ export interface AlpacaKey {
   secret_key: string;
 }
 
+/**
+ * An OAuth access token for one paper account. Signeto Cloud only: held by its custody service, never by a gateway.
+ * Self-hosted gateways use the key pair.
+ */
+export interface AlpacaOAuthToken {
+  access_token: string;
+}
+
+/** What an Alpaca request is authorized with. */
+export type AlpacaCredential = AlpacaKey | AlpacaOAuthToken;
+
+export function isOAuthToken(c: unknown): c is AlpacaOAuthToken {
+  return typeof c === "object" && c !== null && "access_token" in c;
+}
+
 /** Thrown on a non-2xx answer. Carries the status and Alpaca's short message, never the request's headers. */
 export class AlpacaApiError extends Error {
   override name = "AlpacaApiError";
@@ -45,6 +60,23 @@ export function isWellFormedKey(key: AlpacaKey | undefined): key is AlpacaKey {
 /** The fixed message for a stored key that is not well formed. It never quotes the key. */
 export const MALFORMED_KEY_MESSAGE = "the stored Alpaca key has characters a key can't have (a space or a line break?): set it again with signeto secrets set alpaca key_id, then secret_key";
 
+/** A token as Alpaca issues it (printable ASCII, no spaces), checked before it goes into a header for the same reason. */
+const TOKEN_RE = /^[\x21-\x7e]{8,512}$/;
+
+/** The fixed message for an OAuth token that is not well formed. It never quotes the token. */
+export const MALFORMED_TOKEN_MESSAGE = "the Alpaca OAuth token has characters a token can't have: connect the Alpaca account again";
+
+/** A key pair or a token that is safe to put in a header. A value carrying both forms is refused: one or the other. */
+export function isWellFormedCredential(c: unknown): c is AlpacaCredential {
+  if (isOAuthToken(c)) return typeof c.access_token === "string" && TOKEN_RE.test(c.access_token) && !("key_id" in c) && !("secret_key" in c);
+  return isWellFormedKey(c as AlpacaKey | undefined);
+}
+
+/** The fixed message for a credential that is not well formed, by its kind. */
+export function malformedMessage(c: unknown): string {
+  return isOAuthToken(c) ? MALFORMED_TOKEN_MESSAGE : MALFORMED_KEY_MESSAGE;
+}
+
 /**
  * Why a request that carried the key failed, without its message: fetch's own errors can quote request headers.
  * Only the error's class name is kept (TypeError, AbortError), which never carries data.
@@ -54,8 +86,10 @@ export function failureName(e: unknown): string {
   return typeof name === "string" && /^[A-Za-z]{1,40}$/.test(name) ? name : "Error";
 }
 
-export function alpacaHeaders(key: AlpacaKey, extra: Record<string, string> = {}): Record<string, string> {
-  return { "apca-api-key-id": key.key_id, "apca-api-secret-key": key.secret_key, accept: "application/json", "user-agent": USER_AGENT, ...extra };
+/** The request headers for a key pair (`APCA-API-*`) or an OAuth token (`Authorization: Bearer`). `extra` can't replace them. */
+export function alpacaHeaders(cred: AlpacaCredential, extra: Record<string, string> = {}): Record<string, string> {
+  const auth: Record<string, string> = isOAuthToken(cred) ? { authorization: `Bearer ${cred.access_token}` } : { "apca-api-key-id": cred.key_id, "apca-api-secret-key": cred.secret_key };
+  return { accept: "application/json", "user-agent": USER_AGENT, ...extra, ...auth };
 }
 
 /** Alpaca's error body is `{code, message}`; only the message is kept, cut short (it may echo a symbol, never a key). */
@@ -79,14 +113,19 @@ export function isAlpacaReadOnlyClient(x: unknown): x is AlpacaReadOnlyClient {
 }
 
 /** The only reads `resolve` makes: the account, the market clock, one asset, one position, one order, the latest trade of one symbol. */
-const READ_PATHS: Record<AlpacaApi, RegExp> = {
+export const READ_PATHS: Readonly<Record<AlpacaApi, RegExp>> = {
   trading: new RegExp(`^/v2/(account|clock|assets/${SYMBOL_BODY}|positions/${SYMBOL_BODY}|orders/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$`),
   data: new RegExp(`^/v2/stocks/${SYMBOL_BODY}/trades/latest(\\?feed=(iex|sip))?$`),
 };
 
+/** Whether `path` is one of the reads `resolve` makes on `api`. Signeto Cloud checks reads with this same list. */
+export function isAllowedRead(api: unknown, path: unknown): api is AlpacaApi {
+  return (api === "trading" || api === "data") && typeof path === "string" && READ_PATHS[api].test(path);
+}
+
 export interface ReadOnlyClientOptions {
-  /** Reads the key pair from the gateway's store for each request; nothing is cached here. */
-  key: () => AlpacaKey | undefined;
+  /** Reads the credential (the key pair from the gateway's store, or an OAuth token) for each request; nothing is cached here. */
+  key: () => AlpacaCredential | undefined;
   fetch?: FetchFn;
 }
 
@@ -95,10 +134,10 @@ export function createReadOnlyClient(opts: ReadOnlyClientOptions): AlpacaReadOnl
   const f = opts.fetch ?? globalThis.fetch;
   return {
     async get(api, path, o = {}) {
-      if (!READ_PATHS[api].test(path)) throw new AdapterError("resolve_failed", `read-only client refuses ${api} ${path}`);
+      if (!isAllowedRead(api, path)) throw new AdapterError("resolve_failed", `read-only client refuses ${api} ${path}`);
       const key = opts.key();
-      if (!key?.key_id || !key.secret_key) throw new AdapterError("resolve_failed", "the Alpaca key is not set: signeto secrets set alpaca key_id, then secret_key");
-      if (!isWellFormedKey(key)) throw new AdapterError("resolve_failed", MALFORMED_KEY_MESSAGE);
+      if (!key || (!isOAuthToken(key) && (!key.key_id || !key.secret_key))) throw new AdapterError("resolve_failed", "the Alpaca key is not set: signeto secrets set alpaca key_id, then secret_key");
+      if (!isWellFormedCredential(key)) throw new AdapterError("resolve_failed", malformedMessage(key));
       const base = api === "trading" ? ALPACA_PAPER_BASE : ALPACA_DATA_BASE;
       let res: Response;
       try {

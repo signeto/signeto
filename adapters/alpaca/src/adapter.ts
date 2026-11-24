@@ -7,6 +7,7 @@
 //            is refused, so "sell" on the card always means selling shares you own.
 // custody    hands the stored key pair to execute for this one approved action. Alpaca keys are all or nothing, so
 //            the narrowing is the adapter's discipline: one order request per approval, then the key is dropped.
+//            On Signeto Cloud the credential is an OAuth token instead, wrapped the same way by `oauthCredential`.
 // execute    sends at most one write request (the order, or the cancel). The order carries the action id as its
 //            `client_order_id`, so Alpaca itself refuses a second order for the same approval. An order valued from
 //            the market (market orders, sell limits) is re-priced first and refused if its value moved more than
@@ -16,7 +17,7 @@ import type { Adapter, CredentialContext, Credential, ExecuteContext, FrozenActi
 import type { JsonValue } from "@signeto/protocol";
 import { AdapterError } from "@signeto/adapter-sdk";
 import { ACTION_ID_RE } from "@signeto/protocol";
-import { ALPACA_DATA_BASE, ALPACA_PAPER_BASE, AlpacaApiError, MALFORMED_KEY_MESSAGE, alpacaHeaders, errorMessage, failureName, isAlpacaReadOnlyClient, isWellFormedKey, type AlpacaKey, type AlpacaReadOnlyClient, type FetchFn } from "./client.js";
+import { ALPACA_DATA_BASE, ALPACA_PAPER_BASE, AlpacaApiError, MALFORMED_KEY_MESSAGE, MALFORMED_TOKEN_MESSAGE, alpacaHeaders, errorMessage, failureName, isAlpacaReadOnlyClient, isWellFormedCredential, isWellFormedKey, type AlpacaCredential, type AlpacaReadOnlyClient, type FetchFn } from "./client.js";
 import { centsOf, formatPrice, notionalCents, parsePrice, usd } from "./decimal.js";
 import { ACCOUNT_LABEL, MAX_QTY, ORDER_ID_PATTERN, ORDER_STATUSES, ORDER_TYPES, SECRET_KEY_ID, SECRET_SECRET_KEY, SIDES, SYMBOL_PATTERN, TIMES_IN_FORCE, manifest, termsOf } from "./manifest.js";
 
@@ -43,9 +44,9 @@ export interface AlpacaAdapterOptions {
   cancelAnyOrder?: boolean;
 }
 
-/** What custody hands to execute: the key pair for one request, dropped by `revoke` when the gateway is done. */
+/** What custody hands to execute: the key pair (or OAuth token) for one request, dropped by `revoke` when done. */
 interface CustodyMaterial {
-  key: AlpacaKey | undefined;
+  key: AlpacaCredential | undefined;
   /** Set when the one write request is sent: a second one with the same credential is refused. */
   spent: boolean;
 }
@@ -116,7 +117,7 @@ export function createAlpacaAdapter(opts: AlpacaAdapterOptions = {}): Adapter {
 
     async execute(ctx: ExecuteContext, action: FrozenAction, credential: Credential): Promise<ToolResult> {
       const m = credential.material as Partial<CustodyMaterial> | undefined;
-      if (!m || typeof m !== "object" || !m.key?.key_id || !m.key.secret_key) throw new AdapterError("credential_failed", "credential material is not an Alpaca key pair");
+      if (!m || typeof m !== "object" || !isWellFormedCredential(m.key)) throw new AdapterError("credential_failed", "credential material is not an Alpaca key pair or OAuth token");
       const key = m.key;
       const signal = signalFor(ctx.deadline);
       const call: Call = (base, path, init = {}, own) => request(ctx.fetch, base + path, { ...init, headers: alpacaHeaders(key, init.body ? { "content-type": "application/json" } : {}), signal: own ?? signal });
@@ -142,6 +143,25 @@ export function createAlpacaAdapter(opts: AlpacaAdapterOptions = {}): Adapter {
 
 /** Default instance: global fetch, wall clock. */
 export const alpacaAdapter: Adapter = createAlpacaAdapter();
+
+/**
+ * Signeto Cloud: its custody service wraps the tenant's OAuth token for one
+ * approved action, exactly as `custody` wraps the key pair, and hands it to `execute`. The token is never logged: the
+ * scope names the kind of credential and the action only.
+ */
+export function oauthCredential(access_token: string, action: FrozenAction, deadline: Date): Credential {
+  const key = { access_token };
+  if (!isWellFormedCredential(key)) throw new AdapterError("credential_failed", MALFORMED_TOKEN_MESSAGE);
+  const material: CustodyMaterial = { key, spent: false };
+  return {
+    material,
+    expiresAt: actionExpiry(action, deadline),
+    scope: `hosted: alpaca paper OAuth token, one ${shortTool(action.tool)} request for ${action.id}`,
+    revoke: async () => {
+      material.key = undefined;
+    },
+  };
+}
 
 // ---------- resolve ----------
 

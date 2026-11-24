@@ -2,9 +2,11 @@
 import { generateKeyPairSync } from "node:crypto";
 import { buildCanonicalAction, gatewayIdFromJwk, type JsonValue } from "@signeto/protocol";
 import type { CredentialContext, ExecuteContext, FrozenAction, Logger, ResolveContext } from "@signeto/adapter-sdk";
-import { createReadOnlyClient, manifest } from "../src/index.js";
+import { createReadOnlyClient, manifest, type AlpacaCredential } from "../src/index.js";
 
 export const KEY = { key_id: "PKTESTKEYID0000ABCD", secret_key: "s3cr3t-paper-secret-key-do-not-leak-1234567890" };
+/** An OAuth access token, as Signeto Cloud holds one. */
+export const TOKEN = "0a1b2c3d-oauth-token-do-not-leak-4e5f6a7b8c9d";
 
 export interface RecordedCall {
   method: string;
@@ -53,6 +55,8 @@ export class FakeAlpaca {
   lookupFailures = 0;
   /** This many client-id lookups answer 404 even when the order exists (it hasn't shown up yet). */
   lookupLag = 0;
+  /** Also accept this OAuth token (`Authorization: Bearer`). Keys are accepted either way. */
+  oauthToken: string | undefined;
   /** Market orders fill on the next read back. */
   fillOnRead = true;
   private n = 0;
@@ -66,7 +70,9 @@ export class FakeAlpaca {
     const path = u.pathname + u.search;
     this.calls.push({ method, host: u.host, path, headers, body });
     const send = (status: number, b?: unknown) => (b === undefined ? new Response(null, { status }) : new Response(JSON.stringify(b), { status, headers: { "content-type": "application/json" } }));
-    if (headers["apca-api-key-id"] !== KEY.key_id || headers["apca-api-secret-key"] !== KEY.secret_key) return send(401, { code: 40110000, message: "request is not authorized" });
+    const keyOk = headers["apca-api-key-id"] === KEY.key_id && headers["apca-api-secret-key"] === KEY.secret_key;
+    const tokenOk = this.oauthToken !== undefined && headers["authorization"] === `Bearer ${this.oauthToken}`;
+    if (!keyOk && !tokenOk) return send(401, { code: 40110000, message: "request is not authorized" });
     if (u.host === "data.alpaca.markets") {
       const m = /^\/v2\/stocks\/([^/]+)\/trades\/latest$/.exec(u.pathname);
       const p = m ? this.prices.get(decodeURIComponent(m[1] as string)) : undefined;
@@ -178,8 +184,8 @@ export function recordingLogger() {
 
 export const future = (ms = 30_000) => new Date(Date.now() + ms);
 
-export function resolveCtx(fake: FakeAlpaca, l: Logger = logger): ResolveContext {
-  return { upstream: createReadOnlyClient({ key: () => KEY, fetch: fake.fetch }), deadline: future(), logger: l };
+export function resolveCtx(fake: FakeAlpaca, l: Logger = logger, cred: AlpacaCredential = KEY): ResolveContext {
+  return { upstream: createReadOnlyClient({ key: () => cred, fetch: fake.fetch }), deadline: future(), logger: l };
 }
 
 export function credentialCtx(fake: FakeAlpaca, secrets: Record<string, string> = KEY, l: Logger = logger): CredentialContext {

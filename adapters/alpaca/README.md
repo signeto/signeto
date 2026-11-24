@@ -27,8 +27,14 @@ agent, and the gateway narrows its use by the adapter's discipline, not by an up
   its value moved more than 5% from what you signed.
 - The gateway calls `revoke` when execute is done, and the adapter drops its reference to the key.
 
-Because the gateway holds a long-lived key, the policy must say so (see Policy). Signeto Cloud never runs custody
-adapters: Alpaca is for self-hosted gateways only.
+Because the gateway holds a long-lived key, the policy must say so (see Policy). Today Alpaca runs on self-hosted
+gateways only.
+
+The adapter also accepts an Alpaca OAuth access token instead of a key pair (`oauthCredential`, and
+`createReadOnlyClient` with `{access_token}`), for a planned Signeto Cloud integration in which a separate Signeto
+service would hold a paper-only OAuth token instead of your key and run this same code. It sends
+`Authorization: Bearer` instead of the `APCA-API-*` headers; everything else above applies unchanged. It isn't
+offered yet.
 
 ## Tools
 
