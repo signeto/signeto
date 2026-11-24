@@ -1,0 +1,29 @@
+{
+  "description": "signeto.custody_connect v1: an argument beside the five it names (here a token) → unverified",
+  "inputs": {
+    "canonical_bytes": "{\"args_resolved\":{\"access_token\":\"not-for-the-card\",\"account\":\"paper\",\"account_last4\":\"FGH7\",\"adapter\":\"alpaca\",\"connection_id\":\"cxn_01JCT0C0NNECT10N00000000AB\",\"gateway\":\"trader\"},\"expires_at\":\"2026-11-24T12:03:00.000Z\",\"idempotency_key\":\"ee5d81b3b8c23184e09507e04688eb22df0b6cefb770d8eb2f827289e97542bd\",\"issued_at\":\"2026-11-24T12:00:00.000Z\",\"mode\":\"enforce\",\"nonce\":\"Q3VzdG9keUNvbm5lY3RWQg\",\"origin_hash\":\"60fbc83b8a24b4e9828d4524bcdff6d0e44b2d8c7d327c83a9e718e09217b48f\",\"protocol_version\":\"1.0\",\"requester\":{\"agent\":\"signeto portal\",\"gateway_id\":\"gw_jtl8uXbA19Z9r2ZrSBMGyfEddtXMM_d4wo1k0O_GMrs\",\"host\":\"signeto-cloud-t7f3k2q9\",\"session_id\":\"portal\"},\"template_id\":\"signeto.custody_connect\",\"template_version\":1,\"tier\":3,\"tool\":\"signeto.custody_connect\"}",
+    "registries": [
+      {
+        "adapter": "signeto",
+        "templates": [
+          {
+            "template_id": "signeto.custody_connect",
+            "template_version": 1,
+            "text": "Connect Alpaca {account} account …{account_last4} to gateway {gateway}. Signeto Cloud keeps an access token for this account (place and cancel orders, read market data) and uses it only for orders your policy allows.",
+            "sha256": "8ca58c42064b77ab6cfb8955402b4162d2344362ef083e12174db27ea9ca8b81",
+            "elide": [
+              "adapter",
+              "connection_id"
+            ],
+            "note": "Connection {connection_id}."
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "status": "unverified",
+    "reason": "unreferenced_key",
+    "detail": "access_token"
+  }
+}

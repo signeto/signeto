@@ -1,0 +1,17 @@
+{
+  "description": "signeto.custody_connect v1: text, elide and note, so the hash input is their JCS object",
+  "inputs": {
+    "template": {
+      "text": "Connect Alpaca {account} account …{account_last4} to gateway {gateway}. Signeto Cloud keeps an access token for this account (place and cancel orders, read market data) and uses it only for orders your policy allows.",
+      "elide": [
+        "adapter",
+        "connection_id"
+      ],
+      "note": "Connection {connection_id}."
+    }
+  },
+  "expected": {
+    "hash_input": "{\"elide\":[\"adapter\",\"connection_id\"],\"note\":\"Connection {connection_id}.\",\"text\":\"Connect Alpaca {account} account …{account_last4} to gateway {gateway}. Signeto Cloud keeps an access token for this account (place and cancel orders, read market data) and uses it only for orders your policy allows.\"}",
+    "sha256": "8ca58c42064b77ab6cfb8955402b4162d2344362ef083e12174db27ea9ca8b81"
+  }
+}

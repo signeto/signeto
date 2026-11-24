@@ -100,6 +100,19 @@ export const signetoRegistry: TemplateRegistry = {
     // a request that carries anything else (the token's hash, say) renders unverified. `key_id` is the first 12
     // characters of the token's secret, which the page that made the token shows next to it.
     t("signeto.agent_token_add", 1, "Let a new agent connect to this gateway: {name} (key {key_id})"),
+    // Connecting an Alpaca paper account to a hosted gateway (SIG-224): bundled, because this approval is what lets
+    // Signeto Cloud's custody service use the account's OAuth token. The account is named by the last 4 characters of
+    // its number (all the gateway learns of it). `account` ("paper") is in the sentence. `adapter` is elided: it is
+    // always "alpaca", which the sentence says in words, and signeto-custody refuses anything else. The connection id
+    // is elided from the sentence and shown on the note line (as place_order v3's last trade), so the approval names
+    // exactly the connection that is waiting.
+    t(
+      "signeto.custody_connect",
+      1,
+      "Connect Alpaca {account} account …{account_last4} to gateway {gateway}. Signeto Cloud keeps an access token for this account (place and cancel orders, read market data) and uses it only for orders your policy allows.",
+      ["adapter", "connection_id"],
+      { note: "Connection {connection_id}." },
+    ),
   ],
 };
 
